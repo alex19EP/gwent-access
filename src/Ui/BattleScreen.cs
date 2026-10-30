@@ -32,6 +32,9 @@ namespace GwentAccess.Ui
     {
         public override string Key => "battle";
 
+        // A played card's hand slot is refilled by the next card under the same path.
+        public override bool ReturnsToOpener => false;
+
         private sealed class Row
         {
             public string Key;

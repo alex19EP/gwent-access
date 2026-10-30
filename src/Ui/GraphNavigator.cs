@@ -16,6 +16,12 @@ namespace GwentAccess.Ui
     /// stops, Home/End jump to the ends, Enter activates, Backspace is the secondary action, Space reads the
     /// details. Escape stays the game's own Back. Ctrl/Alt chords are left to the legacy hotkeys.
     ///
+    /// Return to the opener: a control Enter activated that then leaves the graph opened something in its
+    /// place (a picker, a list, the next menu page). When it comes back (that thing closed), the cursor
+    /// returns to it, and holds the game's selection there for a moment — the game itself tends to drop
+    /// its selection on some other control (the mode card) as a panel closes. Screens opt out with
+    /// <see cref="Screen.ReturnsToOpener"/>.
+    ///
     /// Shaped after RTAccess's and WrathAccess's GraphNavigator, without type-ahead or sounds (yet).
     /// </summary>
     internal static class GraphNavigator
@@ -59,6 +65,8 @@ namespace GwentAccess.Ui
             _spokenNode = null;
             _syncedKey = null;
             _observedGame = IntPtr.Zero; // the first frame follows whatever the game has selected
+            _activated = null;
+            _hold = null;
             if (screen == null)
             {
                 _state = null;
@@ -70,13 +78,18 @@ namespace GwentAccess.Ui
             _graph = new KeyGraph(() => Render(screen), _state);
         }
 
-        public static void ScreenClosed(Screen screen) => _states.Remove(screen);
+        public static void ScreenClosed(Screen screen)
+        {
+            _states.Remove(screen);
+            _openers.Remove(screen);
+        }
 
         /// <summary>Module dispose: forget every screen and give the game its keys back.</summary>
         public static void Reset()
         {
             Attach(null);
             _states.Clear();
+            _openers.Clear();
             GameKeyBlock.Release();
         }
 
@@ -103,7 +116,8 @@ namespace GwentAccess.Ui
         private static void Settle()
         {
             if (!_graph.Rerender()) return; // no content this frame; the cursor survives for the next one
-            FollowGame();
+            ReturnToOpener();
+            if (!Hold()) FollowGame();
             var node = _graph.CurrentNode;
             if (node == null) return;
             if (_spokenKey == null || !_spokenKey.Equals(node.Id))
@@ -149,6 +163,89 @@ namespace GwentAccess.Ui
                 _syncedKey = target.Id; // the game is already there; nothing to write back
                 return;
             }
+        }
+
+        // ---- return to the opener ----
+
+        private const float OpenerWindow = 2f;  // an activation that hasn't removed its control by then opened nothing
+        private const float HoldSeconds = 1.5f;
+        private const int MaxOpeners = 8;
+
+        // Per live screen, the activated controls that left the graph, oldest first.
+        private static readonly Dictionary<Screen, List<ControlId>> _openers = new Dictionary<Screen, List<ControlId>>();
+
+        // The control Enter last activated, until it leaves the graph or the window passes.
+        private static ControlId _activated;
+        private static float _activatedAt;
+
+        // A returned-to control the cursor and the game's selection are held on, until a deadline or a key.
+        private static ControlId _hold;
+        private static float _holdUntil;
+        private static int _holdFrame;
+
+        private static void Activated(GraphNode node)
+        {
+            if (!_screen.ReturnsToOpener) return;
+            _activated = node.Id;
+            _activatedAt = Time.realtimeSinceStartup;
+        }
+
+        private static void ReturnToOpener()
+        {
+            if (!_screen.ReturnsToOpener) return;
+            var render = _graph.Current;
+            float now = Time.realtimeSinceStartup;
+            if (_activated != null)
+            {
+                if (render.NodeAt(_activated) == null)
+                {
+                    if (!_openers.TryGetValue(_screen, out var stack)) _openers[_screen] = stack = new List<ControlId>();
+                    stack.Remove(_activated);
+                    stack.Add(_activated);
+                    if (stack.Count > MaxOpeners) stack.RemoveAt(0);
+                    _activated = null;
+                }
+                else if (now - _activatedAt > OpenerWindow) _activated = null;
+            }
+
+            // The newest opener back in the graph wins; whatever it opened since is gone with it.
+            if (!_openers.TryGetValue(_screen, out var openers)) return;
+            for (int i = openers.Count - 1; i >= 0; i--)
+            {
+                if (render.NodeAt(openers[i]) == null) continue;
+                var id = openers[i];
+                openers.RemoveRange(i, openers.Count - i);
+                if (!_graph.Focus(id)) return;
+                _hold = _graph.CurrentNode.Id;
+                _holdUntil = now + HoldSeconds;
+                _holdFrame = Time.frameCount;
+                return;
+            }
+        }
+
+        // While holding: keep the cursor on the held control and put the game's selection back on it, instead
+        // of following the game. A key pressed after the hold began releases it, as does the deadline.
+        private static bool Hold()
+        {
+            if (_hold == null) return false;
+            var node = _graph.Current.NodeAt(_hold);
+            if (node == null || Time.realtimeSinceStartup > _holdUntil || Time.frameCount != _holdFrame && Keys.AnyDown())
+            {
+                _hold = null;
+                return false;
+            }
+            if (_graph.CurrentNode == null || !_graph.CurrentNode.Id.Equals(node.Id)) _graph.Focus(node.Id);
+            if (node.Id.Reference is CrimsonUI.AControl c)
+            {
+                CrimsonUI.AControl sel = null;
+                try { sel = _screen.GameSelection(); } catch { }
+                if (sel == null || sel.Pointer != c.Pointer)
+                    try { _screen.OnCursorMoved(node); }
+                    catch (Exception e) { ScreenManager.LogOnce(_screen, "OnCursorMoved", e); }
+                _observedGame = c.Pointer; // the game sits here once the hold ends; nothing to follow then
+            }
+            _syncedKey = node.Id;
+            return true;
         }
 
         private static void SyncGame(GraphNode node)
@@ -260,6 +357,7 @@ namespace GwentAccess.Ui
             var node = _graph.CurrentNode;
             if (node == null) return;
             Plugin.LogInfo("[nav] activate " + node.Id.StructuralKey);
+            Activated(node);
             Run(node.Vtable.OnActivate, () => _graph.Activate());
         }
 

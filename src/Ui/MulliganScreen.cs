@@ -20,6 +20,9 @@ namespace GwentAccess.Ui
         public override string Key => "mulligan";
         public override int Layer => 1;
 
+        // A swapped card's slot comes back holding its replacement.
+        public override bool ReturnsToOpener => false;
+
         public override string ScreenName
         {
             get

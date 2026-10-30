@@ -50,6 +50,12 @@ namespace GwentAccess.Ui
         /// <summary>Tab past the last stop returns to the first.</summary>
         public virtual bool Wrap => true;
 
+        /// <summary>When a control the player activated leaves the graph (a picker or list took its place) and
+        /// later comes back, the cursor returns to it instead of following the game's selection (see
+        /// <see cref="GraphNavigator"/>). Off for screens whose controls come back as different things under
+        /// the same path (a hand slot refilled by the next card).</summary>
+        public virtual bool ReturnsToOpener => true;
+
         /// <summary>The screen's own keys, checked before the navigator's.</summary>
         public virtual IReadOnlyList<ScreenKey> ExtraKeys => Array.Empty<ScreenKey>();
 
