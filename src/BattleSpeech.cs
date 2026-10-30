@@ -215,15 +215,11 @@ namespace GwentAccess
         }
     }
 
-    /// <summary>Polls the match a few times a second and announces turns, passes, rounds and opponent plays.</summary>
+    /// <summary>Polls the match a few times a second for the legacy mulligan and play tracking. Turns, passes,
+    /// rounds and plays are spoken by the <see cref="Narrator"/>, from the game's own events.</summary>
     internal static class BattleWatcher
     {
         private static float _next;
-        private static IntPtr _gc = IntPtr.Zero;
-        private static EPlayerId _turn;
-        private static int _round = -1;
-        private static bool _oppPassed, _mePassed, _ended;
-        private static HashSet<ushort> _oppBoard = new HashSet<ushort>();
 
         public static void Tick()
         {
@@ -232,71 +228,11 @@ namespace GwentAccess
             try
             {
                 var gc = Battle.Controller();
-                if (gc == null) { _gc = IntPtr.Zero; return; }
-                var pm = gc.PlayerManager;
-                var me = pm.LocalUser;
-                var opp = me.OpponentPlayer;
-                var them = Battle.Them(gc);
+                if (gc == null) return;
                 HandNav.CheckMulligan(gc);
                 PlayTracker.Tick(gc);
-
-                if (gc.Pointer != _gc)
-                {
-                    _gc = gc.Pointer;
-                    _turn = pm.CurrentPlayerId; _round = gc.RoundManager.CurrentRoundIndex;
-                    _oppPassed = opp.HasPassed; _mePassed = me.HasPassed; _ended = false;
-                    _oppBoard = BoardIds(gc, them);
-                    Plugin.LogInfo("Battle watcher attached.");
-                    { var ms = "Match started. To swap starting cards: Control Right or Left to pick, Control M to swap. To play a card: Control Right or Left to pick a card from your hand, Enter to pick it up, arrows to choose a row, Enter to place it. You play one card per turn, then Control E ends your turn. Control P twice: pass. Control Up and Down: opponent's cards. Control S: score. Control H: hand. Control 1 to 4: rows. Control L: leaders. Control G: deck and graveyard."; Speech.Say(ms, false); Speech.Remember(ms); }
-                    return;
-                }
-
-                int round = gc.RoundManager.CurrentRoundIndex;
-                if (round != _round)
-                {
-                    _round = round;
-                    _oppPassed = false; _mePassed = false;
-                    Speech.Say("Round " + (round + 1) + " begins. Rounds won: you " + me.Crowns + ", opponent " + opp.Crowns + ".", false);
-                }
-
-                // New opponent cards on the board
-                var now = BoardIds(gc, them);
-                foreach (var id in now)
-                {
-                    if (_oppBoard.Contains(id)) continue;
-                    var c = gc.CardManager.GetCard(id);
-                    if (c == null) continue;
-                    Speech.Say("Opponent played " + CardText.Describe(c) + " On " + Battle.Place(gc, c.Position) + ".", false);
-                }
-                _oppBoard = now;
-
-                if (opp.HasPassed && !_oppPassed) { _oppPassed = true; Speech.Say("Opponent passed. Their score " + opp.CurrentScore + ", yours " + me.CurrentScore + ".", false); }
-                if (me.HasPassed && !_mePassed) { _mePassed = true; Speech.Say("You passed.", false); }
-
-                var turn = pm.CurrentPlayerId;
-                if (turn != _turn)
-                {
-                    _turn = turn;
-                    if (turn == Battle.Me(gc)) Speech.Say("Your turn. Score: you " + me.CurrentScore + ", opponent " + opp.CurrentScore + ".", false);
-                    else Speech.Say("Opponent's turn.", false);
-                }
-
-                if (gc.HasEnded && !_ended)
-                {
-                    _ended = true;
-                    var w = gc.RoundManager.GetWinner();
-                    Speech.Say(w == Battle.Me(gc) ? "Match over. You won!" : (w == them ? "Match over. You lost." : "Match over. Draw."), false);
-                }
             }
             catch (Exception e) { Plugin.LogInfo("BattleWatcher error: " + e.Message); }
-        }
-
-        private static HashSet<ushort> BoardIds(GameController gc, EPlayerId who)
-        {
-            var s = new HashSet<ushort>();
-            foreach (var c in Battle.Cards(gc, who, ELocation.Melee)) s.Add(c.Id);
-            foreach (var c in Battle.Cards(gc, who, ELocation.Ranged)) s.Add(c.Id);
-            return s;
         }
     }
 }

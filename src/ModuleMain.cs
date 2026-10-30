@@ -45,6 +45,7 @@ namespace GwentAccess
         public void Tick()
         {
             BattleWatcher.Tick();
+            Narrator.Tick();
             Ui.ScreenManager.Tick();
             Ui.GraphNavigator.Tick();
         }

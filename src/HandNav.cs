@@ -296,6 +296,9 @@ namespace GwentAccess
             var pm = gc.PlayerManager;
             var opp = pm.LocalUser.OpponentPlayer;
 
+            // The graph battle screen and the narrator speak plays and their results themselves.
+            if (Ui.GraphNavigator.Owns) { _checkAt = -1; _handAtStart = null; _endAskedAt = -1; }
+
             if (_checkAt > 0 && now >= _checkAt && SelectionModePatch.Current == EBattleNavigationMode.Normal)
             {
                 _checkAt = -1;

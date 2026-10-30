@@ -49,6 +49,6 @@ The dev server (port 8773) exists only in Debug builds and only starts when `dev
 ## Conventions
 
 - Code comments are explanatory XML-doc style and cite spec sections; match that density.
-- Card text is in the game's language; mod-authored words are English.
+- Speech reuses the game's own translation strings (`LocalizationManager.Instance.Translations`, looked up by key at runtime) wherever one exists, enriched only with what a sighted player can see (e.g. the scores beside the board). Mod-authored English is the fallback for things the game has no string for.
 - Logs (`BepInEx\LogOutput.log`) record every spoken line and hotkey — check `just log` / `just speech` to verify behavior.
 - `justfile` is not committed (excluded by the user's global gitignore); `.env` is local.
