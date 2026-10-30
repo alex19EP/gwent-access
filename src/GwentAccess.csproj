@@ -14,6 +14,8 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <Import Project="GameReferences.props" />
+  <!-- Builds third_party/prism and drops prism.dll into $(TargetDir); the host loads it (Host/Prism.cs). -->
+  <Import Project="..\build\Prism.targets" />
   <ItemGroup>
     <Compile Include="Host\**\*.cs;Dev\**\*.cs" />
   </ItemGroup>
@@ -25,11 +27,13 @@
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.0.1" PrivateAssets="all" />
   </ItemGroup>
-  <!-- dotnet build -p:Deploy=true copies the host (and in Debug, Roslyn) into the game's plugin folder.
+  <!-- dotnet build -p:Deploy=true copies the host, prism.dll (and in Debug, Roslyn) into the game's plugin folder.
        Building the module with -p:Deploy=true builds and deploys this too. -->
   <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(Deploy)' == 'true'">
     <ItemGroup>
       <DeployFiles Include="$(OutDir)GwentAccess.dll;$(OutDir)GwentAccess.pdb;$(OutDir)Microsoft.CodeAnalysis*.dll" />
+      <!-- Absent only in a Debug build with SkipPrismBuild (BuildPrism warned already). -->
+      <DeployFiles Include="$(OutDir)prism.dll" Condition="Exists('$(OutDir)prism.dll')" />
     </ItemGroup>
     <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(PluginDeployDir)" />
   </Target>

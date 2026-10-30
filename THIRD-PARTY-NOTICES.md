@@ -16,6 +16,39 @@ dev server in `src/Dev/` is ported from it as well.
 
 ---
 
+## Prism
+
+Native screen-reader / TTS abstraction library (`prism.dll`), used for speech output. Shipped in the player zip
+next to `GwentAccess.dll`.
+
+- Copyright © the Prism authors.
+- Source: https://github.com/ethindp/prism
+- License: **Mozilla Public License 2.0 (MPL-2.0)**: https://mozilla.org/MPL/2.0/
+
+`prism.dll` is compiled from unmodified upstream sources, vendored as the git submodule `third_party/prism` and
+pinned to an exact commit. That pin, plus `scripts/build-prism.ps1`, is the complete recipe for reproducing the
+binary we ship. Under the MPL-2.0 the corresponding source is also available from the repository linked above.
+
+Prism statically links the following into `prism.dll` on Windows:
+
+- **simdutf**: Apache-2.0
+- **{fmt}**: MIT
+- **Highway**: Apache-2.0 / BSD-3-Clause (dual)
+- **concurrentqueue**: BSD-2-Clause
+- **dr_wav** (dr_libs): public domain
+- **Moderncom**: MIT
+- **NVDA Controller Client** RPC definitions (and the stubs MIDL generates from them): originally LGPL-2.1,
+  relicensed to MPL-2.0 by the Prism project with permission
+- **SAPI bridge** and the `range_convert` helpers: credited to the [NVGT](https://github.com/samtupy/nvgt) project
+
+Full license texts for Prism and its bundled components are in the `LICENSES/` directory of the Prism repository
+(`third_party/prism/LICENSES/`).
+
+Gwent Access no longer ships NVDA's `nvdaControllerClient.dll`: Prism generates the NVDA RPC client stubs at build
+time from `idl/nvdaController.idl` and links `rpcrt4`, so it reaches a running NVDA directly.
+
+---
+
 ## WrathAccess (ported code and design)
 
 The graph navigation kernel (`src/Access.Core/Graph/`: key graph, builder, path announcer, control identity)

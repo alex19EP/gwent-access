@@ -20,6 +20,7 @@ You will need sighted help once to log in to GOG through Gwent's launcher. After
 Requirements:
 - .NET SDK 6 or newer.
 - Gwent installed with **BepInEx 6.0.0-be.790 (IL2CPP)**, started once so BepInEx generates `BepInEx\interop`.
+- For speech: CMake 3.24+ and Visual Studio Build Tools with the C++ workload. The [Prism](https://github.com/ethindp/prism) speech library is a git submodule (`git submodule update --init third_party/prism`, with `git config core.longpaths true`) that the build compiles into `prism.dll` (`scripts/build-prism.ps1`; it only rebuilds when the submodule moves). A Debug build can skip it with `-p:SkipPrismBuild=true`, but has no speech then.
 
 ```
 dotnet build module/GwentAccess.Module.csproj -c Release -p:Deploy=true
@@ -27,7 +28,7 @@ dotnet build module/GwentAccess.Module.csproj -c Release -p:Deploy=true
 
 If Gwent isn't in the default Steam folder, add `-p:GwentDir="D:\path\to\GWENT The Witcher Card Game"`.
 
-The mod is two assemblies. `GwentAccess.dll` (`src/Host`, `src/Dev`) is the small BepInEx plugin; it loads everything else from `Module\GwentAccess.Module.dll`. `-p:Deploy=true` copies both into `BepInEx\plugins\GwentAccess\` (close the game first). NVDA's `nvdaControllerClient.dll` (64-bit) goes in that folder too.
+The mod is two assemblies. `GwentAccess.dll` (`src/Host`, `src/Dev`) is the small BepInEx plugin; it loads everything else from `Module\GwentAccess.Module.dll`. `-p:Deploy=true` copies both, and `prism.dll`, into `BepInEx\plugins\GwentAccess\` (close the game first).
 
 With [just](https://github.com/casey/just), `just all` runs the tests and deploys, and `just reload` swaps a rebuilt module into the running game (Debug builds with the dev server on). `just` lists the rest.
 
@@ -37,7 +38,7 @@ With [just](https://github.com/casey/just), `just all` runs the tests and deploy
 |---|---|
 | `Host/Plugin.cs`, `Host/ModuleLoader.cs` | BepInEx entry point; loads the module from bytes and swaps it on reload. |
 | `ModuleMain.cs` | Module entry; applies each Harmony patch separately so one failure can't disable the mod, and undoes everything on reload. |
-| `Speech.cs` | Talks to NVDA through `nvdaControllerClient.dll`. |
+| `Speech.cs`, `Host/Prism.cs` | Speaks through the screen reader via Prism; the host owns the native context so it survives module reloads. |
 | `Hotkeys.cs` | Reads the keyboard on a background thread; work runs on the game thread through `MainThread.cs`. |
 | `MenuSpeech.cs` | Hooks `CrimsonInputLayer.set_SelectedControl` and describes whatever the game selects. |
 | `Navigator.cs` | F2/F3 object navigation, sections (Shift+F2/F3), clicking, settings and deck builder lists, shop buying. |
@@ -54,4 +55,4 @@ Suggestions and pull requests are welcome. Please describe what you tested and o
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Gwent is a trademark of CD PROJEKT RED; this is an unofficial fan mod. BepInEx and NVDA's controller client are separate projects under their own licenses (LGPL 2.1).
+MIT. See [LICENSE](LICENSE). Gwent is a trademark of CD PROJEKT RED; this is an unofficial fan mod. BepInEx (LGPL 2.1) and Prism (MPL 2.0) are separate projects under their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

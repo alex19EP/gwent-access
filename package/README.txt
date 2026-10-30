@@ -10,7 +10,8 @@ and building decks. It was built and tested by a blind player, by ear, from scra
 WHAT YOU NEED
 - Windows 10 or 11, 64-bit.
 - Gwent: The Witcher Card Game installed from Steam.
-- NVDA running (tested with NVDA 2026.2).
+- NVDA running (tested with NVDA 2026.2). Speech goes through Prism, which also
+  supports other screen readers such as JAWS; those are untested.
 - A GOG account linked to Gwent. Gwent's launcher and login screens are NOT made
   accessible by this mod. You may need sighted help once to log in and accept the
   user agreement. After that, the Gwent Accessible shortcut skips the launcher.
@@ -148,5 +149,5 @@ CREDITS AND LICENSES
 Gwent Access: written by Claude (Anthropic) together with smoovgunner, a blind player
 who did all of the testing by ear. Source code is included in the GwentAccess-source zip.
 Uses BepInEx 6 (LGPL 2.1, https://github.com/BepInEx/BepInEx), HarmonyX and
-Il2CppInterop, and NVDA's controller client (LGPL 2.1, https://www.nvaccess.org).
+Il2CppInterop, and Prism for speech (MPL 2.0, https://github.com/ethindp/prism).
 Gwent is a trademark of CD PROJEKT RED. This is an unofficial fan mod.

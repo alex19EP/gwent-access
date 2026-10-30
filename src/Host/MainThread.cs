@@ -45,6 +45,6 @@ namespace GwentAccess
     [HarmonyPatch(typeof(CrimsonInputLayer), "UpdateSelectionNavigation")]
     internal static class FrameTickPatch
     {
-        static void Postfix() { MainThread.Drain(); ModuleLoader.Tick(); }
+        static void Postfix() { MainThread.Drain(); Prism.Tick(); ModuleLoader.Tick(); }
     }
 }

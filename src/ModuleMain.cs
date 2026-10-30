@@ -17,7 +17,7 @@ namespace GwentAccess
             Speech.Observer = Dev.DevServer.TapSpeech; // before the first Say, so /speech sees it
 #endif
             bool first = ModuleLoader.Generation == 1;
-            if (Speech.Init(Plugin.Dir, Plugin.LogInfo))
+            if (Speech.Init())
                 Speech.Say(first
                     ? "Gwent Access loaded. F3 and F2 move, F4 clicks, F1 card details, F6 keys, F8 reads the screen."
                     : "Gwent Access reloaded.");

@@ -1,47 +1,16 @@
 using System;
-using System.IO;
-using System.Runtime.InteropServices;
 
 namespace GwentAccess
 {
-    /// <summary>Sends text to NVDA through the NVDA controller client.</summary>
+    /// <summary>Sends text to the screen reader through the host's <see cref="Prism"/> context, which the host
+    /// initialises once per process so it outlives module reloads.</summary>
     internal static class Speech
     {
-        [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode)]
-        private delegate int SpeakTextFn([MarshalAs(UnmanagedType.LPWStr)] string text);
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        private delegate int NoArgFn();
-
-        private static SpeakTextFn _speak;
-        private static NoArgFn _cancel;
-        private static NoArgFn _test;
         private static readonly object Lock = new object();
 
-        public static bool Init(string pluginDir, Action<string> log)
-        {
-            try
-            {
-                string path = Path.Combine(pluginDir, "nvdaControllerClient.dll");
-                IntPtr lib = NativeLibrary.Load(path);
-                _speak = Marshal.GetDelegateForFunctionPointer<SpeakTextFn>(NativeLibrary.GetExport(lib, "nvdaController_speakText"));
-                _cancel = Marshal.GetDelegateForFunctionPointer<NoArgFn>(NativeLibrary.GetExport(lib, "nvdaController_cancelSpeech"));
-                _test = Marshal.GetDelegateForFunctionPointer<NoArgFn>(NativeLibrary.GetExport(lib, "nvdaController_testIfRunning"));
-                log("NVDA controller loaded. NVDA running: " + IsNvdaRunning);
-                return true;
-            }
-            catch (Exception e)
-            {
-                log("Could not load NVDA controller: " + e);
-                return false;
-            }
-        }
+        /// <summary>True when the host has a Prism backend to speak through (logged by the host when it has none).</summary>
+        public static bool Init() => Prism.Ready;
 
-        public static bool IsNvdaRunning
-        {
-            get { try { return _test != null && _test() == 0; } catch { return false; } }
-        }
-
-        /// <summary>Speak text. interrupt=true stops whatever NVDA is saying first.</summary>
         private static string _last = "";
         public static void Repeat() { if (_last.Length > 0) Say(_last, true); }
 
@@ -79,25 +48,23 @@ namespace GwentAccess
         }
 
 #if DEBUG
-        /// <summary>Sees every line before it goes to NVDA (the dev server's /speech feed).</summary>
+        /// <summary>Sees every line before it goes to the screen reader (the dev server's /speech feed).</summary>
         public static Action<string> Observer;
 #endif
 
+        /// <summary>Speak text. interrupt=true stops whatever is being said first.</summary>
         public static void Say(string text, bool interrupt = false)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
 #if DEBUG
             Observer?.Invoke(text);
 #endif
-            if (_speak == null) return;
+            if (!Prism.Ready) return;
             _last = text;
+            // Callers include the hotkey thread as well as the game thread.
             lock (Lock)
             {
-                try
-                {
-                    if (interrupt) _cancel();
-                    _speak(text);
-                }
+                try { Prism.Speak(text, interrupt); }
                 catch { }
             }
             Plugin.LogInfo("Spoke: " + text);
