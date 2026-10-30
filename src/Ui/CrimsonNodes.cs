@@ -79,16 +79,66 @@ namespace GwentAccess.Ui
         /// </summary>
         public static NodeVtable Button(AControl c, Func<string> label = null)
         {
+            var anns = new List<NodeAnnouncement>
+            {
+                new NodeAnnouncement(label ?? (() => Label(c)), kind: AnnouncementKinds.Label),
+                new NodeAnnouncement(() => SafeEnabled(c) ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+            };
+            var thumb = c.TryCast<VirtualSkinThumbnailButton>();
+            if (thumb != null)
+            {
+                if (label == null) anns[0] = new NodeAnnouncement(() => VanityLabel(thumb), kind: AnnouncementKinds.Label);
+                anns.Add(new NodeAnnouncement(() => thumb.m_VanityItem?.IsLocked == true
+                    ? GameText.Get("cosmetic_locked", "locked") : null, live: true, kind: AnnouncementKinds.Value));
+                anns.Add(new NodeAnnouncement(() => thumb.CanShowSelected && Shown(thumb.m_SelectedFrame) ? "selected" : null,
+                    live: true, kind: AnnouncementKinds.Selected));
+            }
             return new NodeVtable
             {
-                Announcements = new[]
-                {
-                    new NodeAnnouncement(label ?? (() => Label(c)), kind: AnnouncementKinds.Label),
-                    new NodeAnnouncement(() => SafeEnabled(c) ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
-                },
+                Announcements = anns,
                 OnActivate = () => Navigator.ClickControl(c),
                 OnTooltip = () => Speech.Say(Details(c), true),
             };
+        }
+
+        /// <summary>
+        /// A cosmetics thumbnail (the deck screen's customise buttons, the cosmetics picker's items and tabs)
+        /// is a picture only; it reads as what the picture shows: the item's own name, after the category
+        /// tooltip the game gives a customise button on hover ("Изменить рубашку"), then its visible unlock
+        /// progress ("0/3").
+        /// </summary>
+        private static string VanityLabel(VirtualSkinThumbnailButton t)
+        {
+            var parts = new List<string>();
+            try
+            {
+                if (VanityTooltip(t) is string tip) parts.Add(tip);
+                var key = t.m_VanityItem?.NameKey;
+                if (key != null && GameText.Get(key, null) is string name && !parts.Contains(name)) parts.Add(name);
+            }
+            catch { }
+            foreach (var s in Texts(t)) if (!parts.Contains(s)) parts.Add(s);
+            return parts.Count > 0 ? string.Join(", ", parts) : UiText.DescribeSelection(t);
+        }
+
+        // The hover tooltip of a main-menu customise button, from the stack panel's config for its type. The
+        // picker's own thumbnails share the panel but aren't its buttons, and have none.
+        private static string VanityTooltip(VirtualSkinThumbnailButton t)
+        {
+            var panel = t.GetComponentInParent<GwentUnity.MainMenu.UIMainMenuCardStackPanel>();
+            var buttons = panel?.m_VanityButtons;
+            if (buttons == null) return null;
+            bool own = false;
+            for (int i = 0; i < buttons.Count && !own; i++) own = buttons[i]?.Pointer == t.Pointer;
+            if (!own) return null;
+            foreach (var cfg in panel.m_ButtonConfigs)
+                if (cfg.VanityType == t.VanityType) return GameText.Get(cfg.TooltipKey, null);
+            return null;
+        }
+
+        private static bool Shown(Component c)
+        {
+            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
         }
 
         public static string Label(AControl c)
@@ -103,14 +153,27 @@ namespace GwentAccess.Ui
             catch (Exception e) { return "unreadable control (" + e.GetType().Name + ")"; }
         }
 
-        // An icon-only action button (the back arrow) names itself by its action icon: "Back".
+        // An icon-only action button (the back arrow) names itself by its action icon: "Back". Other icon
+        // buttons are known by their icon picture; the game has no words for these.
         private static string IconName(AControl c)
         {
             var ic = c.GetComponent<ActionIconController>();
-            if (ic == null) return null;
-            var name = ic.m_IconType.ToString();
-            return name == "None" ? null : UiText.FriendlyName(name);
+            if (ic != null)
+            {
+                var name = ic.m_IconType.ToString();
+                return name == "None" ? null : UiText.FriendlyName(name);
+            }
+            foreach (var img in c.GetComponentsInChildren<UnityEngine.UI.Image>(false))
+                if (img.sprite != null && IconSprites.TryGetValue(img.sprite.name.Replace("(Clone)", ""), out var known))
+                    return known;
+            return null;
         }
+
+        private static readonly Dictionary<string, string> IconSprites = new Dictionary<string, string>
+        {
+            { "vanity_selection_grid_open_icon", "Show all" },  // the cosmetics picker's grid window
+            { "ui_icons_cards_hide", "Full preview" },          // the cosmetics picker hiding its panels
+        };
 
         public static string Details(AControl c)
         {
