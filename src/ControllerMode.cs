@@ -20,6 +20,8 @@ namespace GwentAccess
             Force = !Force;
             try
             {
+                // A freshly hot-loaded module hasn't seen the manager through the patches yet.
+                Manager ??= CrimsonInputManager.Instance?.InputMode;
                 if (Manager != null)
                     Manager.DeviceMode = Force ? CrimsonInputModeManager.EDeviceMode.Gamepad : CrimsonInputModeManager.EDeviceMode.MouseAndKeyboard;
             }
