@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- The HOST: the BepInEx plugin (GwentAccess.dll). Only src/Host and src/Dev compile here; everything else is the
+       reloadable module (module/GwentAccess.Module.csproj). The game keeps this dll open, so changing it means
+       closing the game; module changes hot-reload (just reload). -->
   <PropertyGroup>
-    <!-- Folder where Gwent is installed (with BepInEx already run once so BepInEx\interop exists). Override with: dotnet build -p:GwentDir=... -->
-    <GwentDir Condition="'$(GwentDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\GWENT The Witcher Card Game</GwentDir>
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>GwentAccess</AssemblyName>
     <RootNamespace>GwentAccess</RootNamespace>
@@ -10,22 +11,26 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
+  <Import Project="GameReferences.props" />
   <ItemGroup>
-    <Reference Include="BepInEx.Core"><HintPath>$(GwentDir)\BepInEx\core\BepInEx.Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="BepInEx.Unity.IL2CPP"><HintPath>$(GwentDir)\BepInEx\core\BepInEx.Unity.IL2CPP.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Il2CppInterop.Runtime"><HintPath>$(GwentDir)\BepInEx\core\Il2CppInterop.Runtime.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp"><HintPath>$(GwentDir)\BepInEx\interop\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(GwentDir)\BepInEx\interop\Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GwentDir)\BepInEx\interop\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Il2Cppmscorlib"><HintPath>$(GwentDir)\BepInEx\interop\Il2Cppmscorlib.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UI"><HintPath>$(GwentDir)\BepInEx\interop\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(GwentDir)\BepInEx\interop\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UIModule"><HintPath>$(GwentDir)\BepInEx\interop\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Il2CppSystem"><HintPath>$(GwentDir)\BepInEx\interop\Il2CppSystem.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Il2CppSystem.Core"><HintPath>$(GwentDir)\BepInEx\interop\Il2CppSystem.Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="0Harmony"><HintPath>$(GwentDir)\BepInEx\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Il2CppInterop.Common"><HintPath>$(GwentDir)\BepInEx\core\Il2CppInterop.Common.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Rewired_Core"><HintPath>$(GwentDir)\BepInEx\interop\Rewired_Core.dll</HintPath><Private>false</Private></Reference>
+    <Compile Include="Host\**\*.cs;Dev\**\*.cs" />
   </ItemGroup>
+  <!-- Debug builds carry the dev server (src/Dev): Roslyn powers its C# eval. Pinned to 4.0.x because newer
+       Roslyn needs System.Collections.Immutable 7+, and the .NET 6 runtime BepInEx ships has 6.0. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.0.1" PrivateAssets="all" />
+  </ItemGroup>
+  <!-- dotnet build -p:Deploy=true copies the host (and in Debug, Roslyn) into the game's plugin folder.
+       Building the module with -p:Deploy=true builds and deploys this too. -->
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(Deploy)' == 'true'">
+    <ItemGroup>
+      <DeployFiles Include="$(OutDir)GwentAccess.dll;$(OutDir)GwentAccess.pdb;$(OutDir)Microsoft.CodeAnalysis*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(PluginDeployDir)" />
+  </Target>
 </Project>

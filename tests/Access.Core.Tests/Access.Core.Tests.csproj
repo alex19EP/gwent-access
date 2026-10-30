@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Access.Core.Tests</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- The graph kernel (src/Access.Core) is compiled straight into GwentAccess.dll so the mod stays a
+       single DLL. These tests compile the same sources on their own, with no game or BepInEx references:
+       if anything under src/Access.Core reaches for Unity, IL2CPP interop or Gwent types, this project
+       stops building. Keep the kernel game-agnostic so it can be synced with WH40KRTAccess. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\Access.Core\**\*.cs" LinkBase="Access.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+  </ItemGroup>
+
+</Project>

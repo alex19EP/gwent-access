@@ -78,9 +78,18 @@ namespace GwentAccess
             Say((pos > 1 ? "Message " + pos + " back. " : "") + text, true);
         }
 
+#if DEBUG
+        /// <summary>Sees every line before it goes to NVDA (the dev server's /speech feed).</summary>
+        public static Action<string> Observer;
+#endif
+
         public static void Say(string text, bool interrupt = false)
         {
-            if (string.IsNullOrWhiteSpace(text) || _speak == null) return;
+            if (string.IsNullOrWhiteSpace(text)) return;
+#if DEBUG
+            Observer?.Invoke(text);
+#endif
+            if (_speak == null) return;
             _last = text;
             lock (Lock)
             {

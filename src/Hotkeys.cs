@@ -20,9 +20,22 @@ namespace GwentAccess
         private const int VK_F1 = 0x70, VK_SHIFT = 0x10, VK_F2 = 0x71, VK_F3 = 0x72, VK_F4 = 0x73, VK_MENU = 0x12, VK_F5 = 0x74, VK_F6 = 0x75, VK_F8 = 0x77, VK_F9 = 0x78, VK_F7 = 0x76;
         private static readonly uint MyPid = (uint)Process.GetCurrentProcess().Id;
 
+        private static volatile bool _stop;
+        private static Thread _thread;
+
         public static void Start()
         {
-            new Thread(Loop) { IsBackground = true, Name = "GwentAccessHotkeys" }.Start();
+            _stop = false;
+            _thread = new Thread(Loop) { IsBackground = true, Name = "GwentAccessHotkeys" };
+            _thread.Start();
+        }
+
+        /// <summary>End the polling thread (module reload) and wait for it, so two generations never both read keys.</summary>
+        public static void Stop()
+        {
+            _stop = true;
+            _thread?.Join(1000);
+            _thread = null;
         }
 
         private static bool GameInFront()
@@ -64,7 +77,7 @@ namespace GwentAccess
         private static void Loop()
         {
             bool f1Was = false, f2Was = false, f3Was = false, f4Was = false, f5Was = false, f6Was = false, f8Was = false, f9Was = false, f7Was = false;
-            while (true)
+            while (!_stop)
             {
                 try
                 {

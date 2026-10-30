@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The reloadable MODULE: every feature of the mod. The host (src/GwentAccess.csproj) byte-loads the deployed
+       copy from BepInEx\plugins\GwentAccess\Module\GwentAccess.Module.dll and swaps it on POST /reload, with the
+       game running.
+
+       The ASSEMBLY NAME IS TIMESTAMPED per build (the deployed FILE name stays stable). Generations stay loaded
+       side by side, and the name is how the dev evaluator and ModuleLoader.Reload tell them apart; GET /module
+       shows which one is live. Do not "fix" this. Same scheme as WrathAccess. -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>GwentAccess.Module_$([System.DateTime]::UtcNow.ToString(yyyyMMddHHmmss))</AssemblyName>
+    <RootNamespace>GwentAccess</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <Import Project="..\src\GameReferences.props" />
+  <!-- Everything under src/ except the host's files (src/Host, src/Dev) and build output. -->
+  <ItemGroup>
+    <Compile Include="..\src\**\*.cs" Exclude="..\src\Host\**;..\src\Dev\**;..\src\bin\**;..\src\obj\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The host: Plugin.LogInfo/Dir, MainThread, IModModule, DevServer.TapSpeech. Never copied next to the module. -->
+    <ProjectReference Include="..\src\GwentAccess.csproj" Private="false" />
+  </ItemGroup>
+  <!-- -p:Deploy=true (game closed: the host deploys too) or -p:DeployModule=true (game running: module only).
+       Copies under the stable file name into Module\, which BepInEx never locks. -->
+  <Target Name="DeployModule" AfterTargets="Build" Condition="'$(Deploy)' == 'true' or '$(DeployModule)' == 'true'">
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).dll" DestinationFiles="$(PluginDeployDir)\Module\GwentAccess.Module.dll" />
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).pdb" DestinationFiles="$(PluginDeployDir)\Module\GwentAccess.Module.pdb" />
+    <Message Text="Deployed module $(AssemblyName) to $(PluginDeployDir)\Module" Importance="high" />
+  </Target>
+</Project>

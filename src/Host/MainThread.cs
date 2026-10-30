@@ -9,9 +9,10 @@ namespace GwentAccess
     /// <summary>
     /// Lets the hotkey thread ask for work to be done on Unity's main thread.
     /// We piggyback on a game method that runs every frame (input layer navigation update)
-    /// instead of adding our own Unity component.
+    /// instead of adding our own Unity component. Host-side, so the dev server can use it
+    /// and the module's per-frame work runs through <see cref="ModuleLoader.Tick"/>.
     /// </summary>
-    internal static class MainThread
+    public static class MainThread
     {
         private static readonly ConcurrentQueue<Action> Queue = new ConcurrentQueue<Action>();
         public static void Post(Action a) => Queue.Enqueue(a);
@@ -40,9 +41,10 @@ namespace GwentAccess
         }
     }
 
+    // Applied by the host under its own Harmony id (not by the module's PatchAll), so it survives reloads.
     [HarmonyPatch(typeof(CrimsonInputLayer), "UpdateSelectionNavigation")]
     internal static class FrameTickPatch
     {
-        static void Postfix() { MainThread.Drain(); BattleWatcher.Tick(); }
+        static void Postfix() { MainThread.Drain(); ModuleLoader.Tick(); }
     }
 }

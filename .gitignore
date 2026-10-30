@@ -2,3 +2,7 @@ bin/
 obj/
 *.user
 .vs/
+# Local machine settings for the justfile (GWENT_DIR)
+.env
+# Decompiled game interop assemblies (CD PROJEKT RED code; local reference only, never commit)
+decomp/

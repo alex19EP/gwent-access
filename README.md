@@ -22,19 +22,21 @@ Requirements:
 - Gwent installed with **BepInEx 6.0.0-be.790 (IL2CPP)**, started once so BepInEx generates `BepInEx\interop`.
 
 ```
-cd src
-dotnet build -c Release
+dotnet build module/GwentAccess.Module.csproj -c Release -p:Deploy=true
 ```
 
 If Gwent isn't in the default Steam folder, add `-p:GwentDir="D:\path\to\GWENT The Witcher Card Game"`.
 
-Copy `bin\Release\net6.0\GwentAccess.dll` and NVDA's `nvdaControllerClient.dll` (64-bit) into `BepInEx\plugins\GwentAccess\`.
+The mod is two assemblies. `GwentAccess.dll` (`src/Host`, `src/Dev`) is the small BepInEx plugin; it loads everything else from `Module\GwentAccess.Module.dll`. `-p:Deploy=true` copies both into `BepInEx\plugins\GwentAccess\` (close the game first). NVDA's `nvdaControllerClient.dll` (64-bit) goes in that folder too.
+
+With [just](https://github.com/casey/just), `just all` runs the tests and deploys, and `just reload` swaps a rebuilt module into the running game (Debug builds with the dev server on). `just` lists the rest.
 
 ## How it works (short tour)
 
 | File | What it does |
 |---|---|
-| `Plugin.cs` | Entry point; applies each Harmony patch separately so one failure can't disable the mod. |
+| `Host/Plugin.cs`, `Host/ModuleLoader.cs` | BepInEx entry point; loads the module from bytes and swaps it on reload. |
+| `ModuleMain.cs` | Module entry; applies each Harmony patch separately so one failure can't disable the mod, and undoes everything on reload. |
 | `Speech.cs` | Talks to NVDA through `nvdaControllerClient.dll`. |
 | `Hotkeys.cs` | Reads the keyboard on a background thread; work runs on the game thread through `MainThread.cs`. |
 | `MenuSpeech.cs` | Hooks `CrimsonInputLayer.set_SelectedControl` and describes whatever the game selects. |
