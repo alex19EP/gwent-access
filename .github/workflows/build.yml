@@ -18,8 +18,8 @@ jobs:
     name: Graph kernel tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
       - name: Run tests
@@ -37,7 +37,7 @@ jobs:
       - name: Allow long paths
         run: git config --global core.longpaths true
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # third_party/prism — prism.dll is compiled from source, not committed.
           # Non-recursive on purpose: prism's own submodule is only the Godot bindings.
@@ -52,7 +52,7 @@ jobs:
         run: echo "sha=$(git -C third_party/prism rev-parse HEAD)" >> $env:GITHUB_OUTPUT
 
       - name: Cache Prism build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build/native
           key: prism-${{ runner.os }}-${{ steps.prism.outputs.sha }}
@@ -92,7 +92,7 @@ jobs:
         run: ./scripts/package.ps1 -Configuration Release -Label ${{ steps.label.outputs.label }}
 
       - name: Upload zip
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mod-zip
           path: dist/GwentAccess-*.zip
@@ -108,7 +108,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: mod-zip
           path: dist
@@ -132,7 +132,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: mod-zip
           path: dist
