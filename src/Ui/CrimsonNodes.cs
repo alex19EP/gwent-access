@@ -15,26 +15,28 @@ namespace GwentAccess.Ui
     internal static class CrimsonNodes
     {
         /// <summary>Every usable leaf control under <paramref name="root"/>, in the game's child order: active
-        /// in the scene and selectable right now. Containers are walked, not returned.</summary>
-        public static List<AControl> Leaves(AControl root)
+        /// in the scene and selectable right now. Containers are walked, not returned. A control can sit in two
+        /// containers (the main menu's event button is also in a ProxyEventContainer); it is returned once, and
+        /// passing the same <paramref name="seen"/> to several calls keeps it once across roots too.</summary>
+        public static List<AControl> Leaves(AControl root, HashSet<IntPtr> seen = null)
         {
             var found = new List<AControl>();
-            Walk(root, found, 0);
+            Walk(root, found, seen ?? new HashSet<IntPtr>(), 0);
             return found;
         }
 
-        private static void Walk(AControl c, List<AControl> found, int depth)
+        private static void Walk(AControl c, List<AControl> found, HashSet<IntPtr> seen, int depth)
         {
             if (c == null || depth > 16 || !c.gameObject.activeInHierarchy) return;
             var container = c.TryCast<AContainer>();
             if (container == null)
             {
-                if (c.IsCurrentlySelectable()) found.Add(c);
+                if (c.IsCurrentlySelectable() && seen.Add(c.Pointer)) found.Add(c);
                 return;
             }
             var children = container.GetChildren();
             if (children == null) return;
-            for (int i = 0; i < children.Count; i++) Walk(children[i], found, depth + 1);
+            for (int i = 0; i < children.Count; i++) Walk(children[i], found, seen, depth + 1);
         }
 
         /// <summary>The node id for a control: its full scene path (<see cref="PathKey"/>), backed by the control.</summary>

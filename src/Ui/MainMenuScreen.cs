@@ -62,8 +62,9 @@ namespace GwentAccess.Ui
             var layer = CrimsonInputManager.Instance.ActiveLayer;
             var byStop = new List<AControl>[Regions.Length + 1];
             var attached = layer.GetAttachedControls();
+            var seen = new HashSet<System.IntPtr>();
             for (int i = 0; i < attached.Count; i++)
-                foreach (var c in CrimsonNodes.Leaves(attached[i]))
+                foreach (var c in CrimsonNodes.Leaves(attached[i], seen))
                 {
                     int r = RegionOf(c);
                     if (r < 0) continue;
