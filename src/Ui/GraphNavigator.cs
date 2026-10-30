@@ -87,7 +87,8 @@ namespace GwentAccess.Ui
             _claims.Clear();
             if (_screen != null)
             {
-                foreach (var k in NavKeys) _claims.Add(k);
+                foreach (var k in NavKeys)
+                    if (!_screen.LeavesToGame(k)) _claims.Add(k);
                 foreach (var k in _screen.ExtraKeys) _claims.Add(k.Key);
             }
             GameKeyBlock.Apply(_claims);
@@ -201,7 +202,8 @@ namespace GwentAccess.Ui
             else if (Keys.Down(KeyCode.Tab)) Tab(Keys.Shift ? -1 : 1);
             else if (Keys.Down(KeyCode.Home)) Edge(GraphDir.Up);
             else if (Keys.Down(KeyCode.End)) Edge(GraphDir.Down);
-            else if (Keys.Down(KeyCode.Return) || Keys.Down(KeyCode.KeypadEnter)) Activate();
+            else if (Keys.Down(KeyCode.Return) && !_screen.LeavesToGame(KeyCode.Return)
+                || Keys.Down(KeyCode.KeypadEnter) && !_screen.LeavesToGame(KeyCode.KeypadEnter)) Activate();
             else if (Keys.Down(KeyCode.Backspace)) Run(_graph.CurrentNode?.Vtable.OnSecondary, _graph.Secondary);
             else if (Keys.Down(KeyCode.Space)) Details();
         }
@@ -291,6 +293,27 @@ namespace GwentAccess.Ui
             if (move.To == null) return;
             Say(GraphAnnouncer.Compose(move.From, move.To, move.TransitionLabel), interrupt: true);
             Spoken(move.To);
+        }
+
+        /// <summary>The focused node, for a screen key that acts on it.</summary>
+        public static GraphNode CurrentNode => _graph?.CurrentNode;
+
+        /// <summary>Move the cursor to <paramref name="id"/> and speak the landing as a key move does (a
+        /// screen's jump key). False when the node isn't in the current render.</summary>
+        public static bool FocusNode(ControlId id)
+        {
+            if (_graph == null) return false;
+            var from = _graph.CurrentNode;
+            if (!_graph.Focus(id)) return false;
+            Announce(new MoveResult { Moved = true, From = from, To = _graph.CurrentNode });
+            return true;
+        }
+
+        /// <summary>From a <see cref="Screen.Build"/>: land on <paramref name="id"/> in this render (a card that
+        /// just arrived). The differ speaks it like any landing.</summary>
+        public static void Suggest(ControlId id)
+        {
+            if (_state != null) _state.NextSuggestedMove = id;
         }
 
         /// <summary>Re-speak the focused control with its full context ("where am I").</summary>

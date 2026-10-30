@@ -85,7 +85,17 @@ namespace GwentAccess
                     foreach (var kv in CtrlKeys)
                     {
                         bool down = ctrl && (GetAsyncKeyState(kv.Key) & 0x8000) != 0;
-                        if (down && !CtrlDown.Contains(kv.Key) && GameInFront()) { var a = kv.Value; int k = kv.Key; MainThread.Post(() => { Plugin.LogInfo("Hotkey Ctrl+" + (k >= 0x30 && k <= 0x5A ? ((char)k).ToString() : "0x" + k.ToString("X2"))); a(); }); }
+                        if (down && !CtrlDown.Contains(kv.Key) && GameInFront())
+                        {
+                            var a = kv.Value; int k = kv.Key;
+                            MainThread.Post(() =>
+                            {
+                                // Ctrl+arrows belong to a mod screen when one is up (the battle screen reads card lines).
+                                if (k >= 0x25 && k <= 0x28 && Ui.GraphNavigator.Owns) return;
+                                Plugin.LogInfo("Hotkey Ctrl+" + (k >= 0x30 && k <= 0x5A ? ((char)k).ToString() : "0x" + k.ToString("X2")));
+                                a();
+                            });
+                        }
                         if (down) CtrlDown.Add(kv.Key); else CtrlDown.Remove(kv.Key);
                     }
                     bool f1 = (GetAsyncKeyState(VK_F1) & 0x8000) != 0;

@@ -180,6 +180,7 @@ namespace GwentAccess
             try
             {
                 HandNav.Selection = __instance;
+                if (Ui.GraphNavigator.Owns) return; // the battle screen speaks its own cursor
                 if (selectable == null) return;
                 if (playerId != __instance.LocalUserId) return;
                 if (selectable.Pointer == _last) return;

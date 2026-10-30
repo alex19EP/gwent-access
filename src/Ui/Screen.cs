@@ -53,6 +53,10 @@ namespace GwentAccess.Ui
         /// <summary>The screen's own keys, checked before the navigator's.</summary>
         public virtual IReadOnlyList<ScreenKey> ExtraKeys => Array.Empty<ScreenKey>();
 
+        /// <summary>A navigator key this screen leaves to the game (not blocked, and not acted on unless the
+        /// focused node has a handler for it), e.g. Enter while the game's own flow still owns the action.</summary>
+        public virtual bool LeavesToGame(KeyCode key) => false;
+
         /// <summary>
         /// The cursor landed on <paramref name="node"/> (spec P11, cursor write-back). Default: when the node is
         /// backed by a Crimson control, ask its input layer to select it, so the game's highlight, its hover

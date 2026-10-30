@@ -37,6 +37,8 @@ namespace GwentAccess
 
             Ui.ScreenManager.Register(new Ui.MainMenuScreen());
             Ui.ScreenManager.Register(new Ui.SettingsScreen());
+            Ui.ScreenManager.Register(new Ui.BattleScreen());
+            Ui.ScreenManager.Register(new Ui.MulliganScreen());
         }
 
         public void Tick()

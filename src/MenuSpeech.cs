@@ -271,7 +271,13 @@ namespace GwentAccess
             return true;
         }
 
-        /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers.</summary>
+        private static readonly System.Text.RegularExpressions.Regex Spaces = new System.Text.RegularExpressions.Regex(@"\s+");
+        private static readonly System.Text.RegularExpressions.Regex SpaceBeforeClose = new System.Text.RegularExpressions.Regex(@" ([.,:;!?)\u00BB])");
+        private static readonly System.Text.RegularExpressions.Regex SpaceAfterOpen = new System.Text.RegularExpressions.Regex(@"([(\u00AB]) ");
+
+        /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers. A tag becomes a space (it may
+        /// separate two words), which is then dropped again before closing punctuation and after an opening
+        /// bracket: "&lt;b&gt;Order&lt;/b&gt;: (&lt;b&gt;ranged&lt;/b&gt;)" reads "Order: (ranged)".</summary>
         public static string Clean(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
@@ -281,10 +287,12 @@ namespace GwentAccess
             {
                 if (ch == '<') { inTag = true; continue; }
                 if (ch == '>') { inTag = false; sb.Append(' '); continue; }
-                if (ch == '\u200B' || ch == '\u200C' || ch == '\u200D' || ch == '\uFEFF') continue;
+                if (ch == '\u200B' || ch == '\u200C' || ch == '\u200D' || ch == '\uFEFF' || ch == '\u00AD') continue;
                 if (!inTag) sb.Append(ch);
             }
-            return System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"\s+", " ").Trim();
+            string t = Spaces.Replace(sb.ToString(), " ").Trim();
+            t = SpaceBeforeClose.Replace(t, "$1");
+            return SpaceAfterOpen.Replace(t, "$1");
         }
 
         /// <summary>For icon-only buttons, use the icon picture's name (e.g. "icon_close" -> "close").</summary>
