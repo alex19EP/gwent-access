@@ -215,6 +215,14 @@ namespace GwentAccess
                 var prev = Current;
                 Current = selectionMode;
                 Plugin.LogInfo("Selection mode: " + selectionMode);
+                if (Ui.GraphNavigator.Owns)
+                {
+                    // The battle screen prompts for rows and targets itself; only the play tracking stays.
+                    if (selectionMode == EBattleNavigationMode.SelectCards) PlayTracker.Cancel();
+                    else if (selectionMode == EBattleNavigationMode.PlayCard) PlayTracker.Begin();
+                    else if (selectionMode == EBattleNavigationMode.Normal && prev != EBattleNavigationMode.Normal) PlayTracker.Finish(prev);
+                    return;
+                }
                 switch (selectionMode)
                 {
                     case EBattleNavigationMode.SelectLocations: Speech.Say("Choose a row. Arrows to move, Enter to place.", false); break;
@@ -305,11 +313,11 @@ namespace GwentAccess
                         string name = "";
                         try { name = Localization.LocalizationHelper.GetCardName(played); } catch { }
                         if (string.IsNullOrEmpty(name)) name = "Card";
-                        Speech.Say("Played " + name + where + "." + score + " Control E to end your turn.", true);
+                        Speech.Say("Played " + name + where + "." + score + (Ui.GraphNavigator.Owns ? "" : " Control E to end your turn."), true);
                     }
                     else Speech.Say("Card not played. It's back in your hand.", true);
                 }
-                else if (_afterTarget) Speech.Say("Done." + score + " Control E to end your turn.", true);
+                else if (_afterTarget) Speech.Say("Done." + score + (Ui.GraphNavigator.Owns ? "" : " Control E to end your turn."), true);
             }
 
             var turn = pm.CurrentPlayerId;

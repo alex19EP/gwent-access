@@ -139,6 +139,9 @@ namespace GwentAccess
             try { return !card.IsVisibleToLocal(pm); } catch { return true; }
         }
 
+        /// <summary>Just the name, or "hidden card" for one the local player can't see.</summary>
+        public static string Name(Card card, PlayerManager pm) => Hidden(card, pm) ? "hidden card" : Name(card);
+
         private static string Name(Card card)
         {
             string name = Text(() => LocalizationHelper.GetCardName(card));

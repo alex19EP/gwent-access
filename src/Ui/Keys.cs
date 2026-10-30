@@ -43,6 +43,12 @@ namespace GwentAccess.Ui
         /// <summary>Pressed this frame.</summary>
         public static bool Down(KeyCode k) => _kb != null && _kb.GetKeyDown(k);
 
+        /// <summary>Any key pressed this frame.</summary>
+        public static bool AnyDown()
+        {
+            try { return _kb != null && _kb.GetAnyButtonDown(); } catch { return false; }
+        }
+
         /// <summary>Pressed this frame, or held long enough to repeat. One key repeats at a time (the last
         /// one pressed), like the OS. Query each repeatable key once per frame.</summary>
         public static bool DownOrRepeat(KeyCode k)
