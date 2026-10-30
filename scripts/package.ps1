@@ -9,7 +9,7 @@
         BepInEx\plugins\GwentAccess\Module\GwentAccess.Module.dll   the module (stable file name)
         BepInEx\plugins\GwentAccess\prism.dll                       speech (built from third_party/prism)
         BepInEx\plugins\GwentAccess\build.txt                       what was built, for bug reports
-        Install.bat, Uninstall.bat, MakeShortcut.bat, Gwent-NoLauncher.bat, README.txt   (from package/)
+        Install.bat, Update.bat, Uninstall.bat, MakeShortcut.bat, Gwent-NoLauncher.bat, README.txt   (from package/)
 
     Build first (dotnet build module/GwentAccess.Module.csproj -c Release); this only packs the output. The host
     build drops prism.dll next to GwentAccess.dll (build/Prism.targets).

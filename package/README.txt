@@ -47,6 +47,12 @@ The very first time, you may still need to log in through the launcher with sigh
 help so your GOG account is connected. After that, use the shortcut.
 
 
+UPDATING (testers)
+Close Gwent, then run Update.bat from your Gwent folder (Install.bat copies it there).
+It downloads the newest test build and installs it over yours, keeping your settings.
+At the end it reads out which build you now have; include that when reporting a problem.
+
+
 UNINSTALLING
 Run Uninstall.bat. It turns the mod off by renaming version.dll to version.dll.off.
 To turn it back on, run Install.bat again.
