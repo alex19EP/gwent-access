@@ -444,9 +444,16 @@ namespace GwentAccess
         {
             var c = _currentControl ?? SelectedControlPatch.Current;
             if (c == null) { Speech.Say("Nothing selected. Use F3 to pick something first.", true); return; }
+            if (!c.gameObject.activeInHierarchy) { Speech.Say("That item is gone. Press F3 again.", true); return; }
+            ClickControl(c);
+        }
+
+        /// <summary>Run a control's own click path: a bottom-bar button's container callback, a ButtonControl's
+        /// left click, or a Button's Click. Shared by the F4 navigator and the graph screens' Enter.</summary>
+        public static void ClickControl(AControl c)
+        {
             try
             {
-                if (!c.gameObject.activeInHierarchy) { Speech.Say("That item is gone. Press F3 again.", true); return; }
                 var bc = c.TryCast<ButtonControl>();
                 // Bottom-bar buttons (Exit, Save and exit...) run a callback stored by their container, not a click handler.
                 if (bc != null)

@@ -114,6 +114,7 @@ namespace GwentAccess
         {
             try
             {
+                if (Ui.GraphNavigator.Owns) return; // the graph screen speaks its own value changes
                 var sel = SelectedControlPatch.Current;
                 if (sel == null || !sel.transform.IsChildOf(__instance.transform)) return;
                 string v = UiText.Describe(__instance, 3);

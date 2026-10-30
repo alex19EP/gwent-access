@@ -34,12 +34,23 @@ namespace GwentAccess
                 catch (Exception pe) { bad++; Plugin.LogError("Patch " + t.Name + " failed: " + pe.Message); }
             }
             Plugin.LogInfo("Patches applied: " + ok + ", failed: " + bad);
+
+            Ui.ScreenManager.Register(new Ui.MainMenuScreen());
+            Ui.ScreenManager.Register(new Ui.SettingsScreen());
         }
 
-        public void Tick() => BattleWatcher.Tick();
+        public void Tick()
+        {
+            BattleWatcher.Tick();
+            Ui.ScreenManager.Tick();
+            Ui.GraphNavigator.Tick();
+        }
 
         public void Dispose()
         {
+            // First: the game's keyboard mappings must come back even if everything after this fails.
+            try { Ui.GraphNavigator.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] navigator: " + e); }
+            try { Ui.ScreenManager.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] screens: " + e); }
             try { Hotkeys.Stop(); } catch (Exception e) { Plugin.LogError("[dispose] hotkeys: " + e); }
             try { _harmony?.UnpatchSelf(); } catch (Exception e) { Plugin.LogError("[dispose] harmony: " + e); }
             _harmony = null;

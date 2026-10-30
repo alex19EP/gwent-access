@@ -47,6 +47,7 @@ namespace GwentAccess
                 }
                 _lastControl = value.Pointer;
                 Current = value;
+                if (Ui.GraphNavigator.Owns || Ui.ScreenManager.AnyActive()) return; // a graph screen speaks this UI
                 if (value.Pointer == _suppress) { _suppress = IntPtr.Zero; return; }
 
                 if (value.gameObject.name.StartsWith("ShutterView")) { _newView = true; return; }
@@ -256,9 +257,18 @@ namespace GwentAccess
         private static void Add(List<string> parts, HashSet<string> seen, string raw)
         {
             string s = Clean(raw);
-            if (s.Length == 0 || seen.Contains(s) || s.StartsWith("[MISSING]")) return;
+            if (s.Length == 0 || seen.Contains(s) || s.StartsWith("[MISSING]") || IsPlaceholder(s)) return;
             seen.Add(s);
             parts.Add(s);
+        }
+
+        /// <summary>Layout filler the game keeps in hidden-but-active text objects to size a box, e.g. the
+        /// "WWWWWWWW…" in the deck list's new-deck button: one character repeated.</summary>
+        public static bool IsPlaceholder(string s)
+        {
+            if (s.Length < 4) return false;
+            foreach (char ch in s) if (ch != s[0]) return false;
+            return true;
         }
 
         /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers.</summary>
@@ -306,6 +316,7 @@ namespace GwentAccess
             { "ButtonRewards", "Rewards" },
             { "WelcomeScreen", "Welcome screen and tutorials" },
             { "ButtonQuit", "Quit game" },
+            { "ButtonFactionInfo", "Faction info" },
             { "ButtonSettings", "Settings" },
             { "ProfileButton", "Profile" },
             { "CosmeticsButton", "Cosmetics" },
