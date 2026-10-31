@@ -18,6 +18,7 @@ namespace GwentAccess
 #if DEBUG
             Speech.Observer = Dev.DevServer.TapSpeech; // before the first Say, so /speech sees it
 #endif
+            ModConfig.Load();
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
                 Speech.Say(first ? "Thronebreaker Access loaded." : "Thronebreaker Access reloaded.");
@@ -34,11 +35,16 @@ namespace GwentAccess
 
             Ui.ScreenManager.Register(new Ui.PanelScreen());
             Ui.ScreenManager.Register(new Ui.MainMenuScreen());
+            Ui.ScreenManager.Register(new Ui.CutsceneScreen());
+            Ui.ScreenManager.Register(new Ui.DialogueScreen());
+            Ui.ScreenManager.Register(new Ui.PopupScreen());
             Ui.ScreenManager.Register(new Ui.SettingsScreen());
         }
 
         public void Tick()
         {
+            ModConfig.Tick();
+            Ui.CutsceneScreen.SpeakSubtitles();
             Ui.ScreenManager.Tick();
             Ui.GraphNavigator.Tick();
         }

@@ -54,7 +54,9 @@ namespace GwentAccess.Ui
                 foreach (var s in VisibleTexts(panel)) if (!captions.Contains(s)) parts.Add(s);
                 if (parts.Count == 0 && controls.Count == 0) continue;
 
-                string key = CrimsonNodes.PathKey(panel.transform, null);
+                // Keyed by the panel's name, not its path: the path's sibling indices shift while a scene loads
+                // around the panel, and each shift re-read the unchanged message (the loading tip, six times).
+                string key = "tb-panel:" + panel.gameObject.name;
                 b.BeginStop(key);
                 if (parts.Count > 0)
                 {
@@ -89,7 +91,7 @@ namespace GwentAccess.Ui
             return parts;
         }
 
-        private static bool Faded(TMPro.TMP_Text t)
+        internal static bool Faded(TMPro.TMP_Text t)
         {
             if (t.alpha <= 0.01f) return true;
             foreach (var g in t.GetComponentsInParent<UnityEngine.CanvasGroup>())

@@ -8,7 +8,7 @@ namespace GwentAccess
 {
     /// <summary>
     /// Lets the hotkey thread ask for work to be done on Unity's main thread.
-    /// We piggyback on a game method that runs every frame (input layer navigation update)
+    /// We piggyback on a game method that runs every frame (the input layers' Update, see FrameTickPatch)
     /// instead of adding our own Unity component. Host-side, so the dev server can use it
     /// and the module's per-frame work runs through <see cref="ModuleLoader.Tick"/>.
     /// </summary>
@@ -41,10 +41,24 @@ namespace GwentAccess
         }
     }
 
-    // Applied by the host under its own Harmony id (not by the module's PatchAll), so it survives reloads.
-    [HarmonyPatch(typeof(CrimsonInputLayer), "UpdateSelectionNavigation")]
+    /// <summary>
+    /// The per-frame tick, after an input layer's Update. Every live layer updates each frame, so the tick runs
+    /// once per frame (the first layer to update), whatever the input mode. It used to follow
+    /// UpdateSelectionNavigation, which Update calls only in keyboard/pad mode: once the mouse moved, the game
+    /// switched to UpdateCursorNavigation and the whole mod (speech, keys, eval, reload) stopped.
+    /// Applied by the host under its own Harmony id (not by the module's PatchAll), so it survives reloads.
+    /// </summary>
+    [HarmonyPatch(typeof(CrimsonInputLayer), "Update")]
     internal static class FrameTickPatch
     {
-        static void Postfix() { MainThread.Drain(); Prism.Tick(); ModuleLoader.Tick(); }
+        private static int _frame = -1;
+
+        static void Postfix()
+        {
+            int frame = UnityEngine.Time.frameCount;
+            if (frame == _frame) return;
+            _frame = frame;
+            MainThread.Drain(); Prism.Tick(); ModuleLoader.Tick();
+        }
     }
 }
