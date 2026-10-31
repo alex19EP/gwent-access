@@ -16,7 +16,7 @@ Commands go through the `justfile` (needs `just`, pwsh 7, .NET SDK 6+). The game
 - `just reload` — rebuild only the module and hot-swap it into the **running** game (Debug build, dev server on). Host changes still need `just restart`.
 - `just run`, `just log [lines]`, `just health`, `just module`, `just speech [since]`
 - `just eval probe.csx` — run a C# script on the game thread (POST `/eval`); `just eval-reset` clears its state. Put probe scripts in the scratchpad, not the repo.
-- `just decompile Assembly-CSharp` — ilspycmd the BepInEx interop assembly into `decomp/` (git-ignored; CDPR code, never commit). Read `decomp/` to find game APIs; use Ghidra on GameAssembly.dll only when a method body is needed.
+- `just decompile Assembly-CSharp` — ilspycmd the BepInEx interop assembly into `decomp/` (git-ignored; CDPR code, never commit). Read `decomp/` to find game APIs; use Ghidra on GameAssembly.dll only when a method body is needed. The local Ghidra database carries Il2CppInspectorRedux names and types (functions are `Class_Method` inside `Assembly.dll::Namespace::Class`, fields read as `this->fields.m_X`), so find native methods with a name search rather than resolving `MethodInfo->methodPointer` RVAs in eval probes. After a game update the import has to be redone (dumper + header parse + a Ghidra 12-patched script, kept outside the repo).
 
 Without just: `dotnet build module/GwentAccess.Module.csproj -c Release -p:Deploy=true [-p:GwentDir="..."]`.
 
