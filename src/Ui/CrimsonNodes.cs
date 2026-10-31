@@ -147,10 +147,66 @@ namespace GwentAccess.Ui
             {
                 var parts = Texts(c);
                 if (parts.Count > 1) return parts[0];
+                if (NotificationText(c) is string note) return note;
+                if (Tooltipped(c, parts) is string tipped) return tipped;
                 if (parts.Count == 0 && IconName(c) is string icon) return icon;
                 return UiText.DescribeSelection(c);
             }
             catch (Exception e) { return "unreadable control (" + e.GetType().Name + ")"; }
+        }
+
+        /// <summary>
+        /// An icon whose only words are its hover tooltip (the menu bar's buttons), or a counter that shows
+        /// just a number beside an icon (the currencies: "200" beside the ore icon): read as a mouse player
+        /// reads it by pointing, the tooltip first, then the number ("Руда, 200"). Null for any other control.
+        /// </summary>
+        private static string Tooltipped(AControl c, List<string> texts)
+        {
+            if (texts.Count > 1 || texts.Count == 1 && !IsCount(texts[0])) return null;
+            if (!(TooltipText(c) is string tip)) return null;
+            return texts.Count == 0 ? tip : tip + ", " + texts[0];
+        }
+
+        /// <summary>
+        /// A notification's background is its clickable body, but holds no words: the message ("Получить
+        /// награды по контракту: …") is the notification's text label beside it. Null for any other control.
+        /// </summary>
+        private static string NotificationText(AControl c)
+        {
+            if (c.TryCast<GwentUnity.UINotificationBackgroundWidget>() == null) return null;
+            var label = c.GetComponentInParent<GwentUnity.UINotificationControl>()?.m_TextLabel;
+            if (label == null) return null;
+            var parts = Texts(label);
+            return parts.Count > 0 ? string.Join(". ", parts) : null;
+        }
+
+        private static bool IsCount(string s)
+        {
+            foreach (char ch in s)
+                if (!char.IsDigit(ch) && ch != ' ' && ch != ' ' && ch != ',' && ch != '.' && ch != '/') return false;
+            return true;
+        }
+
+        /// <summary>
+        /// The text of the control's hover tooltip when the game gives it a plain one (a <c>SimpleTooltip</c>),
+        /// translated; null if it has none, or another kind (a card's, the profile's XP boost). The tooltip is
+        /// built the way the game builds it on hover, by its own creator. Its text is a translation key, or (the
+        /// currencies) text the game already translated, though both are flagged as keys.
+        /// </summary>
+        public static string TooltipText(AControl c)
+        {
+            try
+            {
+                var tip = c.TooltipRequestCreator?.Invoke()?.TooltipData?.TryCast<GwentUnity.UI.SimpleTooltip>();
+                string text = tip?.Text;
+                if (string.IsNullOrEmpty(text)) return null;
+                if (tip.IsLocKey && GameText.Get(text, null) is string translated) return translated;
+                // An untranslated key ("social_facebook_name") is no words at all.
+                if (text.IndexOf('_') >= 0 && text.IndexOf(' ') < 0) return null;
+                text = UiText.Clean(text);
+                return text.Length > 0 ? text : null;
+            }
+            catch { return null; }
         }
 
         // An icon-only action button (the back arrow) names itself by its action icon: "Back". Other icon
@@ -178,6 +234,8 @@ namespace GwentAccess.Ui
         public static string Details(AControl c)
         {
             var parts = Texts(c);
+            if (NotificationText(c) is string note) return note;
+            if (Tooltipped(c, parts) is string tipped) return tipped;
             return parts.Count > 0 ? string.Join(". ", parts) : "No details.";
         }
 

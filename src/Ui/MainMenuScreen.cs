@@ -49,6 +49,7 @@ namespace GwentAccess.Ui
         };
 
         private static readonly int DeckListRegion = System.Array.FindIndex(Regions, r => r.Root == DeckListRoot);
+        private static readonly int ProfileRegion = System.Array.FindIndex(Regions, r => r.Stop == "profile");
 
         // Skipped subtrees: off-screen staging the game keeps active (the friend-invite card waiting to be dealt
         // in), and a play card's scrollable description, selectable only so a gamepad can scroll it — Space on
@@ -104,6 +105,9 @@ namespace GwentAccess.Ui
                     if (r < 0) continue;
                     (byStop[r] ??= new List<AControl>()).Add(c);
                 }
+            UIPlayerInfoOverlay overlay = null;
+            for (int i = 0; i < attached.Count && overlay == null; i++) overlay = attached[i]?.TryCast<UIPlayerInfoOverlay>();
+            if (overlay != null) AddCurrencies(byStop, overlay);
 
             // The deck list's child order is its scroll pool's order, not the order on screen.
             if (byStop[DeckListRegion] != null)
@@ -127,11 +131,86 @@ namespace GwentAccess.Ui
                     ? GameText.Get(DeckSelector.SELECT_DECK_TEXT_LOCALIZATION_KEY, "Change deck")
                     : known ? Regions[r].Context : null;
                 if (context != null) b.PushContext(context);
+                if (r == ProfileRegion && overlay != null) AddProfile(b, overlay);
                 AddControls(b, byStop[r], activeDeck);
                 if (context != null) b.PopContext();
             }
 
             if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
+        }
+
+        /// <summary>
+        /// The currency counters beside the shop button (event currency, reward points, ore, scraps, powder,
+        /// kegs). The game never makes them selectable — a gamepad skips them — but they are on screen and a
+        /// mouse click opens the shop where that currency is spent (ore: the kegs), so they join the profile stop before the shop, in the
+        /// order drawn, each read by its tooltip and amount (<see cref="CrimsonNodes.Label"/>). Hidden ones
+        /// (no event running, guest mode) stay out.
+        /// </summary>
+        private static void AddCurrencies(List<AControl>[] byStop, UIPlayerInfoOverlay overlay)
+        {
+            var list = byStop[ProfileRegion] ??= new List<AControl>();
+            var shop = overlay.m_ShopButton;
+            int at = shop == null ? -1 : list.FindIndex(c => c.Pointer == shop.Pointer);
+            if (at < 0) at = list.Count;
+            var counters = new AControl[]
+            {
+                overlay.m_EventButton, overlay.m_RewardButton, overlay.m_GoldButton,
+                overlay.m_ScrapsButton, overlay.m_PowderButton, overlay.m_KegsButton,
+            };
+            foreach (var c in counters)
+                if (c != null && c.gameObject.activeInHierarchy && !list.Exists(x => x.Pointer == c.Pointer))
+                    list.Insert(at++, c);
+        }
+
+        /// <summary>
+        /// The profile banner at the top left, ahead of the currencies: the player's name and title (Enter
+        /// opens the profile, as clicking the banner does), then the badges beside them: level, rank, journey
+        /// level, season-cycle level. The game gives the keyboard none of this (its profile button isn't
+        /// selectable, and the badges aren't in its control tree), but all of it is on screen. Each badge
+        /// reads as the profile panel names it, then its number; the badges are read-only.
+        /// </summary>
+        private static void AddProfile(GraphBuilder b, UIPlayerInfoOverlay overlay)
+        {
+            var info = overlay.m_BasePlayerInfoInstance;
+            var button = overlay.m_ProfileButtonController?.m_ProfileButton;
+            if (info == null || !info.gameObject.activeInHierarchy) return;
+
+            var who = new List<string>();
+            foreach (var label in new Component[] { info.m_NameLabel, info.m_TitleLabel })
+                if (label != null && label.gameObject.activeInHierarchy) who.AddRange(CrimsonNodes.Texts(label));
+            if (button != null && who.Count > 0)
+                b.AddItem(CrimsonNodes.Id(button), CrimsonNodes.Button(button, () => string.Join(", ", who)));
+
+            Badge(b, info.m_LevelInfoInstance, GameText.Get("player_profile_level", "Level"));
+            Badge(b, info.m_RankedInfoInstance, GameText.Get("interface_profile_current_rank", "Rank"));
+            Badge(b, info.m_JourneyLevelInstance, GameText.Get("ui_journey_level_tooltip", "Journey level"));
+            var cycle = info.m_OuroborosLevelInstance;
+            Badge(b, cycle, GameText.Get("interface_profile_ouroboros_level_" + CycleSeason(cycle), "Season cycle level"));
+        }
+
+        private static void Badge(GraphBuilder b, Component badge, string name)
+        {
+            if (badge == null || !badge.gameObject.activeInHierarchy) return;
+            var texts = CrimsonNodes.Texts(badge);
+            if (texts.Count == 0) return;
+            b.AddItem(ControlId.Structural(CrimsonNodes.PathKey(badge.transform, null)), new NodeVtable
+            {
+                Announcements = new[] { new NodeAnnouncement(() => name + ", " + string.Join(", ", texts), kind: AnnouncementKinds.Label) },
+            });
+        }
+
+        // The season of the cycle a season-cycle badge shows, as its translation keys spell it ("autumn"): the
+        // badge has no field for it, only its shield picture, which is drawn per season.
+        private static string CycleSeason(Component cycle)
+        {
+            if (cycle == null) return null;
+            foreach (var img in cycle.GetComponentsInChildren<UnityEngine.UI.Image>(false))
+            {
+                string sprite = img.sprite?.name ?? "";
+                foreach (var season in new[] { "winter", "spring", "summer", "autumn" })
+                    if (sprite.Contains(season)) return season;
+            }
+            return null;
         }
 
         // ---- the deck selector ----
@@ -272,6 +351,7 @@ namespace GwentAccess.Ui
         // arrow.
         private static NodeVtable Vtable(AControl c, ulong activeDeck)
         {
+            if (c.TryCast<SocialButton>() is SocialButton social) return SocialToggle(c, social);
             if (!IsDeckButton(c)) return CrimsonNodes.Button(c);
             var v = CrimsonNodes.Button(c, () => DeckLabel(c));
             bool inList = RegionOf(c) == DeckListRegion;
@@ -284,6 +364,21 @@ namespace GwentAccess.Ui
                         kind: AnnouncementKinds.Value),
             };
             v.Announcements = anns;
+            return v;
+        }
+
+        /// <summary>
+        /// A social-bar button (journey, season cycle, quests, friends): not a menu card's twin but a toggle
+        /// opening the side panel on its section, one at a time (the game's toggle group). The open one reads
+        /// "pressed", as a sighted player sees it lit; pressing it again closes the panel.
+        /// </summary>
+        private static NodeVtable SocialToggle(AControl c, SocialButton toggle)
+        {
+            var v = CrimsonNodes.Button(c);
+            v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+            {
+                new NodeAnnouncement(() => toggle.IsToggled ? "pressed" : null, live: true, kind: AnnouncementKinds.Selected),
+            };
             return v;
         }
 
