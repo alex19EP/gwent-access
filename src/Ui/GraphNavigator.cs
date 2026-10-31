@@ -281,8 +281,36 @@ namespace GwentAccess.Ui
 
         // ---- input ----
 
+        /// <summary>Logs each key pressed while a graph screen has the navigator, with its modifiers, whether the
+        /// screen left it to the game, and the node it was pressed on, so a log reads as the session went.
+        /// Escape is always the game's (Back) and logs as such.</summary>
+        private static void LogKeys()
+        {
+            foreach (var k in NavKeys) LogKey(k, _screen.LeavesToGame(k));
+            foreach (var k in _screen.ExtraKeys)
+                if (Array.IndexOf(NavKeys, k.Key) < 0) LogKey(k.Key, false);
+            LogKey(KeyCode.Escape, true);
+        }
+
+        private static void LogKey(KeyCode k, bool game)
+        {
+            if (!Keys.Down(k)) return;
+            string mods = (Keys.Ctrl ? "Ctrl+" : "") + (Keys.Shift ? "Shift+" : "") + (Keys.Alt ? "Alt+" : "");
+            string at = null;
+            try
+            {
+                var node = _graph?.CurrentNode;
+                if (node != null)
+                    foreach (var a in GraphAnnouncer.EffectiveAnnouncements(node))
+                        if (a.Kind == AnnouncementKinds.Label) { at = a.Text?.Invoke(); break; }
+            }
+            catch { }
+            Plugin.LogInfo("[key] " + mods + k + (game ? " (game)" : "") + " on " + _screen.Key + (at != null ? " @ " + at : ""));
+        }
+
         private static void HandleKeys()
         {
+            try { LogKeys(); } catch { }
             if (Keys.Alt) return;
             foreach (var k in _screen.ExtraKeys)
                 if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Keys.Down(k.Key))
