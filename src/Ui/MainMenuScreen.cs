@@ -201,7 +201,7 @@ namespace GwentAccess.Ui
 
         // The season of the cycle a season-cycle badge shows, as its translation keys spell it ("autumn"): the
         // badge has no field for it, only its shield picture, which is drawn per season.
-        private static string CycleSeason(Component cycle)
+        internal static string CycleSeason(Component cycle)
         {
             if (cycle == null) return null;
             foreach (var img in cycle.GetComponentsInChildren<UnityEngine.UI.Image>(false))

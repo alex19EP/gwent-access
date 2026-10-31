@@ -77,10 +77,18 @@ namespace GwentAccess.Ui
             foreach (var it in items)
             {
                 used.Add(it.Pointer);
-                b.AddItem(CrimsonNodes.Id(it), Toggle(it, () => UiText.Clean(it.m_Label?.Text?.text)));
+                var id = CrimsonNodes.Id(it);
+                b.AddItem(id, Toggle(it, () => UiText.Clean(it.m_Label?.Text?.text)));
+                // The window opens on the open tab.
+                if (SafeToggled(it)) b.SetStart(id);
             }
             b.PopContext();
         }
+
+        // The game parks its selection on the Exit button when the window opens, and moves it about while a
+        // tab builds its view; following it would drop the cursor there. The cursor stays where the player
+        // puts it.
+        public override AControl GameSelection() => null;
 
         private static NodeVtable Toggle(AControl c, Func<string> label = null)
         {
@@ -166,9 +174,12 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>The nearest row or column (a layout container) a control sits in below the view.</summary>
+        // A dropdown is a container of its own; the dropdowns side by side (and their open lists) share the
+        // row the dropdowns sit in.
         private static Transform LayoutParent(AControl c, AControl view)
         {
-            for (var t = c.transform.parent; t != null && t.Pointer != view.transform.Pointer; t = t.parent)
+            var from = c.GetComponentInParent<UIDropdownContainer>()?.transform.parent ?? c.transform.parent;
+            for (var t = from; t != null && t.Pointer != view.transform.Pointer; t = t.parent)
             {
                 var a = t.GetComponent<AContainer>();
                 if (a != null && (a.TryCast<HorizontalContainer>() != null || a.TryCast<VerticalContainer>() != null
@@ -512,17 +523,67 @@ namespace GwentAccess.Ui
         {
             var own = CrimsonNodes.Texts(c);
             if (own.Count > 0) return Joined(own);
+            if (FactionRow(c) is string row) return row;
+            string tip = CrimsonNodes.TooltipText(c) ?? StatName(c);
+            var around = new List<string>();
+            var t = c.transform.parent;
+            for (int i = 0; i < 3 && t != null && around.Count == 0; i++, t = t.parent) around = TitleFirst(t);
+            // A number is named by the tooltip ("Высший ранг, 30"); a named thing comes first and the tooltip,
+            // what clicking it does, after ("Геральт из Ривии, Счет: 0, …, Измените контракт для демонстрации").
             var parts = new List<string>();
-            if (CrimsonNodes.TooltipText(c) is string tip) parts.Add(tip);
-            var around = c.transform.parent;
-            for (int i = 0; i < 3 && around != null; i++, around = around.parent)
-            {
-                var texts = TitleFirst(around);
-                if (texts.Count == 0) continue;
-                foreach (var s in texts) if (!parts.Contains(s)) parts.Add(s);
-                break;
-            }
+            bool named = around.Count > 0 && !IsCount(around[0]);
+            if (tip != null && !named) parts.Add(tip);
+            foreach (var s in around) if (!parts.Contains(s)) parts.Add(s);
+            if (tip != null && named && !parts.Contains(tip)) parts.Add(tip);
             return parts.Count > 0 ? Joined(parts) : CrimsonNodes.Label(c);
+        }
+
+        private static bool IsCount(string s)
+        {
+            foreach (char ch in s)
+                if (!char.IsDigit(ch) && ch != ' ' && ch != ',' && ch != '.' && ch != '/') return false;
+            return s.Length > 0;
+        }
+
+        // The banner's cycle-level stat has no tooltip; the main menu's badge for the same number is named by
+        // the season's cycle ("Уровень осеннего цикла"), drawn by its shield picture.
+        private static string StatName(AControl c)
+        {
+            var stat = c.GetComponentInParent<UIPlayerStat>();
+            if (stat == null || stat.gameObject.name != "Ouroboros") return null;
+            string season = MainMenuScreen.CycleSeason(stat);
+            if (season == null)
+                try
+                {
+                    var badge = UnityEngine.Object.FindObjectOfType<GwentUnity.UIPlayerInfoOverlay>()?.m_BasePlayerInfoInstance?.m_OuroborosLevelInstance;
+                    if (badge != null) season = MainMenuScreen.CycleSeason(badge);
+                }
+                catch { }
+            return season == null ? null : GameText.Get("interface_profile_ouroboros_level_" + season, null);
+        }
+
+        /// <summary>A faction row of the summary's stats: the faction (its icon's tooltip), then each number
+        /// under the name of the column its dropdown shows ("Заполнение коллекции 25/204, Все победы 0").
+        /// Null for any other control.</summary>
+        private static string FactionRow(AControl c)
+        {
+            var box = c.GetComponentInParent<UIFactionCardWinStatsContainer>();
+            if (box == null) return null;
+            var row = c.transform.parent;
+            if (row == null) return null;
+            string Column(string dropdown) =>
+                Joined(CrimsonNodes.Texts(box.transform.Find("FiltersRoot/" + dropdown + "(Clone)/UIDropdownPrefab(Clone)/MainButtonRoot")));
+            string Text(string path)
+            {
+                var t = row.Find(path);
+                return t != null && t.gameObject.activeInHierarchy ? Joined(CrimsonNodes.Texts(t)) : null;
+            }
+            var parts = new List<string> { CrimsonNodes.TooltipText(c) };
+            string progress = Text("ProgressBarRoot/UIProgressBarPrefab(Clone)/ProgressText");
+            if (progress != null) parts.Add(Joined(new List<string> { Column("UIFactionCardStatsDropdownPrefab"), progress }, " "));
+            string wins = Text("Banner/Wins");
+            if (wins != null) parts.Add(Joined(new List<string> { Column("UIFactionWinStatsDropdownPrefab"), wins }, " "));
+            return Joined(parts);
         }
 
         // An object's texts with its title first (a showcase slot draws its points and date above the title).
