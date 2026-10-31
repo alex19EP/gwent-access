@@ -34,7 +34,8 @@ namespace GwentAccess.Ui
         public override int Layer => 1;
         public override string ScreenName => GameText.Get("shopmenu_title", "Shop");
 
-        public override bool IsActive() => Panel() != null;
+        // While a keg is being opened, its own screen has the page.
+        public override bool IsActive() => Panel() != null && KegOpeningScreen.Keg() == null;
 
         // The front page's category tiles by kind, as last drawn: they name the pages they lead to, however
         // the page was reached (a promotion opens the packs page too).
@@ -131,6 +132,7 @@ namespace GwentAccess.Ui
                 b.BeginStop("group:" + other[i].Group.name);
                 foreach (var c in other[i].Controls) AddOther(b, c);
             }
+            if (front) AddSupplies(b, view.Cast<UIMainShopView>(), used);
 
             if (title != null) b.PopContext();
             AddWindowButtons(b, p, used);
@@ -142,6 +144,17 @@ namespace GwentAccess.Ui
         {
             string name = c.gameObject.name;
             return name.StartsWith("ImageScrollerButton") || name == "Collider";
+        }
+
+        // The troll with the barrel, "Open supplies": the mouse's way into the opening page. The game keeps it
+        // out of keyboard navigation (never currently selectable), so the leaf walk doesn't find it; it is
+        // offered as its own stop whenever the game lets it be clicked.
+        private static void AddSupplies(GraphBuilder b, UIMainShopView view, HashSet<IntPtr> used)
+        {
+            var c = view.m_TrollBarrelButton;
+            if (c == null || !c.gameObject.activeInHierarchy || !c.IsSelectable || !used.Add(c.Pointer)) return;
+            b.BeginStop("supplies");
+            b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => AllTexts(c)));
         }
 
         // ---- the page's name ----
