@@ -25,9 +25,11 @@ namespace GwentAccess.Ui
     /// The window shares the main menu's input layer, so this screen sits above <see cref="MainMenuScreen"/>
     /// while the window is open and steps aside when it closes (Escape is the game's Back).
     ///
-    /// While the search field is being edited every navigator key is left to the game, so Space, Backspace and
-    /// the arrows edit the text and Enter searches; Tab still leaves the field. Typed and deleted characters
-    /// are echoed, since the field is not a native control the screen reader could follow.
+    /// Enter on the search field starts editing it, as clicking it does. While it is being edited the editing
+    /// keys are left to the game (Space, Backspace, Left/Right, Home/End edit the text; Enter searches); Tab
+    /// and Up/Down leave the field. The field is not a native control the screen reader could follow, so the
+    /// screen echoes it as one would: entering and leaving edit mode, typed and deleted characters, and the
+    /// caret's moves.
     /// </summary>
     internal sealed class ContactsScreen : Screen
     {
@@ -68,6 +70,9 @@ namespace GwentAccess.Ui
         {
             _typed = null;
             _result = null;
+            _caret = -1;
+            _editing = false;
+            _leaving = false;
         }
 
         public override void Build(GraphBuilder b)
@@ -117,7 +122,7 @@ namespace GwentAccess.Ui
         }
 
         // The field reads its placeholder ("Найти друга…") as its name, then what is typed, as a sighted player
-        // sees one or the other in the box; "editing" while the caret is in it.
+        // sees one or the other in the box. Enter puts the caret in it.
         private static NodeVtable Field(InputFieldControl field)
         {
             return new NodeVtable
@@ -127,7 +132,6 @@ namespace GwentAccess.Ui
                     new NodeAnnouncement(() => Placeholder(field) ?? "Find a friend", kind: AnnouncementKinds.Label),
                     NodeAnnouncement.Static("edit"),
                     new NodeAnnouncement(() => Typed(field) is string t && t.Length > 0 ? t : null, kind: AnnouncementKinds.Value),
-                    new NodeAnnouncement(() => Editing(field) ? "editing" : null, live: true, kind: AnnouncementKinds.Selected),
                 },
                 OnActivate = () =>
                 {
@@ -174,12 +178,36 @@ namespace GwentAccess.Ui
             return field != null && Editing(field) ? field : null;
         }
 
-        /// <summary>While the caret is in the search field, the game gets every key: it is typing.</summary>
-        public override bool LeavesToGame(KeyCode key) => key != KeyCode.Tab && EditedField() != null;
+        /// <summary>While the caret is in the search field, the game gets the editing keys (Left/Right, Home/End,
+        /// Backspace, Space, Enter to search); Tab and Up/Down still move off the one-line field.</summary>
+        public override bool LeavesToGame(KeyCode key) =>
+            key != KeyCode.Tab && key != KeyCode.UpArrow && key != KeyCode.DownArrow && EditedField() != null;
+
+        /// <summary>Landing anywhere but the search field takes the caret out of it, so the keys are the
+        /// navigator's again. (Landing on the field only reads it; Enter starts editing.)</summary>
+        public override void OnCursorMoved(GraphNode node)
+        {
+            base.OnCursorMoved(node);
+            var field = Window()?.GetComponentInChildren<SearchSectionRenderer>(false)?.InputFieldControl;
+            if (field == null) return;
+            bool onField = node?.Id.Reference is AControl c && c.Pointer == field.Pointer;
+            if (onField || !Editing(field)) return;
+            _leaving = true; // the landing speaks for itself; no "not editing" after it
+            try { field.DeactivateInputField(); }
+            catch (System.Exception e) { Plugin.LogInfo("[contacts] field deactivate failed: " + e.Message); }
+        }
+
+        // The field's caret as last seen, whether it was being edited, and whether the cursor just left it.
+        private int _caret = -1;
+        private bool _editing;
+        private bool _leaving;
 
         /// <summary>
-        /// Echo the search field and the search result. Typing speaks each added character, deleting speaks
-        /// what went; a result (a contact found, or the game's message) is spoken when it appears.
+        /// Echo the search field as a screen reader echoes an edit box, and speak the search result.
+        /// Entering and leaving edit mode say so; a typed character is spoken, a deleted one too; moving the
+        /// caret by one (Left/Right) speaks the character it now sits on, a longer jump (Home/End, Ctrl+arrows)
+        /// the word there; "blank" past the end. A result (a contact found, or the game's message) is spoken
+        /// when it appears.
         /// </summary>
         public override void Tick()
         {
@@ -189,19 +217,59 @@ namespace GwentAccess.Ui
 
             var field = search.InputFieldControl;
             string now = field != null ? Typed(field) : null;
-            if (_typed != null && now != null && now != _typed && Editing(field))
+            bool editing = field != null && Editing(field);
+            int caret = editing ? Caret(field) : -1;
+            if (editing != _editing)
             {
-                if (now.Length > _typed.Length && now.StartsWith(_typed)) Speech.Say(now.Substring(_typed.Length), true);
-                else if (now.Length < _typed.Length && _typed.StartsWith(now)) Speech.Say(_typed.Substring(now.Length), true);
-                else Speech.Say(now.Length > 0 ? now : "blank", true);
+                if (editing) Speech.Say("editing", true);
+                else if (!_leaving) Speech.Say("not editing", true);
+                _leaving = false;
             }
+            else if (editing && _typed != null && now != null && now != _typed) Speech.Say(Change(_typed, now), true);
+            else if (editing && caret >= 0 && _caret >= 0 && caret != _caret && now != null)
+                Speech.Say(System.Math.Abs(caret - _caret) == 1 ? CharAt(now, caret) : WordAt(now, caret), true);
+            _editing = editing;
             _typed = now;
+            _caret = caret;
 
             var found = search.m_ContactEntryRenderer?.GetComponentInChildren<ContactEntryRenderer>(false);
             string result = found != null ? ContactLabel(found) : ResultMessage(search);
             if (result != null && result != _result) Speech.Say(result, false);
             _result = result;
         }
+
+        private static int Caret(InputFieldControl field)
+        {
+            try { return field.InputField.caretPositionInternal; } catch { return -1; }
+        }
+
+        // What an edit did: the characters inserted, else those deleted (wherever in the text), as typed.
+        private static string Change(string before, string after)
+        {
+            int p = 0;
+            while (p < before.Length && p < after.Length && before[p] == after[p]) p++;
+            int s = 0;
+            while (s < before.Length - p && s < after.Length - p && before[before.Length - 1 - s] == after[after.Length - 1 - s]) s++;
+            string added = after.Substring(p, after.Length - p - s);
+            string removed = before.Substring(p, before.Length - p - s);
+            return Spoken(added.Length > 0 ? added : removed);
+        }
+
+        // The character the caret sits before; "blank" at the end.
+        private static string CharAt(string text, int caret) =>
+            caret >= 0 && caret < text.Length ? Spoken(text[caret].ToString()) : "blank";
+
+        // The word the caret is in or before; "blank" at the end.
+        private static string WordAt(string text, int caret)
+        {
+            if (caret < 0 || caret >= text.Length) return "blank";
+            int start = caret, end = caret;
+            while (start > 0 && !char.IsWhiteSpace(text[start - 1])) start--;
+            while (end < text.Length && !char.IsWhiteSpace(text[end])) end++;
+            return end > start ? text.Substring(start, end - start) : Spoken(text[caret].ToString());
+        }
+
+        private static string Spoken(string s) => s == " " ? "space" : s;
 
         // ---- sections and contacts ----
 
