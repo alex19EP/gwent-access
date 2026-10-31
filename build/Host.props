@@ -1,10 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <!-- The HOST: the BepInEx plugin (GwentAccess.dll). Only src/Host and src/Dev compile here; everything else is the
-       reloadable module (module/GwentAccess.Module.csproj). The game keeps this dll open, so changing it means
-       closing the game; module changes hot-reload (just reload). -->
+<Project>
+  <!-- The HOST of one game's mod: the BepInEx plugin ($(ModName).dll). Imported by games/<Game>/Host/<ModName>.csproj,
+       which sets ModName, DefaultGameDir and has a GameInfo.cs beside it (the plugin's id, name, module file and dev port).
+
+       Only the shared host source compiles here (src/Host, src/Dev) plus the game's GameInfo.cs; everything else
+       is the reloadable module (build/Module.props). The game keeps this dll open, so changing it means closing
+       the game; module changes hot-reload (just reload). -->
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <AssemblyName>GwentAccess</AssemblyName>
+    <AssemblyName>$(ModName)</AssemblyName>
     <RootNamespace>GwentAccess</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
@@ -15,9 +18,10 @@
   </PropertyGroup>
   <Import Project="GameReferences.props" />
   <!-- Builds third_party/prism and drops prism.dll into $(TargetDir); the host loads it (Host/Prism.cs). -->
-  <Import Project="..\build\Prism.targets" />
+  <Import Project="Prism.targets" />
   <ItemGroup>
-    <Compile Include="Host\**\*.cs;Dev\**\*.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\src\Host\**\*.cs;$(MSBuildThisFileDirectory)..\src\Dev\**\*.cs" />
+    <Compile Include="$(MSBuildProjectDirectory)\GameInfo.cs" />
   </ItemGroup>
   <!-- Debug builds carry the dev server (src/Dev): Roslyn powers its C# eval. Pinned to 4.0.x because newer
        Roslyn needs System.Collections.Immutable 7+, and the .NET 6 runtime BepInEx ships has 6.0. -->
@@ -31,7 +35,7 @@
        Building the module with -p:Deploy=true builds and deploys this too. -->
   <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(Deploy)' == 'true'">
     <ItemGroup>
-      <DeployFiles Include="$(OutDir)GwentAccess.dll;$(OutDir)GwentAccess.pdb;$(OutDir)Microsoft.CodeAnalysis*.dll" />
+      <DeployFiles Include="$(OutDir)$(ModName).dll;$(OutDir)$(ModName).pdb;$(OutDir)Microsoft.CodeAnalysis*.dll" />
       <!-- Absent only in a Debug build with SkipPrismBuild (BuildPrism warned already). -->
       <DeployFiles Include="$(OutDir)prism.dll" Condition="Exists('$(OutDir)prism.dll')" />
     </ItemGroup>

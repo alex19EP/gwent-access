@@ -361,6 +361,7 @@ namespace GwentAccess
         });
     }
 
+#if GWENT // Thronebreaker's AbilityVFXHandler has no OnCardStatusAttack (nor a CardStatusAttack type); its hook is still to be found
     /// <summary>A status put on or taken off: "Флот налетчиков: Кровотечение: Тридамская пехота 5." Removal is
     /// worded with the game's "purify".</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnCardStatusAttack))]
@@ -386,6 +387,7 @@ namespace GwentAccess
             Narrator.SayEffect(source, label, targets);
         });
     }
+#endif
 
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnCardTransformAttack))]
     internal static class NarrateTransformAttack
@@ -413,6 +415,7 @@ namespace GwentAccess
         });
     }
 
+#if GWENT // Thronebreaker has no LocationStatusAttack, and its CardSpawnVFXHandler no HandleOnCardsSpawned
     /// <summary>A row effect laid or cleared: "Ледяной великан: Мороз: Вражеский рукопашный ряд."</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnLocationTokensAttack))]
     internal static class NarrateRowAttack
@@ -465,6 +468,7 @@ namespace GwentAccess
             }
         });
     }
+#endif
 
     // ---- cards moving: draws, summons, row moves, returns ----
 
@@ -649,6 +653,7 @@ namespace GwentAccess
     // The game's end ("Победа!" / "Поражение") is not narrated here: the battle results screen
     // (Ui.BattleResultsScreen) opens right after with that banner as its name, so it would be read twice.
 
+#if GWENT // Thronebreaker has no UIChangeTurnOrRoundPanel; its round banner is still to be found
     /// <summary>The round-start banner, read off the banner itself: "Начало финального раунда. Противник ходит
     /// первым."</summary>
     [HarmonyPatch(typeof(UIChangeTurnOrRoundPanel), nameof(UIChangeTurnOrRoundPanel.SetTexts))]
@@ -664,6 +669,7 @@ namespace GwentAccess
             Narrator.Say(head.TrimEnd('.', '!') + ". " + who);
         });
     }
+#endif
 
     // ---- emotes ----
 

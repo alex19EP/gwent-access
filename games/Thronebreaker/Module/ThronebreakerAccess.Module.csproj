@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Thronebreaker Access, the module: src/Access.Core, src/Shared and every .cs in this folder. The build
+       lives in build/Module.props. Building this builds the host (../Host) too. -->
+  <PropertyGroup>
+    <ModName>ThronebreakerAccess</ModName>
+    <GameDefine>THRONEBREAKER</GameDefine>
+    <DefaultGameDir>C:\Program Files (x86)\Steam\steamapps\common\Thronebreaker The Witcher Tales</DefaultGameDir>
+  </PropertyGroup>
+  <Import Project="..\..\..\build\Module.props" />
+  <!-- Shared code not yet ported to Thronebreaker. Its engine is an older fork of Gwent's: the battle flow, card
+       data and the legacy hotkey layer differ member by member (see the compile errors once a file is put back).
+       Porting a file means making it build here (#if THRONEBREAKER where the games differ) and removing its line.
+       This list only shrinks. -->
+  <ItemGroup>
+    <Compile Remove="..\..\..\src\Shared\BattleSpeech.cs" />
+    <Compile Remove="..\..\..\src\Shared\CardReader.cs" />
+    <Compile Remove="..\..\..\src\Shared\CardText.cs" />
+    <Compile Remove="..\..\..\src\Shared\Narrator.cs" />
+    <Compile Remove="..\..\..\src\Shared\Plays.cs" />
+    <Compile Remove="..\..\..\src\Shared\TutorialTrace.cs" />
+    <Compile Remove="..\..\..\src\Shared\Ui\BattleInput.cs" />
+    <Compile Remove="..\..\..\src\Shared\Ui\BattleScreen.cs" />
+    <Compile Remove="..\..\..\src\Shared\Ui\CardKeys.cs" />
+    <Compile Remove="..\..\..\src\Shared\Ui\ChoiceScreen.cs" />
+    <Compile Remove="..\..\..\src\Shared\Ui\MulliganScreen.cs" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,7 @@
 <Project>
   <!-- Builds the native Prism speech library from the third_party/prism submodule and drops prism.dll into
-       $(TargetDir). Imported by the HOST (src/GwentAccess.csproj), which loads it (src/Host/Prism.cs), deploys it
-       next to GwentAccess.dll and is what scripts/package.ps1 packs it from. Mirrors RTAccess's build/Prism.targets.
+       $(TargetDir). Imported by every game's HOST (build/Host.props), which loads it (src/Host/Prism.cs), deploys it
+       next to the host dll and is what scripts/package.ps1 packs it from. Mirrors RTAccess's build/Prism.targets.
 
        Cost: scripts/build-prism.ps1 short-circuits on a stamp recording the submodule commit it built from, so an
        unchanged tree costs a git rev-parse. Only a moved (or dirty) submodule re-runs CMake.

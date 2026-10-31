@@ -84,6 +84,7 @@ namespace GwentAccess.Ui
                 new NodeAnnouncement(label ?? (() => Label(c)), kind: AnnouncementKinds.Label),
                 new NodeAnnouncement(() => SafeEnabled(c) ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
             };
+#if GWENT // cosmetics thumbnails: Gwent's vanity UI, absent from Thronebreaker
             var thumb = c.TryCast<VirtualSkinThumbnailButton>();
             if (thumb != null)
             {
@@ -93,6 +94,7 @@ namespace GwentAccess.Ui
                 anns.Add(new NodeAnnouncement(() => thumb.CanShowSelected && Shown(thumb.m_SelectedFrame) ? "selected" : null,
                     live: true, kind: AnnouncementKinds.Selected));
             }
+#endif
             return new NodeVtable
             {
                 Announcements = anns,
@@ -101,6 +103,7 @@ namespace GwentAccess.Ui
             };
         }
 
+#if GWENT
         /// <summary>
         /// A cosmetics thumbnail (the deck screen's customise buttons, the cosmetics picker's items and tabs)
         /// is a picture only; it reads as what the picture shows: the item's own name, after the category
@@ -135,6 +138,7 @@ namespace GwentAccess.Ui
                 if (cfg.VanityType == t.VanityType) return GameText.Get(cfg.TooltipKey, null);
             return null;
         }
+#endif
 
         private static bool Shown(Component c)
         {
@@ -173,11 +177,15 @@ namespace GwentAccess.Ui
         /// </summary>
         private static string NotificationText(AControl c)
         {
+#if !GWENT // Thronebreaker has no notification widgets
+            return null;
+#else
             if (c.TryCast<GwentUnity.UINotificationBackgroundWidget>() == null) return null;
             var label = c.GetComponentInParent<GwentUnity.UINotificationControl>()?.m_TextLabel;
             if (label == null) return null;
             var parts = Texts(label);
             return parts.Count > 0 ? string.Join(". ", parts) : null;
+#endif
         }
 
         private static bool IsCount(string s)
@@ -195,6 +203,9 @@ namespace GwentAccess.Ui
         /// </summary>
         public static string TooltipText(AControl c)
         {
+#if !GWENT // Thronebreaker's AControl has no TooltipRequestCreator; its tooltips are still to be found
+            return null;
+#else
             try
             {
                 var tip = c.TooltipRequestCreator?.Invoke()?.TooltipData?.TryCast<GwentUnity.UI.SimpleTooltip>();
@@ -207,18 +218,21 @@ namespace GwentAccess.Ui
                 return text.Length > 0 ? text : null;
             }
             catch { return null; }
+#endif
         }
 
         // An icon-only action button (the back arrow) names itself by its action icon: "Back". Other icon
         // buttons are known by their icon picture; the game has no words for these.
         private static string IconName(AControl c)
         {
+#if GWENT // Thronebreaker has no ActionIconController
             var ic = c.GetComponent<ActionIconController>();
             if (ic != null)
             {
                 var name = ic.m_IconType.ToString();
                 return name == "None" ? null : UiText.FriendlyName(name);
             }
+#endif
             foreach (var img in c.GetComponentsInChildren<UnityEngine.UI.Image>(false))
                 if (img.sprite != null && IconSprites.TryGetValue(img.sprite.name.Replace("(Clone)", ""), out var known))
                     return known;

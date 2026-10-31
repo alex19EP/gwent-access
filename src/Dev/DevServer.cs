@@ -11,9 +11,10 @@ namespace GwentAccess.Dev
     ///   POST /eval/reset      forget earlier variables.
     ///   GET  /speech?since=N  lines the mod spoke since cursor N (the last line says the cursor to use next).
     ///   GET  /health          liveness.
-    ///   POST /reload          dispose the module and load the rebuilt Module\GwentAccess.Module.dll (main thread).
+    ///   POST /reload          dispose the module and load the rebuilt Module\&lt;ModName&gt;.Module.dll (main thread).
     ///   GET  /module          which module generation and build is loaded.
-    /// Lives in the host so it survives module reloads. Off unless the marker file BepInEx\plugins\GwentAccess\devserver.enable exists (or GWENTACCESS_DEV=1).
+    /// Lives in the host so it survives module reloads. Off unless the marker file BepInEx\plugins\&lt;ModName&gt;\devserver.enable
+    /// exists (or &lt;EnvPrefix&gt;_DEV=1, e.g. GWENTACCESS_DEV=1). Port and prefix per game: <see cref="GameInfo"/>.
     /// A file survives relaunching through the launcher, an environment variable doesn't.
     /// Release builds don't contain any of this.
     /// </summary>
@@ -22,7 +23,7 @@ namespace GwentAccess.Dev
         /// <summary>The module points Speech.Observer here on Load, so /speech sees every line it speaks.</summary>
         public static void TapSpeech(string text) => Tap.Add(text);
 
-        private const int DefaultPort = 8773; // WrathAccess 8771, RTAccess 8772
+        private const int DefaultPort = GameInfo.DevPort;
         private static readonly SpeechTap Tap = new SpeechTap();
         private static readonly CSharpEvaluator Evaluator = new CSharpEvaluator();
         private static DevHttpServer _http;
@@ -30,9 +31,9 @@ namespace GwentAccess.Dev
         public static void Start(string pluginDir)
         {
             bool marker = File.Exists(Path.Combine(pluginDir, "devserver.enable"));
-            if (!marker && Environment.GetEnvironmentVariable("GWENTACCESS_DEV") != "1") return;
+            if (!marker && Environment.GetEnvironmentVariable(GameInfo.EnvPrefix + "_DEV") != "1") return;
             int port = DefaultPort;
-            int.TryParse(Environment.GetEnvironmentVariable("GWENTACCESS_DEV_PORT") ?? "", out port);
+            int.TryParse(Environment.GetEnvironmentVariable(GameInfo.EnvPrefix + "_DEV_PORT") ?? "", out port);
             if (port <= 0) port = DefaultPort;
             try
             {

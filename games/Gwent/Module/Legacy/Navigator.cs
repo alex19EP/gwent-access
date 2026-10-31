@@ -11,8 +11,9 @@ namespace GwentAccess
     /// Our own "object navigation": walk every clickable thing on screen with F2/F3,
     /// move the game's selection there (so Enter works), or click it directly with F4.
     /// Works even on screens the game's own arrow-key navigation can't reach.
+    /// Gwent's legacy layer; the click itself (<see cref="ClickControl"/>) is shared, in src/Shared/NavigatorClick.cs.
     /// </summary>
-    internal static class Navigator
+    internal static partial class Navigator
     {
         private static IntPtr _current = IntPtr.Zero;
         public static PopupControl ActivePopup;
@@ -447,59 +448,7 @@ namespace GwentAccess
             var c = _currentControl ?? SelectedControlPatch.Current;
             if (c == null) { Speech.Say("Nothing selected. Use F3 to pick something first.", true); return; }
             if (!c.gameObject.activeInHierarchy) { Speech.Say("That item is gone. Press F3 again.", true); return; }
-            ClickControl(c);
-        }
-
-        /// <summary>Run a control's own click path: a bottom-bar button's container callback, a ButtonControl's
-        /// left click, or a Button's Click. Shared by the F4 navigator and the graph screens' Enter.</summary>
-        public static void ClickControl(AControl c)
-        {
-            try
-            {
-                var bc = c.TryCast<ButtonControl>();
-                // Bottom-bar buttons (Exit, Save and exit...) run a callback stored by their container, not a click handler.
-                if (bc != null)
-                {
-                    try
-                    {
-                        var ibc = c.GetComponentInParent<InputButtonContainer>();
-                        if (ibc != null)
-                        {
-                            var map = ibc.m_Buttons;
-                            if (map != null && map.ContainsKey(bc))
-                            {
-                                var act = map[bc];
-                                if (act != null)
-                                {
-                                    Plugin.LogInfo("Navigator click (container action): " + UiText.DebugPath(c));
-                                    act.Invoke();
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception e) { Plugin.LogInfo("Container action failed: " + e.Message); }
-                }
-                if (bc != null)
-                {
-                    Plugin.LogInfo("Navigator click (ButtonControl): " + UiText.DebugPath(c));
-                    bc.InvokeOnLeftClick();
-                    return;
-                }
-                var b = c.TryCast<CrimsonUI.Button>();
-                if (b != null)
-                {
-                    Plugin.LogInfo("Navigator click (Button): " + UiText.DebugPath(c));
-                    b.Click();
-                    return;
-                }
-                Speech.Say("Can't click this item. Try Enter.", true);
-            }
-            catch (Exception e)
-            {
-                Plugin.LogInfo("Navigator click failed: " + e);
-                Speech.Say("Click failed.", true);
-            }
+            ClickControl(c); // src/Shared/NavigatorClick.cs
         }
     }
 }

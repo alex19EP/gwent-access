@@ -11,8 +11,10 @@
         BepInEx\plugins\GwentAccess\build.txt                       what was built, for bug reports
         Install.bat, Update.bat, Uninstall.bat, MakeShortcut.bat, Gwent-NoLauncher.bat, README.txt   (from package/)
 
-    Build first (dotnet build module/GwentAccess.Module.csproj -c Release); this only packs the output. The host
-    build drops prism.dll next to GwentAccess.dll (build/Prism.targets).
+    Build first (dotnet build games/Gwent/Module/GwentAccess.Module.csproj -c Release); this only packs the
+    output. The host build drops prism.dll next to GwentAccess.dll (build/Prism.targets).
+
+    Gwent only so far: package/ holds Gwent's installer scripts. Thronebreaker Access has no player zip yet.
 
 .PARAMETER Configuration
     The build configuration to pack. Release for players: Debug carries the dev server and Roslyn.
@@ -38,8 +40,8 @@ $BepInExUrl = 'https://builds.bepinex.dev/projects/bepinex_be/790/BepInEx-Unity.
 $repo   = Split-Path -Parent $PSScriptRoot
 $dist   = Join-Path $repo 'dist'
 $stage  = Join-Path $dist 'stage'
-$hostOut = Join-Path $repo "src/bin/$Configuration/net6.0"
-$modOut  = Join-Path $repo "module/bin/$Configuration/net6.0"
+$hostOut = Join-Path $repo "games/Gwent/Host/bin/$Configuration/net6.0"
+$modOut  = Join-Path $repo "games/Gwent/Module/bin/$Configuration/net6.0"
 
 $hostDll = Join-Path $hostOut 'GwentAccess.dll'
 if (-not (Test-Path $hostDll)) { throw "Host not built: $hostDll" }

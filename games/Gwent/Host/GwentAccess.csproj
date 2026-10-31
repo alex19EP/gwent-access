@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Gwent Access, the host (GwentAccess.dll). The build lives in build/Host.props; the plugin's identity in
+       GameInfo.cs. The module is ../Module/GwentAccess.Module.csproj. -->
+  <PropertyGroup>
+    <ModName>GwentAccess</ModName>
+    <DefaultGameDir>C:\Program Files (x86)\Steam\steamapps\common\GWENT The Witcher Card Game</DefaultGameDir>
+    <!-- The name the build took before there were other games: dotnet build -p:GwentDir=... -->
+    <GameDir Condition="'$(GameDir)' == ''">$(GwentDir)</GameDir>
+  </PropertyGroup>
+  <Import Project="..\..\..\build\Host.props" />
+</Project>

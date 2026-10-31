@@ -59,7 +59,8 @@ jobs:
 
       # Game references come from Gwent.GameRefs: Refasmer-stripped (metadata-only) BepInEx core and IL2CPP
       # interop assemblies, published to GitHub Packages under this same account by scripts/build-gamerefs.ps1.
-      # The package mirrors the game folder, so it is passed as GwentDir.
+      # The package mirrors the game folder, so it is passed as GameDir. (Gwent only: Thronebreaker has no
+      # game-refs package yet.)
       - name: Add game-refs feed
         run: nuget sources add -name gamerefs -source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json -username ${{ github.repository_owner }} -password ${{ secrets.GITHUB_TOKEN }} -StorePasswordInClearText
 
@@ -77,7 +78,7 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          dotnet build module/GwentAccess.Module.csproj -c Release "-p:GwentDir=$env:GWENT_DIR"
+          dotnet build games/Gwent/Module/GwentAccess.Module.csproj -c Release "-p:GameDir=$env:GWENT_DIR"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Label

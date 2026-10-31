@@ -290,7 +290,7 @@ namespace GwentAccess
         {
             try
             {
-                var table = LocalizationManager.Instance?.Translations;
+                var table = GameText.Table;
                 string id = LocalizationHelper.KEYWORD_LOCALIZATION_KEY_PREFIX + key;
                 return table != null && table.ContainsKey(id) ? UiText.Clean(table[id]) : "";
             }

@@ -1,0 +1,37 @@
+<Project>
+  <!-- Game, BepInEx and IL2CPP interop references shared by every game's host and module (build/Host.props,
+       build/Module.props). Every game the mod targets runs Gwent's engine under the same BepInEx be.790 IL2CPP
+       build, so the reference list is the same; only the folder differs. Deliberately not a
+       Directory.Build.props: the kernel tests must not see any of these.
+
+       GameDir: the game's install folder (BepInEx already run once so BepInEx\interop exists). The game project
+       sets DefaultGameDir; override with dotnet build -p:GameDir=... (the Gwent projects also take GwentDir). -->
+  <PropertyGroup>
+    <GameDir Condition="'$(GameDir)' == ''">$(DefaultGameDir)</GameDir>
+    <PluginDeployDir>$(GameDir)\BepInEx\plugins\$(ModName)</PluginDeployDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BepInEx.Core"><HintPath>$(GameDir)\BepInEx\core\BepInEx.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="BepInEx.Unity.IL2CPP"><HintPath>$(GameDir)\BepInEx\core\BepInEx.Unity.IL2CPP.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppInterop.Runtime"><HintPath>$(GameDir)\BepInEx\core\Il2CppInterop.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(GameDir)\BepInEx\interop\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(GameDir)\BepInEx\interop\Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameDir)\BepInEx\interop\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2Cppmscorlib"><HintPath>$(GameDir)\BepInEx\interop\Il2Cppmscorlib.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(GameDir)\BepInEx\interop\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(GameDir)\BepInEx\interop\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(GameDir)\BepInEx\interop\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppSystem"><HintPath>$(GameDir)\BepInEx\interop\Il2CppSystem.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppSystem.Core"><HintPath>$(GameDir)\BepInEx\interop\Il2CppSystem.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Il2CppInterop.Common"><HintPath>$(GameDir)\BepInEx\core\Il2CppInterop.Common.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Rewired_Core"><HintPath>$(GameDir)\BepInEx\interop\Rewired_Core.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+  <!-- Thronebreaker keeps part of the engine's utility code (ASingleton, the RedToolkit Event) in assemblies of
+       its own, where Gwent has it in Assembly-CSharp-firstpass; referenced wherever the game ships them. -->
+  <ItemGroup>
+    <Reference Include="Code.Plugins.Utils" Condition="Exists('$(GameDir)\BepInEx\interop\Code.Plugins.Utils.dll')"><HintPath>$(GameDir)\BepInEx\interop\Code.Plugins.Utils.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Code.Plugins.RedToolkit" Condition="Exists('$(GameDir)\BepInEx\interop\Code.Plugins.RedToolkit.dll')"><HintPath>$(GameDir)\BepInEx\interop\Code.Plugins.RedToolkit.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Code.Utils" Condition="Exists('$(GameDir)\BepInEx\interop\Code.Utils.dll')"><HintPath>$(GameDir)\BepInEx\interop\Code.Utils.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

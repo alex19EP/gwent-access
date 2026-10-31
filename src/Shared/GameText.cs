@@ -8,13 +8,27 @@ namespace GwentAccess
     /// </summary>
     internal static class GameText
     {
+        /// <summary>The game's translation table, key to text in the player's language; null before the game has
+        /// loaded it. Gwent exposes it as a property; Thronebreaker's older engine only as its backing field.</summary>
+        public static Il2CppSystem.Collections.Generic.Dictionary<string, string> Table
+        {
+            get
+            {
+#if THRONEBREAKER
+                return LocalizationManager.Instance?.m_translations;
+#else
+                return LocalizationManager.Instance?.Translations;
+#endif
+            }
+        }
+
         /// <summary>The translation for <paramref name="key"/>, markup stripped; <paramref name="fallback"/>
         /// when the game has none (or only a placeholder).</summary>
         public static string Get(string key, string fallback)
         {
             try
             {
-                var table = LocalizationManager.Instance?.Translations;
+                var table = Table;
                 if (key != null && table != null && table.ContainsKey(key))
                 {
                     string text = UiText.Clean(table[key]);

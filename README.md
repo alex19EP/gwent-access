@@ -12,7 +12,8 @@ You will need sighted help once to log in to GOG through Gwent's launcher. After
 
 ## What's in this repository
 
-- `src/`: the mod's C# source (a BepInEx 6 IL2CPP plugin).
+- `src/`: C# source shared by every game on Gwent's engine: the graph kernel (`Access.Core`), the BepInEx plugin host (`Host`, `Dev`) and the shared module code (`Shared`).
+- `games/Gwent/`: Gwent Access's own projects and screens. `games/Thronebreaker/`: Thronebreaker Access, an early start on the same base for **Thronebreaker: The Witcher Tales**.
 - `package/`: the installer scripts, the launcher-skip script and the player readme that ship in the release zip.
 
 ## Building
@@ -23,29 +24,30 @@ Requirements:
 - For speech: CMake 3.24+ and Visual Studio Build Tools with the C++ workload. The [Prism](https://github.com/ethindp/prism) speech library is a git submodule (`git submodule update --init third_party/prism`, with `git config core.longpaths true`) that the build compiles into `prism.dll` (`scripts/build-prism.ps1`; it only rebuilds when the submodule moves). A Debug build can skip it with `-p:SkipPrismBuild=true`, but has no speech then.
 
 ```
-dotnet build module/GwentAccess.Module.csproj -c Release -p:Deploy=true
+dotnet build games/Gwent/Module/GwentAccess.Module.csproj -c Release -p:Deploy=true
 ```
 
-If Gwent isn't in the default Steam folder, add `-p:GwentDir="D:\path\to\GWENT The Witcher Card Game"`.
+If Gwent isn't in the default Steam folder, add `-p:GameDir="D:\path\to\GWENT The Witcher Card Game"`.
 
-The mod is two assemblies. `GwentAccess.dll` (`src/Host`, `src/Dev`) is the small BepInEx plugin; it loads everything else from `Module\GwentAccess.Module.dll`. `-p:Deploy=true` copies both, and `prism.dll`, into `BepInEx\plugins\GwentAccess\` (close the game first).
+The mod is two assemblies. `GwentAccess.dll` (`src/Host`, `src/Dev`, `games/Gwent/Host/GameInfo.cs`) is the small BepInEx plugin; it loads everything else from `Module\GwentAccess.Module.dll`. `-p:Deploy=true` copies both, and `prism.dll`, into `BepInEx\plugins\GwentAccess\` (close the game first).
 
-With [just](https://github.com/casey/just), `just all` runs the tests and deploys, and `just reload` swaps a rebuilt module into the running game (Debug builds with the dev server on). `just` lists the rest.
+With [just](https://github.com/casey/just), `just all` runs the tests and deploys, and `just reload` swaps a rebuilt module into the running game (Debug builds with the dev server on). `just game=tb <recipe>` does the same for Thronebreaker. `just` lists the rest.
 
 ## How it works (short tour)
 
 | File | What it does |
 |---|---|
-| `Host/Plugin.cs`, `Host/ModuleLoader.cs` | BepInEx entry point; loads the module from bytes and swaps it on reload. |
-| `ModuleMain.cs` | Module entry; applies each Harmony patch separately so one failure can't disable the mod, and undoes everything on reload. |
-| `Speech.cs`, `Host/Prism.cs` | Speaks through the screen reader via Prism; the host owns the native context so it survives module reloads. |
-| `Hotkeys.cs` | Reads the keyboard on a background thread; work runs on the game thread through `MainThread.cs`. |
-| `MenuSpeech.cs` | Hooks `CrimsonInputLayer.set_SelectedControl` and describes whatever the game selects. |
-| `Navigator.cs` | F2/F3 object navigation, sections (Shift+F2/F3), clicking, settings and deck builder lists, shop buying. |
-| `ScreenSpeech.cs`, `PopupSpeech.cs`, `KeyHints.cs` | Screen names, popups with their keys, and key hints. |
-| `BattleSpeech.cs`, `HandNav.cs` | Match commentary, hand/board reading, mulligan, pass, end turn, turn timer, forfeit guard. |
-| `DeckBuilder.cs` | Add/remove cards, deck stats, rename, duplicate, search, save and exit. |
-| `CardText.cs`, `RewardBookText.cs`, `SocialNames.cs` | Turning cards, reward nodes and icons into words. |
+| `src/Host/Plugin.cs`, `src/Host/ModuleLoader.cs` | BepInEx entry point; loads the module from bytes and swaps it on reload. |
+| `games/*/Module/ModuleMain.cs` | Module entry; applies each Harmony patch separately so one failure can't disable the mod, and undoes everything on reload. |
+| `src/Shared/Speech.cs`, `src/Host/Prism.cs` | Speaks through the screen reader via Prism; the host owns the native context so it survives module reloads. |
+| `src/Shared/Ui/` | The graph screens: each screen declares its controls, the navigator moves the cursor and speaks. |
+| `src/Shared/BattleSpeech.cs`, `Narrator.cs`, `Plays.cs` | Match commentary, what the game is waiting on, board reading. |
+| `games/Gwent/Module/Legacy/Hotkeys.cs` | Gwent's older layer: reads the keyboard on a background thread; work runs on the game thread through `MainThread.cs`. |
+| `games/Gwent/Module/Legacy/MenuSpeech.cs` | Hooks `CrimsonInputLayer.set_SelectedControl` and describes whatever the game selects. |
+| `games/Gwent/Module/Legacy/Navigator.cs` | F2/F3 object navigation, sections (Shift+F2/F3), clicking, settings and deck builder lists, shop buying. |
+| `games/Gwent/Module/Legacy/HandNav.cs` | Hand/board reading, mulligan, pass, end turn, turn timer, forfeit guard. |
+| `games/Gwent/Module/DeckBuilder.cs` | Add/remove cards, deck stats, rename, duplicate, search, save and exit. |
+| `src/Shared/CardText.cs`, `games/Gwent/Module/RewardBookText.cs` | Turning cards and reward nodes into words. |
 
 Logs go to `BepInEx\LogOutput.log` and record every spoken line and hotkey, which makes bug reports easy to trace.
 

@@ -1,0 +1,43 @@
+<Project>
+  <!-- The reloadable MODULE of one game's mod: every feature. Imported by games/<Game>/Module/<ModName>.Module.csproj,
+       which sets ModName, DefaultGameDir and GameDefine (GWENT, THRONEBREAKER: the symbol shared code tests
+       with #if where a game lacks a type). The host byte-loads the deployed copy from
+       BepInEx\plugins\<ModName>\Module\<ModName>.Module.dll and swaps it on POST /reload, with the game running.
+
+       Sources: the graph kernel (src/Access.Core), the code shared by every game on Gwent's engine (src/Shared),
+       and the game's own (every .cs beside the module project, games/<Game>/Module). The host project sits in
+       games/<Game>/Host: two projects in one folder would share obj\.
+
+       The ASSEMBLY NAME IS TIMESTAMPED per build (the deployed FILE name stays stable). Generations stay loaded
+       side by side, and the name is how the dev evaluator and ModuleLoader.Reload tell them apart; GET /module
+       shows which one is live. Do not "fix" this. Same scheme as WrathAccess. -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>$(ModName).Module_$([System.DateTime]::UtcNow.ToString(yyyyMMddHHmmss))</AssemblyName>
+    <RootNamespace>GwentAccess</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>$(DefineConstants);$(GameDefine)</DefineConstants>
+  </PropertyGroup>
+  <Import Project="GameReferences.props" />
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)..\src\Access.Core\**\*.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\src\Shared\**\*.cs" />
+    <Compile Include="$(MSBuildProjectDirectory)\**\*.cs" Exclude="$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The host: Plugin.LogInfo/Dir, MainThread, IModModule, DevServer.TapSpeech. Never copied next to the module. -->
+    <ProjectReference Include="$(MSBuildProjectDirectory)\..\Host\$(ModName).csproj" Private="false" />
+  </ItemGroup>
+  <!-- -p:Deploy=true (game closed: the host deploys too) or -p:DeployModule=true (game running: module only).
+       Copies under the stable file name into Module\, which BepInEx never locks. -->
+  <Target Name="DeployModule" AfterTargets="Build" Condition="'$(Deploy)' == 'true' or '$(DeployModule)' == 'true'">
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).dll" DestinationFiles="$(PluginDeployDir)\Module\$(ModName).Module.dll" />
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).pdb" DestinationFiles="$(PluginDeployDir)\Module\$(ModName).Module.pdb" />
+    <Message Text="Deployed module $(AssemblyName) to $(PluginDeployDir)\Module" Importance="high" />
+  </Target>
+</Project>

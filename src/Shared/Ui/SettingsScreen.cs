@@ -161,7 +161,7 @@ namespace GwentAccess.Ui
             string id;
             try { id = sw.Value?.Text; } catch { return null; }
             if (id == null || !id.StartsWith(ValuePrefix)) return null;
-            var table = Localization.LocalizationManager.Instance?.Translations;
+            var table = GameText.Table;
             string key = ValuePrefix + "info_" + id.Substring(ValuePrefix.Length);
             if (table == null || !table.ContainsKey(key)) return null;
             return UiText.Clean(table[key]).Replace(" {0}", "");
