@@ -413,6 +413,8 @@ namespace GwentAccess
         /// <summary>Ctrl+B in the shop: buy the selected item with Ore. Asks for a second press; never touches real-money buttons.</summary>
         public static void Buy()
         {
+            // The shop's graph screen offers the buy button itself (Enter on it, in its details stop).
+            if (Ui.GraphNavigator.Owns || Ui.ScreenManager.AnyActive()) return;
             ButtonControl buy = null;
             foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<ButtonControl>()))
             {
