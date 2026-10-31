@@ -23,6 +23,13 @@ namespace GwentAccess.Ui
 
         public override bool IsActive() => Panel() != null;
 
+        // The text node's key at the last render, and whether this push has rendered yet: the first render's
+        // text is landed on by SetStart, later new texts by a suggestion.
+        private string _lastKey;
+        private bool _built;
+
+        public override void OnPush() { _lastKey = null; _built = false; }
+
         // The tutorial panel attached to the input layer that has the input.
         private static AGwentPanel Panel()
         {
@@ -50,13 +57,17 @@ namespace GwentAccess.Ui
             var buttonTexts = new HashSet<string>();
             foreach (var c in buttons) foreach (var s in CrimsonNodes.Texts(c)) buttonTexts.Add(s);
 
-            string text = Text(panel, buttonTexts);
+            var round = panel.TryCast<UIRoundTutorialPopupPanel>();
+            string key = null;
+            string text = round != null ? RoundText(round, out key) : Text(panel, buttonTexts);
             b.BeginStop("tutorial");
             if (text.Length > 0)
             {
-                // Keyed by the shown string (the image popup's loc key when it has one), not the panel.
-                string key = panel.TryCast<UITutorialImagePopup>()?.CurrentString;
-                var id = ControlId.Structural("tutorial:text:" + (string.IsNullOrEmpty(key) ? text : key));
+                // Keyed by the shown string (the image popup's loc key when it has one; the round explainer's
+                // current line), not the panel, so a new text lands afresh and is spoken.
+                key ??= panel.TryCast<UITutorialImagePopup>()?.CurrentString;
+                string textKey = string.IsNullOrEmpty(key) ? text : key;
+                var id = ControlId.Structural("tutorial:text:" + textKey);
                 b.AddItem(id, new NodeVtable
                 {
                     Announcements = new[] { new NodeAnnouncement(() => text, kind: AnnouncementKinds.Label) },
@@ -64,8 +75,70 @@ namespace GwentAccess.Ui
                     OnTooltip = () => Speech.Say(text, true),
                 });
                 b.SetStart(id);
+                // A panel's text can arrive after the panel (an image popup fading in, the round explainer's next
+                // line): the cursor moves onto the new text so it is spoken, not left on the button.
+                if (_built && textKey != _lastKey) GraphNavigator.Suggest(id);
+                _lastKey = textKey;
             }
+            _built = true;
             foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+        }
+
+        /// <summary>The round explainer's title ("РАУНД И КАРТЫ В ГВИНТЕ"), spoken as the screen's name.</summary>
+        public override string ScreenName
+        {
+            get
+            {
+                try
+                {
+                    var round = Panel()?.TryCast<UIRoundTutorialPopupPanel>();
+                    if (round == null) return null;
+                    foreach (var t in round.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                        if (t.name == "MainTitle") return UiText.Clean(t.text);
+                }
+                catch { }
+                return null;
+            }
+        }
+
+        // The round explainer (UIRoundTutorialPopupPanel) is an animation: its explanation lines fade in one at
+        // a time over a diagram of three round columns whose outcome labels ("ВЫ ВЫИГРАЛИ РАУНД", "ПОБЕДА")
+        // fade in as it goes. Every label is always there, faded out, so only what is drawn counts: the shown
+        // explanation lines (the key, so each new line is spoken) and then the shown outcome labels. The title
+        // is the screen's name and the column headers ("РАУНД 1") are static.
+        private static string RoundText(UIRoundTutorialPopupPanel panel, out string key)
+        {
+            var lines = new List<string>();
+            var labels = new List<string>();
+            try
+            {
+                foreach (var t in panel.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                {
+                    if (Alpha(t, panel.transform) < 0.5f) continue;
+                    string s = UiText.Clean(t.text);
+                    if (s.Length == 0) continue;
+                    var outcome = t.transform.parent?.parent;
+                    if (t.name.Contains("Explanation")) lines.Add(s);
+                    else if (outcome != null && outcome.name == "GameplayAbstracts") labels.Add(s);
+                }
+            }
+            catch { }
+            key = "round:" + string.Join("|", lines);
+            var all = new List<string>(lines);
+            all.AddRange(labels);
+            return string.Join(" ", all);
+        }
+
+        // How opaque a text is drawn: its color's alpha times every CanvasGroup's up to the panel.
+        private static float Alpha(TMPro.TMP_Text t, UnityEngine.Transform root)
+        {
+            float a = t.color.a;
+            for (var tr = t.transform; tr != null && tr != root; tr = tr.parent)
+            {
+                var cg = tr.GetComponent<UnityEngine.CanvasGroup>();
+                if (cg != null) a *= cg.alpha;
+            }
+            return a;
         }
 
         // The panel's own text: every visible string that isn't a button's caption.
