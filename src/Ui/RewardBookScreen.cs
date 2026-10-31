@@ -82,16 +82,12 @@ namespace GwentAccess.Ui
             if (_pressed != null && !Keys.Held(KeyCode.Return) && !Keys.Held(KeyCode.KeypadEnter)) Release();
         }
 
-        // Landing is the mouse moving onto the control: its OnHover event, which the layer raises from the
-        // pointer's raycast, is what the sound handlers hear (the hover sound, locked or not). Selecting the
-        // control, setting its Hovered state or its HandleControlHover() don't reach them.
+        // Moving off a pressed reward lets go of it, as dragging the pointer off does; the base raises the hover.
         public override void OnCursorMoved(GraphNode node)
         {
             var c = node?.Id.Reference as AControl;
             if (_pressed != null && !(c != null && c.Pointer == _pressed.Pointer)) Release();
             base.OnCursorMoved(node);
-            try { if (c != null && c.gameObject.activeInHierarchy) c.OnHover?.Invoke(c); }
-            catch (Exception e) { Plugin.LogInfo("[reward-book] hover failed: " + e.Message); }
         }
 
         public override void OnUnfocus() => Release();

@@ -67,7 +67,8 @@ namespace GwentAccess.Ui
         /// The cursor landed on <paramref name="node"/> (spec P11, cursor write-back). Default: when the node is
         /// backed by a Crimson control, ask its input layer to select it, so the game's highlight, its hover
         /// reactions (a play-mode card raising its deck selector) and its own Enter target follow the mod's
-        /// cursor.
+        /// cursor. Then raise the control's own OnHover event, as the layer does when the mouse moves onto it:
+        /// that is what the UI sound handlers hear, so landing plays the hover sound a mouse player gets.
         /// </summary>
         public virtual void OnCursorMoved(GraphNode node)
         {
@@ -77,6 +78,8 @@ namespace GwentAccess.Ui
                 var layer = c.ParentLayer;
                 if (layer != null && (layer.SelectedControl == null || layer.SelectedControl.Pointer != c.Pointer))
                     layer.RequestControlSelection(c);
+                try { c.OnHover?.Invoke(c); }
+                catch (Exception e) { Plugin.LogInfo("[screens] hover failed: " + e.Message); }
             }
         }
 
