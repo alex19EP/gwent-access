@@ -173,7 +173,9 @@ namespace GwentAccess.Ui
             var me = gc.PlayerManager.LocalUser;
             bool can = false;
             try { can = me.CanMulligan; } catch { }
-            if (!can) { Speech.Say("Waiting for the opponent.", true); return; }
+            // The panel lingers through its closing animation after both hands are kept, while the flag still
+            // reads true; with no mulligan request open there is nothing left to finish.
+            if (!can || !Narrator.InMulligan()) { Speech.Say("Waiting for the opponent.", true); return; }
             try
             {
                 me.AskFinishMulligan();

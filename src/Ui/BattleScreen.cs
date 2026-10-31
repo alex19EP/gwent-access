@@ -108,6 +108,7 @@ namespace GwentAccess.Ui
             _gaps.Clear();
             _cycle.Clear();
             DropConfirm();
+            CheckPass();
 
             if (_plays.Placing != null && _plays.Targets == null && _plays.Rows == null) BuildGaps(b, gc);
             else BuildBoard(b, gc);
@@ -135,7 +136,7 @@ namespace GwentAccess.Ui
                 var rowIds = new List<ControlId>();
                 if (cards.Count == 0)
                 {
-                    var id = ControlId.Structural("battle:empty:" + row.Key);
+                    var id = ControlId.Structural(row.Where == ELocation.Leader ? LeaderKey(row.Key) : "battle:empty:" + row.Key);
                     b.AddItem(id, new NodeVtable
                     {
                         Announcements = new[] { NodeAnnouncement.Static("empty") },
@@ -146,7 +147,7 @@ namespace GwentAccess.Ui
                 }
                 foreach (var card in cards)
                 {
-                    var id = ControlId.Structural("battle:card:" + card.Id);
+                    var id = ControlId.Structural(row.Where == ELocation.Leader ? LeaderKey(row.Key) : "battle:card:" + card.Id);
                     b.AddItem(id, CardNode(card, pm, loc));
                     rowIds.Add(id);
                     Remember(id, card, row.Key, loc);
@@ -170,6 +171,21 @@ namespace GwentAccess.Ui
 
             var start = _last != null && _rowOf.ContainsKey((string)_last.StructuralKey) ? _last : firstInHand;
             if (start != null) b.SetStart(start);
+        }
+
+        // A leader slot keeps one key whether the leader sits in it or is away resolving its order, so a cursor
+        // resting there stays put — and quiet — while the leader acts, rather than falling to the next row.
+        private static string LeaderKey(string row) => "battle:leader:" + row;
+
+        private static string CardKey(GameController gc, Card card)
+        {
+            try
+            {
+                if (card.Position.Location == ELocation.Leader)
+                    return LeaderKey(card.Position.PlayerId == Battle.Me(gc) ? "my-leader" : "opp-leader");
+            }
+            catch { }
+            return "battle:card:" + card.Id;
         }
 
         private void Remember(ControlId id, Card card, string row, Location loc)
@@ -197,7 +213,7 @@ namespace GwentAccess.Ui
                         _cycle.Add(rowIds[0]);
                 return;
             }
-            foreach (var c in _plays.Usable()) _cycle.Add(ControlId.Structural("battle:card:" + c.Id));
+            foreach (var c in _plays.Usable()) _cycle.Add(ControlId.Structural(CardKey(gc, c)));
         }
 
         private static int Order(ControlId id, List<List<ControlId>> ids)
@@ -458,7 +474,7 @@ namespace GwentAccess.Ui
             switch (BattleInput.CoinMode)
             {
                 case UIBoardPassWidget.EButtonMode.Pass:
-                    Ask(PassQuestion(), () => Coin("Passing."));
+                    Ask(PassQuestion(), () => { if (Coin("Passing.")) _passAskedAt = Time.realtimeSinceStartup; });
                     return;
                 case UIBoardPassWidget.EButtonMode.EndTurn:
                     if (_plays.OrdersReady()) Ask("You still have orders ready. Are you sure?", () => Coin("Ending turn."));
@@ -485,10 +501,24 @@ namespace GwentAccess.Ui
             return "Pass the round?" + score;
         }
 
-        private static void Coin(string said)
+        private static bool Coin(string said)
         {
-            if (BattleInput.PressCoin()) Speech.Say(said, true);
-            else Speech.Say("Couldn't press the button.", true);
+            if (BattleInput.PressCoin()) { Speech.Say(said, true); return true; }
+            Speech.Say("Couldn't press the button.", true);
+            return false;
+        }
+
+        // A pass the button accepted but the game never made (seen once, cause unknown): said, not left silent.
+        private float _passAskedAt = -1;
+
+        private void CheckPass()
+        {
+            if (_passAskedAt < 0 || Time.realtimeSinceStartup - _passAskedAt < 2f) return;
+            bool passed = NarratePass.MineAt >= _passAskedAt;
+            _passAskedAt = -1;
+            if (passed) return;
+            Plugin.LogInfo("[input] pass pressed but not made; coin now " + BattleInput.CoinMode);
+            Speech.Say("The pass didn't go through. Press E again.", false);
         }
 
         // ---- Backspace: the game's cancel ----

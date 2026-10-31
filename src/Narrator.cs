@@ -32,6 +32,7 @@ namespace GwentAccess
         internal static void Say(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
+            FlushDraws(); // draws gathered so far come first, in the order they happened
             Speech.Say(text, false);
         }
 
@@ -98,25 +99,38 @@ namespace GwentAccess
         private static int _theirDraws;
         private static float _drawAt = -1;
 
+        /// <summary>The match whose first turn has started (<see cref="NarrateTurn"/>). Draws before it are the
+        /// opening deal, which the mulligan screen reads out card by card straight after.</summary>
+        internal static IntPtr TurnsStartedIn;
+
         /// <summary>A card drawn: yours by name, the opponent's as a count (their hand is face down).</summary>
         internal static void Drawn(Card card, EPlayerId who)
         {
+            try { if (Battle.Controller()?.Pointer != TurnsStartedIn) return; } catch { return; }
             if (Mine(who)) _myDraws.Add(CardName(card));
             else _theirDraws++;
             _drawAt = Time.realtimeSinceStartup;
         }
 
-        /// <summary>Per frame: says the gathered draws once a burst is over — "Взять: Ведьмак, Цири." and
-        /// "Противник: Взять 2."</summary>
+        /// <summary>Per frame: says the gathered draws once a burst is over. The game deals a round's cards one
+        /// at a time, alternating players, so the wait is long enough to span the whole deal.</summary>
         public static void Tick()
         {
-            if (_drawAt < 0 || Time.realtimeSinceStartup - _drawAt < 0.3f) return;
+            if (_drawAt >= 0 && Time.realtimeSinceStartup - _drawAt >= 1.2f) FlushDraws();
+        }
+
+        /// <summary>"Взять: Ведьмак, Цири." and "Противник: Взять 2."</summary>
+        private static void FlushDraws()
+        {
+            if (_drawAt < 0) return;
             _drawAt = -1;
-            string label = GameText.Term("keyword_draw", "Draw");
-            if (_myDraws.Count > 0) SayEffect(null, label, new List<string>(_myDraws));
-            if (_theirDraws > 0) Say(Opponent() + ": " + label + " " + _theirDraws + ".");
+            var mine = new List<string>(_myDraws);
+            int theirs = _theirDraws;
             _myDraws.Clear();
             _theirDraws = 0;
+            string label = GameText.Term("keyword_draw", "Draw");
+            if (mine.Count > 0) SayEffect(null, label, mine);
+            if (theirs > 0) Say(Opponent() + ": " + label + " " + theirs + ".");
         }
 
         internal static bool IsUnit(Card card)
@@ -219,6 +233,13 @@ namespace GwentAccess
             Say(head + ": " + string.Join(", ", targets) + ".");
         }
 
+        /// <summary>Whether an effect's source is <paramref name="card"/> itself.</summary>
+        internal static bool Same(IEntity attacker, Card card)
+        {
+            try { return attacker != null && card != null && attacker.Cast<Il2CppSystem.Object>().Pointer == card.Pointer; }
+            catch { return false; }
+        }
+
         internal static List<Card> List(Il2CppSystem.Collections.Generic.List<Card> cards)
         {
             var result = new List<Card>();
@@ -247,6 +268,7 @@ namespace GwentAccess
             string label = Label(a.Operation, a.PowerType);
             if (a.Operation == ECardPowerOp.Add || a.Operation == ECardPowerOp.Remove || a.Operation == ECardPowerOp.Set)
                 label += " " + Math.Abs(a.Value);
+            else if (Amount(a) is int amount) label += " " + amount; // heal and reset carry no value; the change does
             var targets = new List<string>();
             var killed = new List<string>();
             foreach (var card in Narrator.List(a.Targets))
@@ -264,6 +286,25 @@ namespace GwentAccess
             Narrator.SayEffect(Narrator.Source(a.Attacker), label, targets);
             if (killed.Count > 0) Narrator.SayEffect(null, GameText.Term("keyword_destroy", "Destroy"), killed);
         });
+
+        /// <summary>How much the power changed, when it changed by the same amount on every target.</summary>
+        private static int? Amount(CardPowerAttack a)
+        {
+            int? amount = null;
+            try
+            {
+                var deltas = a.PowerType == EPowerType.Armor ? a.ArmorDeltas : a.PowerDeltas;
+                for (int i = 0; deltas != null && i < deltas.Count; i++)
+                {
+                    int d = Math.Abs(deltas[i]);
+                    if (d == 0) continue;
+                    if (amount != null && amount != d) return null;
+                    amount = d;
+                }
+            }
+            catch { return null; }
+            return amount;
+        }
 
         private static string Label(ECardPowerOp op, EPowerType type)
         {
@@ -292,6 +333,8 @@ namespace GwentAccess
         });
     }
 
+    /// <summary>Cards banished. A used special or stratagem banishing itself is the card leaving after it
+    /// resolved, not an effect — left out.</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnCardBanishAttack))]
     internal static class NarrateBanishAttack
     {
@@ -300,7 +343,7 @@ namespace GwentAccess
             if (__0 == null) return;
             var targets = new List<string>();
             foreach (var card in Narrator.List(__0.Targets))
-                if (Narrator.Visible(card)) targets.Add(Narrator.CardName(card));
+                if (Narrator.Visible(card) && !Narrator.Same(__0.Attacker, card)) targets.Add(Narrator.CardName(card));
             Narrator.SayEffect(Narrator.Source(__0.Attacker), GameText.Term("keyword_banish", "Banish"), targets);
         });
     }
@@ -317,11 +360,17 @@ namespace GwentAccess
             var token = a.DeltaStatus;
             if (token == 0) try { if (a.ChangedStatuses != null && a.ChangedStatuses.Count > 0) token = a.ChangedStatuses[0]; } catch { }
             string label = Narrator.StatusName(token);
-            if (a.DeltaOperation == ETokenOp.Remove) label = GameText.Term("keyword_purify", "Remove") + " " + GameText.Lower(label);
+            string source = Narrator.Source(a.Attacker);
+            if (a.DeltaOperation == ETokenOp.Remove)
+            {
+                // A status ending itself — a shield used up — has no source but the status already named.
+                if (source == label) source = null;
+                label = GameText.Term("keyword_purify", "Remove") + " " + GameText.Lower(label);
+            }
             var targets = new List<string>();
             foreach (var card in Narrator.List(a.Targets))
                 if (Narrator.Visible(card)) targets.Add(Narrator.WithPower(card));
-            Narrator.SayEffect(Narrator.Source(a.Attacker), label, targets);
+            Narrator.SayEffect(source, label, targets);
         });
     }
 
@@ -520,7 +569,15 @@ namespace GwentAccess
     {
         static void Postfix(BattleHistory __instance, EPlayerId __0) => Narrator.Guard("turn", () =>
         {
-            if (!Narrator.Real(__instance, out _)) return;
+            if (!Narrator.Real(__instance, out var gc)) return;
+            Narrator.TurnsStartedIn = gc.Pointer;
+            // A player who passed gets their turns skipped straight away; there's no turn to announce.
+            try
+            {
+                var me = gc.PlayerManager.LocalUser;
+                if ((Narrator.Mine(__0) ? me : me.OpponentPlayer).HasPassed) return;
+            }
+            catch { }
             string banner = Narrator.Mine(__0)
                 ? GameText.Get("gwent_message_your_turn_main", "Your turn")
                 : GameText.Get("gwent_message_opponent_turn_main", "Opponent's turn");
@@ -531,9 +588,13 @@ namespace GwentAccess
     [HarmonyPatch(typeof(BattleHistory), nameof(BattleHistory.OnPlayerPassedHandler))]
     internal static class NarratePass
     {
+        /// <summary>When you last passed, for the battle screen to confirm its pass button took.</summary>
+        internal static float MineAt = -1;
+
         static void Postfix(BattleHistory __instance, EPlayerId __0, bool __1) => Narrator.Guard("pass", () =>
         {
             if (!Narrator.Real(__instance, out _) || !__1) return;
+            if (Narrator.Mine(__0)) MineAt = Time.realtimeSinceStartup;
             string banner = Narrator.Mine(__0)
                 ? GameText.Get("gwent_message_player_pass_main", "You passed.")
                 : GameText.Get("gwent_opponent_passed_turn", "Opponent passed.");

@@ -165,7 +165,14 @@ namespace GwentAccess.Ui
         {
             var c = Coin();
             if (c == null) return false;
-            try { c.OnPassClicked(); return true; }
+            try
+            {
+                string ignore = "?";
+                try { ignore = c.IgnoreNextButtonPress.ToString(); } catch { }
+                Plugin.LogInfo("[input] coin " + c.m_ButtonMode + ", enabled " + c.m_IsButtonEnabled + ", ignore next " + ignore);
+                c.OnPassClicked();
+                return true;
+            }
             catch (Exception e) { Plugin.LogInfo("[input] coin failed: " + e.Message); return false; }
         }
     }
