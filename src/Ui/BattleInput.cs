@@ -119,6 +119,17 @@ namespace GwentAccess.Ui
             return false;
         }
 
+        /// <summary>Whether a picked-up special waits for A to confirm its play.</summary>
+        public static bool CanConfirmSpecial()
+        {
+            try
+            {
+                var h = Handler();
+                return h != null && Mode == EBattleNavigationMode.PlayCard && h.m_PlayCardHandlerComponent.m_CanConfirmSpecial;
+            }
+            catch { return false; }
+        }
+
         /// <summary>Done choosing several targets or rows (the game's finish-early).</summary>
         public static bool FinishTargets()
         {

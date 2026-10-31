@@ -29,10 +29,34 @@ namespace GwentAccess.Ui
             {
                 var gc = Battle.Controller();
                 if (gc == null) return "Mulligan";
-                string round = "";
-                try { round = ", round " + (gc.RoundManager.CurrentRoundIndex + 1); } catch { }
-                return "Mulligan" + round + ", " + Swaps(Left(gc)) + " left. Enter swaps a card, E keeps the rest.";
+                // The first mulligan comes before the game starts round 1 (its index is still -1 then), so the
+                // match opening is told by the match, not the round number.
+                string round = "", leaders = "";
+                try { round = ", round " + Math.Max(gc.RoundManager.CurrentRoundIndex + 1, 1); } catch { }
+                if (gc.Pointer != _leadersSaidIn)
+                {
+                    _leadersSaidIn = gc.Pointer;
+                    leaders = Leaders(gc);
+                }
+                return leaders + "Mulligan" + round + ", " + Swaps(Left(gc)) + " left. Enter swaps a card, E keeps the rest.";
             }
+        }
+
+        private static IntPtr _leadersSaidIn;
+
+        /// <summary>The match opening: both leaders as the versus screen shows them, the character and then the
+        /// leader ability card. "Your leader: Эмгыр вар Эмрейс, Двойная игра, Нильфгаард. Opponent's leader: …"</summary>
+        private static string Leaders(GameController gc)
+        {
+            string Line(EPlayerId who, string label)
+            {
+                var cards = Battle.Cards(gc, who, ELocation.Leader);
+                if (cards.Count == 0) return "";
+                string character = Battle.LeaderCharacter(who);
+                return label + ": " + (character != null ? character + ", " : "") + CardReader.Leader(cards[0]) + ". ";
+            }
+            try { return Line(Battle.Me(gc), "Your leader") + Line(Battle.Them(gc), "Opponent's leader"); }
+            catch { return ""; }
         }
 
         public override bool IsActive() => Panel() != null && Battle.Controller() != null;

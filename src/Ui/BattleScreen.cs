@@ -243,13 +243,27 @@ namespace GwentAccess.Ui
             return total;
         }
 
+        /// <summary>A card's line on the board. A leader card is led by the character standing beside it
+        /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both.</summary>
+        private static string Label(Card card, PlayerManager pm)
+        {
+            string summary = CardReader.Summary(card, pm);
+            try
+            {
+                if (card.Position.Location != ELocation.Leader) return summary;
+                string who = Battle.LeaderCharacter(card.Position.PlayerId);
+                return who != null ? who + ", " + summary : summary;
+            }
+            catch { return summary; }
+        }
+
         private NodeVtable CardNode(Card card, PlayerManager pm, Location loc)
         {
             return new NodeVtable
             {
                 Announcements = new[]
                 {
-                    new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label),
+                    new NodeAnnouncement(() => Label(card, pm), kind: AnnouncementKinds.Label),
                     new NodeAnnouncement(() => _plays.IsChosen(card) ? "chosen" : null, live: true, kind: AnnouncementKinds.Selected),
                 },
                 OnActivate = Act(() => EnterOnCard(card, loc)),
@@ -341,6 +355,8 @@ namespace GwentAccess.Ui
             }
             else if (_plays.Placing != null)
                 Speech.Say("Place " + name + ".", true);
+            else if (_plays.Confirming != null)
+                Speech.Say("Play " + name + "? Enter plays it, Backspace puts it back.", true);
         }
 
         // Onto the first valid option, unless the cursor already sits on one.
@@ -397,6 +413,8 @@ namespace GwentAccess.Ui
         {
             if (key != KeyCode.Return && key != KeyCode.KeypadEnter) return false;
             if (_confirm != null) return false;
+            // A held special: the game's A confirms it wherever the cursor is (it has no spot to choose).
+            if (_plays.Confirming != null && _plays.Targets == null && _plays.Rows == null && _plays.Choice == null) return true;
             var node = GraphNavigator.CurrentNode;
             if (node == null) return false;
             var k = (string)node.Id.StructuralKey;
@@ -470,6 +488,7 @@ namespace GwentAccess.Ui
                 return;
             }
             if (_plays.Placing != null) { Speech.Say("Place the card first, or Backspace to put it back.", true); return; }
+            if (_plays.Confirming != null) { Speech.Say("Enter plays the card, Backspace puts it back.", true); return; }
             if (!_plays.MyTurn) { Speech.Say("Not your turn.", true); return; }
             switch (BattleInput.CoinMode)
             {
@@ -540,7 +559,8 @@ namespace GwentAccess.Ui
             if (_cycle.Count == 0)
             {
                 Speech.Say(_plays.Targets != null ? "No valid targets." : _plays.Rows != null ? "No valid rows."
-                    : _plays.Placing != null ? "Choose a spot with the arrows." : _plays.MyTurn ? "No valid plays." : "Not your turn.", true);
+                    : _plays.Placing != null ? "Choose a spot with the arrows."
+                    : _plays.Confirming != null ? "Enter plays the card, Backspace puts it back." : _plays.MyTurn ? "No valid plays." : "Not your turn.", true);
                 return;
             }
             var cur = GraphNavigator.CurrentNode?.Id;
@@ -580,6 +600,15 @@ namespace GwentAccess.Ui
 
         private void JumpTo(string row)
         {
+            // Already there: moving would be silent (the differ speaks only a change), so say it again.
+            var node = GraphNavigator.CurrentNode;
+            if (node != null && _rowOf.TryGetValue((string)node.Id.StructuralKey, out var at) && at == row)
+            {
+                var card = FocusedCard();
+                string name = Array.Find(Rows, r => r.Key == row)?.Name;
+                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players()) : "empty"), true);
+                return;
+            }
             if (_lastInRow.TryGetValue(row, out var id) && GraphNavigator.FocusNode(id)) return;
             foreach (var kv in _rowOf)
                 if (kv.Value == row && GraphNavigator.FocusNode(ControlId.Structural(kv.Key))) return;

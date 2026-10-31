@@ -19,12 +19,16 @@ namespace GwentAccess
         public GameController Game;
         public RequestPlayerTurnAction Turn;
         public RequestPlayCardAction Placing;   // picked up and not placed yet
+        /// <summary>A special picked up: it has no spot to choose, so the game holds it up and waits for A to
+        /// confirm the play (or B to put it back). Only counts with nothing else asked — the same pending play
+        /// also waits underneath a special's row or target request.</summary>
+        public RequestPlayCardAction Confirming;
         public RequestCardTargetsAction Targets;
         public RequestLocationTargetsAction Rows;
         public RequestCardChoicesAction Choice;
 
         /// <summary>The request answered next: a choice before targets before a row before placing.</summary>
-        public ARequestAction Pending => (ARequestAction)Choice ?? (ARequestAction)Targets ?? (ARequestAction)Rows ?? Placing;
+        public ARequestAction Pending => (ARequestAction)Choice ?? (ARequestAction)Targets ?? (ARequestAction)Rows ?? (ARequestAction)Placing ?? Confirming;
 
         public bool MyTurn
         {
@@ -55,6 +59,7 @@ namespace GwentAccess
                         case ERequestType.PlayCard:
                             var play = r.TryCast<RequestPlayCardAction>();
                             if (play != null && play.PlayCardResult == EPlayCardResult.Invalid) p.Placing = play;
+                            else if (play != null && play.PlayCardResult == EPlayCardResult.PendingPlace && Ui.BattleInput.CanConfirmSpecial()) p.Confirming = play;
                             break;
                         case ERequestType.TargetCards:
                             var cards = r.TryCast<RequestCardTargetsAction>();
@@ -162,7 +167,8 @@ namespace GwentAccess
                 ushort id = Targets != null ? Targets.RequesterId
                     : Rows != null ? Rows.RequesterId
                     : Choice != null ? Choice.RequesterId
-                    : Placing != null ? Placing.CardIdToPlay : (ushort)0;
+                    : Placing != null ? Placing.CardIdToPlay
+                    : Confirming != null ? Confirming.CardIdToPlay : (ushort)0;
                 return id == 0 ? null : Game.CardManager.GetCard(id);
             }
             catch { return null; }

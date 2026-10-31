@@ -30,6 +30,8 @@ namespace GwentAccess
             var type = Type(card);
             if (type == ECardType.Unit) AddPower(parts, card);
             else parts.Add(TypeWord(type));
+            // A leader shows its faction on the board (the deck's colours and crest); other cards only in the preview.
+            if (type == ECardType.Leader) Add(parts, Faction(card));
             AddStatuses(parts, card);
             if (pm != null) AddOrder(parts, card);
             AddTimer(parts, card);
@@ -128,8 +130,21 @@ namespace GwentAccess
             parts.Add(tier + TypeWord(type));
             if (type == ECardType.Unit)
                 Try(() => parts.Add("base power " + card.Data.Power.BasePower));
-            Add(parts, Text(() => LocalizationHelper.GetFactionName(card.Template.FactionId)));
+            Add(parts, Faction(card));
             Try(() => parts.Add(card.Template.Rarity.ToString().ToLowerInvariant()));
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>The card's faction in the game's words ("Нильфгаард"), or "".</summary>
+        public static string Faction(Card card) =>
+            card == null ? "" : Text(() => LocalizationHelper.GetFactionName(card.Template.FactionId));
+
+        /// <summary>A leader as the match opens: "Name, Faction".</summary>
+        public static string Leader(Card card)
+        {
+            if (card == null) return "";
+            var parts = new List<string> { Name(card) };
+            Add(parts, Faction(card));
             return string.Join(", ", parts);
         }
 

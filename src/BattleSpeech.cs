@@ -55,6 +55,20 @@ namespace GwentAccess
             return result;
         }
 
+        /// <summary>The leader character standing at a player's end of the board ("Эмгыр вар Эмрейс") — the
+        /// cosmetic leader, not the leader ability card — in the game's words, or null before it has loaded.</summary>
+        public static string LeaderCharacter(EPlayerId who)
+        {
+            try
+            {
+                var leader = UnityEngine.Object.FindObjectOfType<BoardView>()?.LeaderLoader?.GetLeader(who)?.m_LeaderSetupRequest?.ValidLeader;
+                if (leader == null) return null;
+                string name = GameText.Get(leader.LeaderNameLocalizationKey, leader.DebugName);
+                return string.IsNullOrWhiteSpace(name) ? null : name;
+            }
+            catch { return null; }
+        }
+
         public static string WhereName(ELocation loc)
         {
             switch (loc)

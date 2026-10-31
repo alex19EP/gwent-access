@@ -158,6 +158,12 @@ namespace GwentAccess
             catch { return false; }
         }
 
+        internal static bool InOpponentHand(Card card)
+        {
+            try { return card.Position.Location == ELocation.Hand && !Mine(card.Position.PlayerId); }
+            catch { return false; }
+        }
+
         /// <summary>"Вражеский рукопашный ряд": the side as the game words it, then the row.</summary>
         internal static string RowName(EPlayerId side, ELocation row)
         {
@@ -271,9 +277,14 @@ namespace GwentAccess
             else if (Amount(a) is int amount) label += " " + amount; // heal and reset carry no value; the change does
             var targets = new List<string>();
             var killed = new List<string>();
+            int inTheirHand = 0;
             foreach (var card in Narrator.List(a.Targets))
             {
-                if (!Narrator.Visible(card)) continue;
+                if (!Narrator.Visible(card))
+                {
+                    if (Narrator.InOpponentHand(card)) inTheirHand++;
+                    continue;
+                }
                 targets.Add(Narrator.WithPower(card));
                 try
                 {
@@ -283,6 +294,8 @@ namespace GwentAccess
                 }
                 catch { }
             }
+            // Face-down cards in the opponent's hand light up as they're hit: a sighted player sees how many.
+            if (inTheirHand > 0) targets.Add(inTheirHand == 1 ? "1 card in the opponent's hand" : inTheirHand + " cards in the opponent's hand");
             Narrator.SayEffect(Narrator.Source(a.Attacker), label, targets);
             if (killed.Count > 0) Narrator.SayEffect(null, GameText.Term("keyword_destroy", "Destroy"), killed);
         });
@@ -561,6 +574,21 @@ namespace GwentAccess
             }
             catch { }
             Narrator.Say(Narrator.Opponent() + ": " + what + ".");
+        });
+    }
+
+    /// <summary>The opponent using an order — a unit's, a stratagem's or the leader's: "Противник: Приказ:
+    /// Бодрость." The order icon flashes and the charges drop, so a sighted player sees it; its effects follow
+    /// in their own lines. The game calls activating an order "tapping" the card.</summary>
+    [HarmonyPatch(typeof(BattleHistory), nameof(BattleHistory.OnCardTapEndedHandler))]
+    internal static class NarrateOrder
+    {
+        static void Postfix(BattleHistory __instance, EPlayerId __0, Card __1, ERequestConfirmStatus __2) => Narrator.Guard("order", () =>
+        {
+            if (!Narrator.Real(__instance, out _) || Narrator.Mine(__0) || __1 == null) return;
+            if (__2 == ERequestConfirmStatus.Cancelled) return;
+            Plugin.LogInfo("[narr] order " + __2);
+            Narrator.Say(Narrator.Opponent() + ": " + GameText.Term("keyword_order", "Order") + ": " + Narrator.CardName(__1) + ".");
         });
     }
 

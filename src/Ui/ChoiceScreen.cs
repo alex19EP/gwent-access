@@ -69,7 +69,10 @@ namespace GwentAccess.Ui
         {
             var req = _req;
             if (req == null || _gc == null) return;
-            var pm = _gc.PlayerManager;
+            // The offered cards are created for the choice and sit nowhere the visibility rules cover (the game
+            // reports them hidden from you), yet the choice panel shows them face up: read them without the
+            // match's visibility check.
+            PlayerManager pm = null;
             _cards.Clear();
             var offered = new List<(Card Card, bool Enabled)>();
             try
@@ -153,7 +156,7 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager);
+                _cardKeys = new CardKeys(FocusedCard, () => null); // face up, as in Build
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, done choosing" },
