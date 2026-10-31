@@ -13,7 +13,8 @@ namespace GwentAccess.Ui
     /// The battle board as one graph, laid out the way it sits on screen: opponent's leader, opponent's ranged
     /// and melee rows, your melee and ranged rows, your hand, your leader. Up/Down move between rows keeping
     /// the spot along the row (rows are centred, so the card nearest above or below); Left/Right move along a
-    /// row, silent at the ends. Each card reads <see cref="CardReader.Summary"/>; Ctrl+Up/Down step through its
+    /// row, silent at the ends. Each card reads <see cref="CardReader.Summary"/>, your own cards with their
+    /// abilities (<see cref="CardReader.WithAbilities"/>); Ctrl+Up/Down step through its
     /// lines, I explains its keywords, K reads its kind and base power, Space the whole card.
     ///
     /// Playing works like a gamepad player's (Hearthstone Access in spirit): the game's own selection — the
@@ -21,12 +22,15 @@ namespace GwentAccess.Ui
     /// placing and targeting go through the game's flow. Enter on something that can't be used says why
     /// instead. Picking up a card turns the board into the gaps of the rows it may go to ("between A and B";
     /// the game's ghost card follows); while the game asks for targets or a row, the board stays browsable and
-    /// Tab cycles the valid ones. Backspace is the game's cancel; E ends the turn or passes through the game's
-    /// coin, asking first as Hearthstone Access does (always before passing, before ending the turn while an
-    /// order is still ready) — E or Enter confirms, any other key drops the question.
+    /// Tab cycles the valid ones. Backspace is the game's cancel; E ends the turn or passes by holding the game's
+    /// coin for as long as E is held — the game's own hold, so letting go early cancels — saying the score (or
+    /// that orders are still ready) as the hold starts.
     ///
     /// Jumps (Hearthstone Access letters): C your hand, B your melee row, G the opponent's melee row, V your
-    /// leader, F the opponent's leader; Shift+C the opponent's hand size, A the score.
+    /// leader, F the opponent's leader; Shift+C the opponent's hand size, A the score. The number row jumps to
+    /// the board rows as the first version of the mod numbered them (1 your melee, 2 your ranged, 3 the
+    /// opponent's melee, 4 the opponent's ranged; while placing, to that row's spots), and Shift+number reads
+    /// the whole row without moving.
     /// </summary>
     internal sealed class BattleScreen : Screen
     {
@@ -116,8 +120,6 @@ namespace GwentAccess.Ui
             _locationOf.Clear();
             _gaps.Clear();
             _cycle.Clear();
-            DropConfirm();
-            CheckPass();
 
             if (_plays.Placing != null && _plays.Targets == null && _plays.Rows == null) BuildGaps(b, gc);
             else BuildBoard(b, gc);
@@ -149,7 +151,7 @@ namespace GwentAccess.Ui
                     b.AddItem(id, new NodeVtable
                     {
                         Announcements = new[] { NodeAnnouncement.Static("empty") },
-                        OnActivate = Act(() => EnterOnRow(loc)),
+                        OnActivate = () => EnterOnRow(loc),
                     });
                     rowIds.Add(id);
                     Remember(id, null, row.Key, loc);
@@ -157,7 +159,7 @@ namespace GwentAccess.Ui
                 foreach (var card in cards)
                 {
                     var id = ControlId.Structural(row.Where == ELocation.Leader ? LeaderKey(row.Key) : "battle:card:" + card.Id);
-                    b.AddItem(id, CardNode(card, pm, loc));
+                    b.AddItem(id, CardNode(card, pm, loc, row.Mine));
                     rowIds.Add(id);
                     Remember(id, card, row.Key, loc);
                     if (row.Where == ELocation.Hand && firstInHand == null) firstInHand = id;
@@ -253,10 +255,11 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>A card's line on the board. A leader card is led by the character standing beside it
-        /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both.</summary>
-        private static string Label(Card card, PlayerManager pm)
+        /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both. With
+        /// <paramref name="abilities"/> (your own cards on focus), the card's abilities follow.</summary>
+        private static string Label(Card card, PlayerManager pm, bool abilities = false)
         {
-            string summary = CardReader.Summary(card, pm);
+            string summary = abilities ? CardReader.WithAbilities(card, pm) : CardReader.Summary(card, pm);
             try
             {
                 if (card.Position.Location != ELocation.Leader) return summary;
@@ -266,16 +269,16 @@ namespace GwentAccess.Ui
             catch { return summary; }
         }
 
-        private NodeVtable CardNode(Card card, PlayerManager pm, Location loc)
+        private NodeVtable CardNode(Card card, PlayerManager pm, Location loc, bool mine)
         {
             return new NodeVtable
             {
                 Announcements = new[]
                 {
-                    new NodeAnnouncement(() => Label(card, pm), kind: AnnouncementKinds.Label),
+                    new NodeAnnouncement(() => Label(card, pm, abilities: mine), kind: AnnouncementKinds.Label),
                     new NodeAnnouncement(() => _plays.IsChosen(card) ? "chosen" : null, live: true, kind: AnnouncementKinds.Selected),
                 },
-                OnActivate = Act(() => EnterOnCard(card, loc)),
+                OnActivate = () => EnterOnCard(card, loc),
                 OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
             };
         }
@@ -322,7 +325,7 @@ namespace GwentAccess.Ui
                     b.AddItem(id, new NodeVtable
                     {
                         Announcements = new[] { NodeAnnouncement.Static(GapText(cards, i, pm)) },
-                        OnActivate = Act(() => { }), // Enter is the game's A here; only a pending question reaches this
+                        OnActivate = () => { }, // Enter is the game's A here
                     });
                     _gaps[(string)id.StructuralKey] = (loc, i);
                     rowIds.Add(id);
@@ -433,11 +436,10 @@ namespace GwentAccess.Ui
         // ---- Enter ----
 
         /// <summary>Enter goes to the game (its A, on the selection that follows the cursor) whenever it would do
-        /// something there; otherwise the node's handler says why not. A pending question takes Enter too.</summary>
+        /// something there; otherwise the node's handler says why not.</summary>
         public override bool LeavesToGame(KeyCode key)
         {
             if (key != KeyCode.Return && key != KeyCode.KeypadEnter) return false;
-            if (_confirm != null) return false;
             // A held special: the game's A confirms it wherever the cursor is (it has no spot to choose).
             if (_plays.Confirming != null && _plays.Targets == null && _plays.Rows == null && _plays.Choice == null) return true;
             var node = GraphNavigator.CurrentNode;
@@ -471,40 +473,21 @@ namespace GwentAccess.Ui
             if (_plays.Rows != null) Speech.Say("Not a valid row.", true);
         }
 
-        // ---- E: the coin, asking first as Hearthstone Access does ----
+        // ---- E: the coin, held as the game holds it ----
 
-        private Action _confirm;
-        private int _confirmFrame;
+        // The coin is pressed while E is down and let go with it, as for a mouse player. Its settings (read live)
+        // make passing a half-second hold that a click can't do — the game's own guard against a pass by
+        // accident, in place of a question — and ending the turn a plain click, which the mod guards the same
+        // way. A cancelled hold is silent, as the coin emptying is for a sighted player.
+        private bool _holdingCoin;
 
-        private Action Act(Action a) => () => { if (!TakeConfirm()) a(); };
-
-        private bool TakeConfirm()
-        {
-            if (_confirm == null) return false;
-            var run = _confirm;
-            _confirm = null;
-            run();
-            return true;
-        }
-
-        private void Ask(string question, Action run)
-        {
-            _confirm = run;
-            _confirmFrame = Time.frameCount;
-            Speech.Say(question, true);
-        }
-
-        // Any key but E or Enter drops the question.
-        private void DropConfirm()
-        {
-            if (_confirm == null || Time.frameCount == _confirmFrame || !Keys.AnyDown()) return;
-            if (Keys.Down(KeyCode.E) || Keys.Down(KeyCode.Return) || Keys.Down(KeyCode.KeypadEnter)) return;
-            _confirm = null;
-        }
+        // E held to end the turn: when the hold started (-1 when not holding), and how long it takes — the game's
+        // own pass hold.
+        private float _endTurnSince = -1;
+        private const float EndTurnHold = 0.5f;
 
         private void PressE()
         {
-            if (TakeConfirm()) return;
             if (_plays.Targets != null || _plays.Rows != null)
             {
                 if (_plays.MaxTargets <= 1) { Speech.Say("Choose with Enter, or Backspace to cancel.", true); return; }
@@ -515,55 +498,72 @@ namespace GwentAccess.Ui
             if (_plays.Placing != null) { Speech.Say("Place the card first, or Backspace to put it back.", true); return; }
             if (_plays.Confirming != null) { Speech.Say("Enter plays the card, Backspace puts it back.", true); return; }
             if (!_plays.MyTurn) { Speech.Say("Not your turn.", true); return; }
-            switch (BattleInput.CoinMode)
+            var mode = BattleInput.CoinMode;
+            string said;
+            switch (mode)
             {
                 case UIBoardPassWidget.EButtonMode.Pass:
-                    Ask(PassQuestion(), () => { if (Coin("Passing.")) _passAskedAt = Time.realtimeSinceStartup; });
-                    return;
+                    said = "Hold to pass." + ScoreLine();
+                    break;
                 case UIBoardPassWidget.EButtonMode.EndTurn:
-                    if (_plays.OrdersReady()) Ask("You still have orders ready. Are you sure?", () => Coin("Ending turn."));
-                    else Coin("Ending turn.");
+                    // The game's end-turn hold has no duration (the coin is a plain click); a blind player can't
+                    // see the coin they're about to press, so the mod holds it as long as the pass: the click is
+                    // only sent once E has been held that long.
+                    _endTurnSince = Time.realtimeSinceStartup;
+                    Speech.Say("Hold to end the turn." + (_plays.OrdersReady() ? " You still have orders ready." : ""), true);
                     return;
                 default:
                     Speech.Say("Can't end the turn now.", true);
                     return;
             }
+            ReleaseCoin();
+            if (!BattleInput.PressCoin()) { Speech.Say("Couldn't press the button.", true); return; }
+            _holdingCoin = true;
+            Speech.Say(said, true);
         }
 
-        private string PassQuestion()
+        /// <summary>" You're ahead, 12 to 9, opponent hasn't passed." — what a sighted player reads off the
+        /// board before letting go of the coin.</summary>
+        private string ScoreLine()
         {
-            string score = "";
             try
             {
                 var me = _gc.PlayerManager.LocalUser;
                 var opp = me.OpponentPlayer;
                 int a = me.CurrentScore, b = opp.CurrentScore;
                 string lead = a > b ? "You're ahead" : a < b ? "You're behind" : "You're tied";
-                score = " " + lead + ", " + a + " to " + b + (opp.HasPassed ? ", opponent has passed." : ", opponent hasn't passed.");
+                return " " + lead + ", " + a + " to " + b + (opp.HasPassed ? ", opponent has passed." : ", opponent hasn't passed.");
             }
-            catch { }
-            return "Pass the round?" + score;
+            catch { return ""; }
         }
 
-        private static bool Coin(string said)
+        private void ReleaseCoin()
         {
-            if (BattleInput.PressCoin()) { Speech.Say(said, true); return true; }
-            Speech.Say("Couldn't press the button.", true);
-            return false;
+            if (!_holdingCoin) return;
+            _holdingCoin = false;
+            Plugin.LogInfo("[input] coin let go at hold " + BattleInput.CoinHold.ToString("0.00"));
+            BattleInput.ReleaseCoin();
         }
 
-        // A pass the button accepted but the game never made (seen once, cause unknown): said, not left silent.
-        private float _passAskedAt = -1;
-
-        private void CheckPass()
+        public override void Tick()
         {
-            if (_passAskedAt < 0 || Time.realtimeSinceStartup - _passAskedAt < 2f) return;
-            bool passed = NarratePass.MineAt >= _passAskedAt;
-            _passAskedAt = -1;
-            if (passed) return;
-            Plugin.LogInfo("[input] pass pressed but not made; coin now " + BattleInput.CoinMode);
-            Speech.Say("The pass didn't go through. Press E again.", false);
+            if (_endTurnSince >= 0)
+            {
+                if (!Keys.Held(KeyCode.E)) _endTurnSince = -1; // let go early: nothing, as with the pass
+                else if (Time.realtimeSinceStartup - _endTurnSince >= EndTurnHold)
+                {
+                    _endTurnSince = -1;
+                    Plugin.LogInfo("[input] end-turn hold done");
+                    if (BattleInput.PressCoin()) BattleInput.ReleaseCoin();
+                }
+            }
+            if (!_holdingCoin) return;
+            if (!Keys.Held(KeyCode.E)) ReleaseCoin();
+            else BattleInput.HoldCoin();
         }
+
+        public override void OnUnfocus() { _endTurnSince = -1; ReleaseCoin(); }
+        public override void OnPop() { _endTurnSince = -1; ReleaseCoin(); }
 
         // ---- Backspace: the game's cancel ----
 
@@ -619,19 +619,59 @@ namespace GwentAccess.Ui
                     new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = "F, opponent's leader" },
                     new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = "A, score" },
                 };
+                for (int i = 0; i < NumberRows.Length; i++)
+                {
+                    var row = Array.Find(Rows, r => r.Key == NumberRows[i]);
+                    var key = KeyCode.Alpha1 + i;
+                    _keys.Add(new ScreenKey { Key = key, Run = () => JumpTo(row.Key), Hint = (i + 1) + ", " + row.Name.ToLowerInvariant() });
+                    _keys.Add(new ScreenKey { Key = key, Shift = true, Run = () => SayRow(row), Hint = "Shift " + (i + 1) + ", read " + row.Name.ToLowerInvariant() });
+                }
                 return _keys;
             }
         }
 
+        // The number row, in the order the first version of the mod used (its Ctrl+1 to 4), which players
+        // already know: your melee, your ranged, the opponent's melee, the opponent's ranged.
+        private static readonly string[] NumberRows = { "my-melee", "my-ranged", "opp-melee", "opp-ranged" };
+
+        /// <summary>A whole row read at once without moving the cursor: "Your ranged row, score 12, 2 cards:
+        /// …; …".</summary>
+        private void SayRow(Row row)
+        {
+            var gc = _gc;
+            if (gc == null) return;
+            var cards = Battle.Cards(gc, row.Mine ? Battle.Me(gc) : Battle.Them(gc), row.Where);
+            string head = row.Name + ", score " + Score(cards);
+            if (cards.Count == 0) { Speech.Say(head + ", empty", true); return; }
+            var labels = new List<string>();
+            foreach (var c in cards) labels.Add(Label(c, gc.PlayerManager));
+            Speech.Say(head + ", " + (cards.Count == 1 ? "1 card" : cards.Count + " cards") + ": " + string.Join("; ", labels), true);
+        }
+
         private void JumpTo(string row)
         {
+            // While placing, the board is the rows' gaps: land on the row's last gap, where placing starts.
+            if (_gaps.Count > 0)
+            {
+                string prefix = "battle:gap:" + row + ":";
+                string lastGap = null;
+                foreach (var key in _gaps.Keys)
+                    if (key.StartsWith(prefix, StringComparison.Ordinal)) lastGap = key;
+                string name = Array.Find(Rows, r => r.Key == row)?.Name;
+                var here = (string)GraphNavigator.CurrentNode?.Id.StructuralKey;
+                if (lastGap == null) Speech.Say("Can't place in " + name?.ToLowerInvariant() + ".", true);
+                else if (here != null && here.StartsWith(prefix, StringComparison.Ordinal)) Speech.Say(name, true);
+                else GraphNavigator.FocusNode(ControlId.Structural(lastGap));
+                return;
+            }
+
             // Already there: moving would be silent (the differ speaks only a change), so say it again.
             var node = GraphNavigator.CurrentNode;
             if (node != null && _rowOf.TryGetValue((string)node.Id.StructuralKey, out var at) && at == row)
             {
                 var card = FocusedCard();
                 string name = Array.Find(Rows, r => r.Key == row)?.Name;
-                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players()) : "empty"), true);
+                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players(), abilities: Array.Find(Rows, r => r.Key == row)?.Mine == true) : "empty"), true);
                 return;
             }
             if (_lastInRow.TryGetValue(row, out var id) && GraphNavigator.FocusNode(id)) return;

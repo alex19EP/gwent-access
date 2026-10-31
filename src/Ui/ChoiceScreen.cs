@@ -94,7 +94,7 @@ namespace GwentAccess.Ui
                 {
                     Announcements = new[]
                     {
-                        new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => CardReader.WithAbilities(card, pm), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => enabled ? (Chosen(card) ? "chosen" : null) : "unavailable", live: true, kind: AnnouncementKinds.Selected),
                     },
                     OnActivate = () => Pick(card, enabled),

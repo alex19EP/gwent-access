@@ -40,6 +40,20 @@ namespace GwentAccess
             return string.Join(", ", parts);
         }
 
+        /// <summary>The summary followed by the card's abilities: "Name, power 9, 7 provisions. Deploy: …". The
+        /// focus line for your own cards (hand, rows, mulligan, choices), where what a card does decides the
+        /// play — as the first version of the mod read them; the opponent's board keeps the short
+        /// <see cref="Summary"/> so scanning it stays quick.</summary>
+        public static string WithAbilities(Card card, PlayerManager pm = null)
+        {
+            string summary = Summary(card, pm);
+            if (card == null || Hidden(card, pm)) return summary;
+            var abilities = new List<string>();
+            foreach (var ability in Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false).Split('\n'))
+                Add(abilities, UiText.Clean(ability));
+            return abilities.Count == 0 ? summary : summary + ". " + string.Join(" ", abilities);
+        }
+
         /// <summary>One line of a card, with the keywords it mentions (the game's keys, e.g. "order", "veil").</summary>
         public sealed class CardLine
         {

@@ -171,20 +171,84 @@ namespace GwentAccess.Ui
             }
         }
 
-        /// <summary>Press the coin: the game's own end-turn / pass button.</summary>
-        public static bool PressCoin()
+        /// <summary>
+        /// Put the mouse button down on the coin, the game's own end-turn / pass button. Both of the coin's modes
+        /// are holds (<c>m_PassHoldSettings</c>, <c>m_EndTurnHoldSettings</c>, set by <c>RefreshPassButton</c>):
+        /// the button fills while held, draws the progress on the coin, plays its sounds, and only a completed
+        /// hold reaches <c>OnPassClicked</c> (AskPass / AskEndTurn). Clicking it directly would skip all of that
+        /// — and the hold that guards against a pass made by accident. <see cref="ReleaseCoin"/> lets go; early
+        /// is a cancel, as for a mouse player.
+        /// </summary>
+        public static bool PressCoin() => SendCoin(CursorButtonEventArgs.EState.ButtonDown);
+
+        /// <summary>Keep the coin pressed: called every frame while the key is held (see <see cref="HoldButton"/>).</summary>
+        public static void HoldCoin() => HoldButton(Coin()?.m_PassButton);
+
+        /// <summary>Let go of the coin pressed with <see cref="PressCoin"/>.</summary>
+        public static void ReleaseCoin()
+        {
+            SendCoin(CursorButtonEventArgs.EState.ButtonUp);
+            SendButton(Coin()?.m_PassButton, CursorButtonEventArgs.EState.Click);
+        }
+
+        /// <summary>How far the coin's hold has filled, 0 to 1 (for the log).</summary>
+        public static float CoinHold
+        {
+            get { try { return Coin()?.m_PassButton?.HoldValue ?? 0f; } catch { return 0f; } }
+        }
+
+        private static bool SendCoin(CursorButtonEventArgs.EState state)
         {
             var c = Coin();
-            if (c == null) return false;
             try
             {
+                var button = c?.m_PassButton;
+                if (button == null) return false;
                 string ignore = "?";
                 try { ignore = c.IgnoreNextButtonPress.ToString(); } catch { }
-                Plugin.LogInfo("[input] coin " + c.m_ButtonMode + ", enabled " + c.m_IsButtonEnabled + ", ignore next " + ignore);
-                c.OnPassClicked();
+                Plugin.LogInfo("[input] coin " + state + ", " + c.m_ButtonMode + ", enabled " + c.m_IsButtonEnabled
+                    + ", ignore next " + ignore + ", hold " + button.HoldValue.ToString("0.00"));
+            }
+            catch { }
+            return SendButton(c?.m_PassButton, state);
+        }
+
+        /// <summary>
+        /// Keep a pressed button down, every frame the key is held. A button's hold fills in its own Update only
+        /// while its state stays Down (ButtonControl.Update → HoldButtonController.Update), and completing it
+        /// invokes the button's left click; the layer's pointer, not over the button, can set the state back, so
+        /// the press is re-sent (a no-op while the state is still Down).
+        /// </summary>
+        public static void HoldButton(ButtonControl button)
+        {
+            try { if (button != null && button.ButtonState != ButtonControl.EButtonState.Down) SendButton(button, CursorButtonEventArgs.EState.ButtonDown); }
+            catch { }
+        }
+
+        /// <summary>Let go of a pressed button as the pointer does: ButtonUp ends the press, then Click — the event
+        /// that runs the button's left click (a hold button ignores it unless it reacts to clicks).</summary>
+        public static void ReleaseButton(ButtonControl button)
+        {
+            SendButton(button, CursorButtonEventArgs.EState.ButtonUp);
+            SendButton(button, CursorButtonEventArgs.EState.Click);
+        }
+
+        /// <summary>
+        /// A left mouse button event on a game button, as the layer's pointer sends it (ButtonDown, ButtonUp,
+        /// Click): the button's press state, its hold (when it has one: it fills while down and completes or is
+        /// interrupted) and its click all run, with the sounds that listen to them.
+        /// </summary>
+        public static bool SendButton(ButtonControl button, CursorButtonEventArgs.EState state)
+        {
+            try
+            {
+                if (button == null || !button.gameObject.activeInHierarchy) return false;
+                var args = new CursorButtonEventArgs(button.ParentLayer, CursorInputEventArgs.EMouseButton.Left, UnityEngine.Camera.main,
+                    state, button, button, new Il2CppSystem.Collections.Generic.List<CrimsonUI.EventSystems.RaycastResult>());
+                button.HandleCursorButtonEvent(args);
                 return true;
             }
-            catch (Exception e) { Plugin.LogInfo("[input] coin failed: " + e.Message); return false; }
+            catch (Exception e) { Plugin.LogInfo("[input] button " + state + " failed: " + e.Message); return false; }
         }
     }
 }
