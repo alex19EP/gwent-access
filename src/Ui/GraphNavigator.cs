@@ -108,6 +108,7 @@ namespace GwentAccess.Ui
 
             if (_graph == null) return;
             if (keyboard) HandleKeys();
+            if (keyboard) _screen.Tick();
             Settle();
         }
 

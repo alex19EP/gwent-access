@@ -87,6 +87,10 @@ namespace GwentAccess.Ui
         /// </summary>
         public virtual AControl GameSelection() => CrimsonInputManager.Instance?.ActiveLayer?.SelectedControl;
 
+        /// <summary>Every frame while the screen is focused and the keyboard is read, after its keys were handled:
+        /// for what spans frames, such as a key held down.</summary>
+        public virtual void Tick() { }
+
         public virtual void OnPush() { }
         public virtual void OnFocus() { }
         public virtual void OnUnfocus() { }
