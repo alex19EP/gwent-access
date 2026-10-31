@@ -89,6 +89,8 @@ namespace GwentAccess.Ui
                 {
                     var c = children[i];
                     if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
+                    // The bar keeps an icon-only variant (a checkmark) whose graphics are off: nothing shows.
+                    if (CrimsonNodes.Texts(c).Count == 0) continue;
                     if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
                 }
             }
