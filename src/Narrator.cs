@@ -646,17 +646,8 @@ namespace GwentAccess
         });
     }
 
-    [HarmonyPatch(typeof(BattleHistory), nameof(BattleHistory.OnGameEndedHandler))]
-    internal static class NarrateGameEnd
-    {
-        static void Postfix(BattleHistory __instance, EPlayerId __0) => Narrator.Guard("game end", () =>
-        {
-            if (!Narrator.Real(__instance, out var gc)) return;
-            Narrator.Say(Narrator.Mine(__0) ? GameText.Get("gwent_victory_title", "Victory!")
-                : __0 == Battle.Them(gc) ? GameText.Get("gwent_defeat_title", "Defeat.")
-                : GameText.Get("gwent_draw_title", "Draw."));
-        });
-    }
+    // The game's end ("Победа!" / "Поражение") is not narrated here: the battle results screen
+    // (Ui.BattleResultsScreen) opens right after with that banner as its name, so it would be read twice.
 
     /// <summary>The round-start banner, read off the banner itself: "Начало финального раунда. Противник ходит
     /// первым."</summary>

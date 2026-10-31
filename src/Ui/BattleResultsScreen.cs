@@ -26,6 +26,11 @@ namespace GwentAccess.Ui
 
         public override bool IsActive() => Panel() != null;
 
+        // How many reward banners the last render had, to tell when the first one arrives.
+        private int _bannerCount;
+
+        public override void OnPush() => _bannerCount = 0;
+
         // The results panel, when the input layer that has the input holds it.
         private static UIBattleResultsPanel Panel()
         {
@@ -80,7 +85,11 @@ namespace GwentAccess.Ui
                 if (i == 0) b.SetStart(id);
             }
 
+            // The reward banners slide in after "Вперед": the cursor lands on the first as it arrives, so it is
+            // read as a sighted player sees it come in.
             var banners = RewardBanners(panel);
+            if (banners.Count > 0 && _bannerCount == 0) GraphNavigator.Suggest(ControlId.Structural("results:reward:0"));
+            _bannerCount = banners.Count;
             for (int i = 0; i < banners.Count; i++)
             {
                 var banner = banners[i];
