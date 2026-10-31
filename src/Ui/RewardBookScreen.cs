@@ -123,6 +123,7 @@ namespace GwentAccess.Ui
             if (p == null) return;
             var used = new HashSet<IntPtr>();
 
+            AddPoints(b);
             AddHint(b, p);
             // The tab bar stays live behind an open tree; it is the page's, and never one of the leftovers.
             var tabs = Tabs(p, used);
@@ -245,6 +246,43 @@ namespace GwentAccess.Ui
             try { return p.m_FTUX != null && p.m_FTUX.IsInFTUX; } catch { return false; }
         }
 
+        // ---- the reward point balance ----
+
+        // While the book is open the top bar shows the reward points to spend in it; the player sees it
+        // throughout, so it is the book's first item, live (it drops as rewards are claimed).
+        private static Transform _pointsCount;
+
+        private static string Points()
+        {
+            try
+            {
+                if (_pointsCount == null || !_pointsCount.gameObject.activeInHierarchy)
+                {
+                    _pointsCount = null;
+                    var bar = UnityEngine.Object.FindObjectOfType<GwentUnity.UIPlayerInfoOverlay>();
+                    var t = bar?.transform.Find("SafeArea/Banner/RightInfo/RewardPoints/Layout/Count");
+                    if (t != null && t.gameObject.activeInHierarchy) _pointsCount = t;
+                }
+                string n = _pointsCount == null ? "" : UiText.Clean(_pointsCount.GetComponent<TMPro.TMP_Text>()?.text);
+                return n.Length > 0 ? n : null;
+            }
+            catch { _pointsCount = null; return null; }
+        }
+
+        private static void AddPoints(GraphBuilder b)
+        {
+            if (Points() == null) return;
+            b.BeginStop("points");
+            b.AddItem(ControlId.Structural("reward-book:points"), new NodeVtable
+            {
+                Announcements = new[]
+                {
+                    new NodeAnnouncement(() => GameText.Get("reward_point_currency", "Reward points"), kind: AnnouncementKinds.Label),
+                    new NodeAnnouncement(Points, live: true, kind: AnnouncementKinds.Value),
+                },
+            });
+        }
+
         // The hint last seen over the book (null = none yet since the book opened).
         private static string _hint;
 
@@ -323,12 +361,15 @@ namespace GwentAccess.Ui
 
         private void BuildTree(GraphBuilder b, UIRewardSystemPanel p, List<RewardSystemTreeElement> nodes, HashSet<IntPtr> used)
         {
-            // Along the tree's paths from its start: fewest steps first; within a step, top to bottom as drawn.
+            // The tree as drawn: the arrows follow its connector lines the way each one runs on screen, and a
+            // landing says which ways the lines go from here. Declared from the start outward, so entering the
+            // stop lands on the start.
             var steps = StepsFromStart(nodes);
             var ordered = nodes
                 .Select(n => (Node: n, Steps: steps.TryGetValue(SafeId(n), out int s) ? s : int.MaxValue, Y: n.transform.position.y))
                 .OrderBy(t => t.Steps).ThenByDescending(t => t.Y)
                 .Select(t => t.Node).ToList();
+            var exits = Exits(ordered);
 
             b.BeginStop("nodes");
             b.PushContext("Rewards");
@@ -336,18 +377,23 @@ namespace GwentAccess.Ui
             {
                 used.Add(n.Pointer);
                 var node = n;
-                b.AddItem(CrimsonNodes.Id(node), new NodeVtable
+                exits.TryGetValue(SafeId(node), out var ways);
+                b.AddNode(CrimsonNodes.Id(node), new NodeVtable
                 {
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => Kind(node), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => State(node), live: true, kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => Rewards(node), kind: AnnouncementKinds.Tooltip),
+                        new NodeAnnouncement(() => Paths(ways), kind: AnnouncementKinds.Position),
                     },
                     OnActivate = () => Press(node),
                     OnTooltip = () => Speech.Say(Kind(node) + ". " + State(node) + ". " + Rewards(node), true),
                 });
             }
+            foreach (var n in ordered)
+                if (exits.TryGetValue(SafeId(n), out var ways))
+                    foreach (var (dir, to) in ways) b.Connect(CrimsonNodes.Id(n), dir, CrimsonNodes.Id(to));
             b.PopContext();
 
             // The side panel: the tree's title, progress, story and its buttons.
@@ -371,6 +417,55 @@ namespace GwentAccess.Ui
             }
             foreach (var c in sideButtons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
             b.PopContext();
+        }
+
+        // Each node's links, each given the arrow nearest the way its connector runs on screen. A node has at
+        // most one link per arrow: the closest fits are taken first, and a link whose best arrow is taken gets
+        // its next best (a fork drawn up-right and down-right becomes Up and Down).
+        private static Dictionary<uint, List<(GraphDir Dir, RewardSystemTreeElement To)>> Exits(List<RewardSystemTreeElement> nodes)
+        {
+            var byId = new Dictionary<uint, RewardSystemTreeElement>();
+            foreach (var n in nodes) byId[SafeId(n)] = n;
+            var exits = new Dictionary<uint, List<(GraphDir, RewardSystemTreeElement)>>();
+            foreach (var n in nodes)
+            {
+                var from = n.transform.position;
+                var fits = new List<(float Off, GraphDir Dir, RewardSystemTreeElement To)>();
+                try
+                {
+                    var links = n.ElementData.ConnectedNodes;
+                    for (int i = 0; links != null && i < links.Count; i++)
+                    {
+                        if (links[i] == null || !byId.TryGetValue(links[i].UniqueID, out var to)) continue;
+                        var d = to.transform.position - from;
+                        float angle = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;   // 0 = right, 90 = up
+                        foreach (var (dir, at) in new[] { (GraphDir.Right, 0f), (GraphDir.Up, 90f), (GraphDir.Left, 180f), (GraphDir.Down, -90f) })
+                            fits.Add((Mathf.Abs(Mathf.DeltaAngle(angle, at)), dir, to));
+                    }
+                }
+                catch { }
+                var ways = new List<(GraphDir, RewardSystemTreeElement)>();
+                var taken = new HashSet<GraphDir>();
+                var placed = new HashSet<IntPtr>();
+                foreach (var f in fits.OrderBy(f => f.Off))
+                {
+                    if (f.Off >= 135f || taken.Contains(f.Dir) || placed.Contains(f.To.Pointer)) continue;
+                    taken.Add(f.Dir);
+                    placed.Add(f.To.Pointer);
+                    ways.Add((f.Dir, f.To));
+                }
+                exits[SafeId(n)] = ways;
+            }
+            return exits;
+        }
+
+        // "paths left, up, down": the ways the connector lines leave this node, in the arrows' order.
+        private static string Paths(List<(GraphDir Dir, RewardSystemTreeElement To)> ways)
+        {
+            if (ways == null || ways.Count == 0) return null;
+            var order = new[] { GraphDir.Left, GraphDir.Up, GraphDir.Right, GraphDir.Down };
+            var words = order.Where(d => ways.Any(w => w.Dir == d)).Select(d => d.ToString().ToLowerInvariant());
+            return "paths " + string.Join(", ", words);
         }
 
         private static uint SafeId(RewardSystemTreeElement n)
