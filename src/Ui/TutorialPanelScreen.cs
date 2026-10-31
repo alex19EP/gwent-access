@@ -57,15 +57,20 @@ namespace GwentAccess.Ui
             var buttonTexts = new HashSet<string>();
             foreach (var c in buttons) foreach (var s in CrimsonNodes.Texts(c)) buttonTexts.Add(s);
 
-            var round = panel.TryCast<UIRoundTutorialPopupPanel>();
-            string key = null;
-            string text = round != null ? RoundText(round, out key) : Text(panel, buttonTexts);
             b.BeginStop("tutorial");
+            var round = panel.TryCast<UIRoundTutorialPopupPanel>();
+            if (round != null)
+            {
+                BuildRound(b, round);
+                foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+                return;
+            }
+            string text = Text(panel, buttonTexts);
             if (text.Length > 0)
             {
-                // Keyed by the shown string (the image popup's loc key when it has one; the round explainer's
-                // current line), not the panel, so a new text lands afresh and is spoken.
-                key ??= panel.TryCast<UITutorialImagePopup>()?.CurrentString;
+                // Keyed by the shown string (the image popup's loc key when it has one), not the panel, so a new
+                // text lands afresh and is spoken.
+                string key = panel.TryCast<UITutorialImagePopup>()?.CurrentString;
                 string textKey = string.IsNullOrEmpty(key) ? text : key;
                 var id = ControlId.Structural("tutorial:text:" + textKey);
                 b.AddItem(id, new NodeVtable
@@ -101,12 +106,45 @@ namespace GwentAccess.Ui
             }
         }
 
+        // The round explainer's strings already spoken this push, and the text last drawn (held through the
+        // fades between lines, when nothing is drawn).
+        private readonly HashSet<string> _roundSpoken = new HashSet<string>();
+        private string _roundText = "";
+
+        // The round explainer is one fixed text node: its lines cross-fade, so a node keyed by the current line
+        // would vanish between lines and drop the cursor onto the button. Each newly drawn line or label is
+        // spoken once as it appears, queued, without moving the cursor; Space re-reads all that is shown.
+        private void BuildRound(GraphBuilder b, UIRoundTutorialPopupPanel round)
+        {
+            var shown = RoundText(round);
+            if (!_built) { _roundSpoken.Clear(); _roundText = ""; }
+            var fresh = new List<string>();
+            foreach (var s in shown) if (_roundSpoken.Add(s)) fresh.Add(s);
+            if (shown.Count > 0) _roundText = string.Join(" ", shown);
+            // The first render's text is spoken by landing on the node; later ones as they appear.
+            if (_built && fresh.Count > 0)
+            {
+                string news = string.Join(" ", fresh);
+                Speech.Say(news, false);
+                Speech.Remember(news);
+            }
+            var id = ControlId.Structural("tutorial:round");
+            b.AddItem(id, new NodeVtable
+            {
+                Announcements = new[] { new NodeAnnouncement(() => _roundText, kind: AnnouncementKinds.Label) },
+                OnActivate = () => Continue(round),
+                OnTooltip = () => Speech.Say(_roundText, true),
+            });
+            b.SetStart(id);
+            _built = true;
+        }
+
         // The round explainer (UIRoundTutorialPopupPanel) is an animation: its explanation lines fade in one at
         // a time over a diagram of three round columns whose outcome labels ("ВЫ ВЫИГРАЛИ РАУНД", "ПОБЕДА")
         // fade in as it goes. Every label is always there, faded out, so only what is drawn counts: the shown
-        // explanation lines (the key, so each new line is spoken) and then the shown outcome labels. The title
-        // is the screen's name and the column headers ("РАУНД 1") are static.
-        private static string RoundText(UIRoundTutorialPopupPanel panel, out string key)
+        // explanation lines and then the shown outcome labels. The title is the screen's name and the column
+        // headers ("РАУНД 1") are static.
+        private static List<string> RoundText(UIRoundTutorialPopupPanel panel)
         {
             var lines = new List<string>();
             var labels = new List<string>();
@@ -123,10 +161,8 @@ namespace GwentAccess.Ui
                 }
             }
             catch { }
-            key = "round:" + string.Join("|", lines);
-            var all = new List<string>(lines);
-            all.AddRange(labels);
-            return string.Join(" ", all);
+            lines.AddRange(labels);
+            return lines;
         }
 
         // How opaque a text is drawn: its color's alpha times every CanvasGroup's up to the panel.
