@@ -37,6 +37,7 @@ namespace GwentAccess.Ui
         // Context is the level it speaks on entry, DeckListRoot's being the game's own "Change deck".
         private static readonly (string Root, string Stop, string Context)[] Regions =
         {
+            (FriendStackRoot, "friend-match", null),
             ("Carousel", "cards", null),
             ("CardsSpawnRoot", "modes", "Game modes"),
             (DeckListRoot, "deck", null),
@@ -49,12 +50,18 @@ namespace GwentAccess.Ui
         };
 
         private static readonly int DeckListRegion = System.Array.FindIndex(Regions, r => r.Root == DeckListRoot);
+        private static readonly int FriendRegion = System.Array.FindIndex(Regions, r => r.Root == FriendStackRoot);
+
+        // Where the game stages the friend-match card stack, and whether a friend match is being set up (an
+        // invite accepted, or ours accepted): read once per build, from the content panel.
+        private const string FriendStackRoot = "HidenContainer";
+        private static bool _friendSetup;
         private static readonly int ProfileRegion = System.Array.FindIndex(Regions, r => r.Stop == "profile");
 
-        // Skipped subtrees: off-screen staging the game keeps active (the friend-invite card waiting to be dealt
-        // in), and a play card's scrollable description, selectable only so a gamepad can scroll it — Space on
-        // the card reads that text.
-        private static readonly HashSet<string> Hidden = new HashSet<string> { "HidenContainer", "DescriptionPanelRoot" };
+        // Skipped subtree: a play card's scrollable description, selectable only so a gamepad can scroll it —
+        // Space on the card reads that text. (The friend-match staging is skipped too, unless a friend match is
+        // being set up: see RegionOf.)
+        private static readonly HashSet<string> Hidden = new HashSet<string> { "DescriptionPanelRoot" };
 
         // How long a landing the screen chose holds the game's selection against the game's own moves.
         private const float SteerSeconds = 1.5f;
@@ -95,6 +102,7 @@ namespace GwentAccess.Ui
         public override void Build(GraphBuilder b)
         {
             var layer = CrimsonInputManager.Instance.ActiveLayer;
+            try { _friendSetup = ContentPanel(layer)?.IsFriendMatchSetupInProgress == true; } catch { _friendSetup = false; }
             var byStop = new List<AControl>[Regions.Length + 1];
             var attached = layer.GetAttachedControls();
             var seen = new HashSet<System.IntPtr>();
@@ -129,6 +137,7 @@ namespace GwentAccess.Ui
                 b.BeginStop(known ? Regions[r].Stop : "other");
                 string context = r == DeckListRegion
                     ? GameText.Get(DeckSelector.SELECT_DECK_TEXT_LOCALIZATION_KEY, "Change deck")
+                    : r == FriendRegion ? GameText.Get("friend_match_setup_title", "Friend match setup")
                     : known ? Regions[r].Context : null;
                 if (context != null) b.PushContext(context);
                 if (r == ProfileRegion && overlay != null) AddProfile(b, overlay);
@@ -336,6 +345,10 @@ namespace GwentAccess.Ui
         // to skip it.
         private static int RegionOf(AControl c)
         {
+            // The friend-match stack is staged in the hidden container and only moved on screen and enabled
+            // while a friend match is being set up: then all of it is the friend-match stop, else none of it.
+            for (var t = c.transform; t != null; t = t.parent)
+                if (t.name == FriendStackRoot) return _friendSetup ? FriendRegion : -1;
             for (var t = c.transform; t != null; t = t.parent)
             {
                 string name = t.name;
