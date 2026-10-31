@@ -74,6 +74,15 @@ namespace GwentAccess
         private static readonly HashSet<int> CtrlDown = new HashSet<int>();
 
         private static bool _enterWas;
+
+        /// <summary>The object navigator's keys (F2/F3 move, F4 clicks) stand down while a graph screen owns the
+        /// UI: it moves the game's selection, the graph cursor follows, and every press would be spoken twice.</summary>
+        private static void PostObjectNav(Action a) => MainThread.Post(() =>
+        {
+            if (Ui.GraphNavigator.Owns || Ui.ScreenManager.AnyActive()) return;
+            a();
+        });
+
         private static void Loop()
         {
             bool f1Was = false, f2Was = false, f3Was = false, f4Was = false, f5Was = false, f6Was = false, f8Was = false, f9Was = false, f7Was = false;
@@ -106,9 +115,9 @@ namespace GwentAccess
                     bool f4 = (GetAsyncKeyState(VK_F4) & 0x8000) != 0;
                     bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
                     bool shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
-                    if (f2 && !f2Was && GameInFront()) { if (shift) MainThread.Post(() => Navigator.MoveSection(-1)); else MainThread.Post(() => Navigator.Move(-1)); }
-                    if (f3 && !f3Was && GameInFront()) { if (shift) MainThread.Post(() => Navigator.MoveSection(1)); else MainThread.Post(() => Navigator.Move(1)); }
-                    if (f4 && !f4Was && !alt && GameInFront()) MainThread.Post(Navigator.Click);
+                    if (f2 && !f2Was && GameInFront()) { if (shift) PostObjectNav(() => Navigator.MoveSection(-1)); else PostObjectNav(() => Navigator.Move(-1)); }
+                    if (f3 && !f3Was && GameInFront()) { if (shift) PostObjectNav(() => Navigator.MoveSection(1)); else PostObjectNav(() => Navigator.Move(1)); }
+                    if (f4 && !f4Was && !alt && GameInFront()) PostObjectNav(Navigator.Click);
                     f2Was = f2; f3Was = f3; f4Was = f4;
                     bool enter = (GetAsyncKeyState(0x0D) & 0x8000) != 0;
                     if (enter && !_enterWas && !ctrl && !alt && GameInFront()) MainThread.Post(Navigator.EnterOnBottomButton);
