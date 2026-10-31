@@ -127,8 +127,18 @@ namespace GwentAccess
 
         // ---- the request being answered ----
 
-        /// <summary>The rows the picked-up card may go to.</summary>
-        public bool MayPlaceIn(Location l) => Placing != null && Contains(Placing.m_AvailableSpots, l);
+        /// <summary>The rows the picked-up card may go to: the request's spots, or — in an online match, where
+        /// the client's copy of the request comes without them — the rows the game's own placing highlights.</summary>
+        public bool MayPlaceIn(Location l)
+        {
+            if (Placing == null) return false;
+            var spots = Placing.m_AvailableSpots;
+            bool none = true;
+            try { none = spots == null || spots.Count == 0; } catch { }
+            if (!none) return Contains(spots, l);
+            try { return Contains(Ui.BattleInput.Handler()?.m_PlayCardHandlerComponent?.m_ValidLocations, l); }
+            catch { return false; }
+        }
 
         public bool IsTarget(Card c) => Targets != null && Try(() => Targets.ValidTargets.Contains(c.Id));
         public bool IsChosen(Card c) => Targets != null && Try(() => Targets.SelectedTargets.Contains(c.Id));

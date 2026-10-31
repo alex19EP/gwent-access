@@ -81,7 +81,16 @@ namespace GwentAccess.Ui
             var layer = CrimsonInputManager.Instance?.ActiveLayer;
             if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base) return false;
             if (!HasBattlePanel(layer)) return false;
+            if (BeforeTheDeal(_gc)) return false;
             return Plays.Read(_gc).Choice == null; // a choice has its own screen
+        }
+
+        // The board shows before the opening hand is dealt; with nothing in hand the cursor would land on the
+        // opponent's leader, just before the mulligan names both leaders. Wait for the deal.
+        private static bool BeforeTheDeal(GameController gc)
+        {
+            try { return Narrator.TurnsStartedIn != gc.Pointer && Battle.HandCount(gc, Battle.Me(gc)) == 0; }
+            catch { return false; }
         }
 
         private static bool HasBattlePanel(CrimsonInputLayer layer)
@@ -281,13 +290,27 @@ namespace GwentAccess.Ui
             var ids = new List<List<ControlId>>();
             ControlId start = null;
             b.BeginStop("place");
+            // Nothing known to be valid (seen online, where the client's request can come without its spots):
+            // offer your own rows rather than an empty board — the game's A refuses a wrong spot itself.
+            bool anyValid = false;
+            foreach (var row in Rows)
+            {
+                if (row.Where != ELocation.Melee && row.Where != ELocation.Ranged) continue;
+                try { if (_plays.MayPlaceIn(gc.BoardManager.GetLocation(row.Mine ? me : them, row.Where))) anyValid = true; } catch { }
+            }
+            if (!anyValid && !_loggedNoSpots)
+            {
+                _loggedNoSpots = true;
+                Plugin.LogInfo("[plays] placing with no known spots; offering your rows");
+            }
             foreach (var row in Rows)
             {
                 if (row.Where != ELocation.Melee && row.Where != ELocation.Ranged) continue;
                 var who = row.Mine ? me : them;
                 Location loc = null;
                 try { loc = gc.BoardManager.GetLocation(who, row.Where); } catch { }
-                if (loc == null || !_plays.MayPlaceIn(loc)) continue;
+                if (loc == null) continue;
+                if (anyValid ? !_plays.MayPlaceIn(loc) : !row.Mine) continue;
                 try { if (loc.RemainingCapacity <= 0) continue; } catch { }
                 var cards = Battle.Cards(gc, who, row.Where);
                 b.PushContext(row.Name, "score " + Score(cards));
@@ -317,6 +340,8 @@ namespace GwentAccess.Ui
                 }
             if (start != null) b.SetStart(start);
         }
+
+        private bool _loggedNoSpots;
 
         private static string GapText(List<Card> cards, int i, PlayerManager pm)
         {

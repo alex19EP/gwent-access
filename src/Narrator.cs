@@ -533,14 +533,16 @@ namespace GwentAccess
 
     /// <summary>
     /// The banner over a player's portrait while they act: "Противник размышляет", "Противник меняет
-    /// карты". Pass banners are left to the pass line, which carries the scores; a banner repeated within a
-    /// few seconds is said once.
+    /// карты". Pass banners are left to the pass line, which carries the scores. The game re-shows a banner
+    /// while the wait goes on (the opponent's mulligan, a long think); it is said once until the turn changes
+    /// (<see cref="Forget"/>) or another banner replaces it.
     /// </summary>
     [HarmonyPatch(typeof(UIPlayerPassPanel), nameof(UIPlayerPassPanel.ShowMessage))]
     internal static class NarrateStatusBanner
     {
         private static string _last;
-        private static float _lastAt = -1;
+
+        internal static void Forget() => _last = null;
 
         static void Postfix(string __2, bool __3, bool __4) => Narrator.Guard("banner", () =>
         {
@@ -548,10 +550,8 @@ namespace GwentAccess
             if (__2.Contains("pass")) return;
             string text = __4 ? GameText.Get(__2, null) : UiText.Clean(__2);
             if (string.IsNullOrEmpty(text) || text.Contains("{{")) return;
-            float now = Time.realtimeSinceStartup;
-            if (text == _last && now - _lastAt < 3f) return;
+            if (text == _last) return;
             _last = text;
-            _lastAt = now;
             Narrator.Say(text + ".");
         });
     }
@@ -599,6 +599,7 @@ namespace GwentAccess
         {
             if (!Narrator.Real(__instance, out var gc)) return;
             Narrator.TurnsStartedIn = gc.Pointer;
+            NarrateStatusBanner.Forget();
             // A player who passed gets their turns skipped straight away; there's no turn to announce.
             try
             {
