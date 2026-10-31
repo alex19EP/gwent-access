@@ -44,8 +44,10 @@ namespace GwentAccess
             Ui.ScreenManager.Register(new Ui.ShopScreen());
             Ui.ScreenManager.Register(new Ui.KegOpeningScreen());
             Ui.ScreenManager.Register(new Ui.ProfileScreen());
+            Ui.ScreenManager.Register(new Ui.StarterDeckScreen());
             Ui.ScreenManager.Register(new Ui.TutorialPanelScreen());
             Ui.ScreenManager.Register(new Ui.RewardPopupScreen());
+            Ui.ScreenManager.Register(new Ui.PopupScreen());
         }
 
         public void Tick()

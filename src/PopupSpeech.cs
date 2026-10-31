@@ -23,6 +23,9 @@ namespace GwentAccess
                 else if ((title + " " + message).IndexOf("placement not ideal", StringComparison.OrdinalIgnoreCase) >= 0)
                     text = "Placement warning: this card's ability won't work on that row. Enter places it anyway. Escape once cancels, and you keep holding the card.";
                 Plugin.LogInfo("Popup: " + UiText.DebugPath(__instance) + " => " + text);
+                // A popup in the popup panel's container is the graph popup screen's (Ui.PopupScreen): it reads the
+                // popup once it takes the input layer, a frame later, so speaking here too would read it twice.
+                if (__instance.GetComponentInParent<UIPopupContainer>() != null) return;
                 Speech.Say(text, true);
                 Speech.Remember(text);
                 Screens.LastAnnounce = DateTime.UtcNow;
