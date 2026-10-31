@@ -115,10 +115,24 @@ namespace GwentAccess.Ui
                     if (c.IsCurrentlySelectable())
                         b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => "Search")); // icon only; the game has no word for it
 
-            var found = search.m_ContactEntryRenderer?.GetComponentInChildren<ContactEntryRenderer>(false);
+            var found = FoundContact(search);
             if (found != null) AddContact(b, found);
             if (ResultMessage(search) is string message)
                 b.AddLabel(ControlId.Structural(CrimsonNodes.PathKey(search.m_MessageRenderer.transform, null)), () => message);
+        }
+
+        // The contact a search found, if shown. The result renderer outlives its Unity object: after the game
+        // destroys it the field still holds a wrapper, which `?.` lets through and the native call then throws
+        // on (every frame while the window was open). Unity's own null check sees the destroyed object.
+        private static ContactEntryRenderer FoundContact(SearchSectionRenderer search)
+        {
+            try
+            {
+                var r = search.m_ContactEntryRenderer;
+                if (r == null || !r.gameObject.activeInHierarchy) return null;
+                return r.GetComponentInChildren<ContactEntryRenderer>(false);
+            }
+            catch { return null; }
         }
 
         // The game's message under the field after a search ("no such player" and the like), if shown.
@@ -150,7 +164,7 @@ namespace GwentAccess.Ui
 
             _search.Tick();
 
-            var found = search.m_ContactEntryRenderer?.GetComponentInChildren<ContactEntryRenderer>(false);
+            var found = FoundContact(search);
             string result = found != null ? ContactLabel(found) : ResultMessage(search);
             if (result != null && result != _result) Speech.Say(result, false);
             _result = result;
