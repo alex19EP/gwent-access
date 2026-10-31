@@ -35,4 +35,30 @@ namespace GwentAccess
             catch (Exception e) { Plugin.LogInfo("Tutorial hint patch error: " + e); }
         }
     }
+
+    /// <summary>
+    /// Speaks the tutorial image popups that don't wait for Continue: a tutorial battle shows them beside play
+    /// ("Попробуйте заменить карты." over the mulligan) and closes them when the player does what they say. They
+    /// take no input, so no screen claims them (the modal ones are <see cref="Ui.TutorialPanelScreen"/>'s): the
+    /// text is queued once as the game sets it, and kept for the repeat key.
+    /// </summary>
+    [HarmonyPatch(typeof(UITutorialImagePopup), nameof(UITutorialImagePopup.Setup))]
+    internal static class TutorialSidePopupPatch
+    {
+        // Setup(image, popupTextKey, canSkip, ...): the flowchart passes its WaitForInputContinue as canSkip.
+        static void Postfix(UITutorialImagePopup __instance, string popupTextKey, bool canSkip, bool isPopupTextKey)
+        {
+            try
+            {
+                if (canSkip) return;
+                string text = UiText.Clean(__instance.m_PopupText?.text);
+                if (text.Length == 0 && isPopupTextKey) text = GameText.Get(popupTextKey, "");
+                if (text.Length == 0) return;
+                Plugin.LogInfo("Tutorial side popup " + popupTextKey + ": " + text);
+                Speech.Say(text, false);
+                Speech.Remember(text);
+            }
+            catch (Exception e) { Plugin.LogInfo("Tutorial side popup patch error: " + e); }
+        }
+    }
 }
