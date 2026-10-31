@@ -55,6 +55,7 @@ namespace GwentAccess.Ui
             if (p == null) return;
             var used = new HashSet<IntPtr>();
             var claimed = new HashSet<string>();  // texts read by a reward or a button, kept out of the details
+            _cards.Clear();
 
             var slots = new List<UIPopupRewardSlot>();
             foreach (var s in p.GetComponentsInChildren<UIPopupRewardSlot>(false))
@@ -69,7 +70,9 @@ namespace GwentAccess.Ui
                     var btn = slot.ButtonControl;
                     used.Add(btn.Pointer);
                     foreach (var t in CrimsonNodes.Texts(slot)) claimed.Add(t);
-                    b.AddItem(CrimsonNodes.Id(btn), new NodeVtable
+                    var id = CrimsonNodes.Id(btn);
+                    _cards[(string)id.StructuralKey] = slot;
+                    b.AddItem(id, new NodeVtable
                     {
                         Announcements = new[] { new NodeAnnouncement(() => RewardName(slot), kind: AnnouncementKinds.Label) },
                         OnActivate = () => Navigator.ClickControl(btn),
@@ -138,15 +141,46 @@ namespace GwentAccess.Ui
         // A card reward reads as the card in full; anything else as everything its slot prints.
         private static string RewardDetails(UIPopupRewardSlot slot)
         {
-            try
-            {
-                var card = slot.m_View?.TryCast<UIPopupRewardCardView>()?.Card;
-                if (card != null) return RewardName(slot) + ". " + CardReader.Whole(card);
-            }
-            catch (Exception e) { Plugin.LogInfo("[reward-popup] card read failed: " + e.Message); }
+            var card = CardOf(slot);
+            if (card != null) return RewardName(slot) + ". " + CardReader.Whole(card);
             var parts = new List<string> { RewardName(slot) };
             foreach (var t in CrimsonNodes.Texts(slot)) if (!parts.Contains(t)) parts.Add(t);
             return string.Join(". ", parts);
+        }
+
+        private static GwentGameplay.Card CardOf(UIPopupRewardSlot slot)
+        {
+            try { return slot?.m_View?.TryCast<UIPopupRewardCardView>()?.Card; }
+            catch (Exception e) { Plugin.LogInfo("[reward-popup] card read failed: " + e.Message); return null; }
+        }
+
+        // ---- card keys: a card reward reads line by line, like a card on the board ----
+
+        private readonly Dictionary<string, UIPopupRewardSlot> _cards = new Dictionary<string, UIPopupRewardSlot>();
+        private CardKeys _cardKeys;
+        private List<ScreenKey> _keys;
+
+        public override IReadOnlyList<ScreenKey> ExtraKeys
+        {
+            get
+            {
+                if (_keys != null) return _keys;
+                _cardKeys = new CardKeys(FocusedCard, () => null);
+                _keys = new List<ScreenKey>(_cardKeys.Keys);
+                return _keys;
+            }
+        }
+
+        public override void OnCursorMoved(GraphNode node)
+        {
+            _cardKeys?.Reset();
+            base.OnCursorMoved(node);
+        }
+
+        private GwentGameplay.Card FocusedCard()
+        {
+            var node = GraphNavigator.CurrentNode;
+            return node?.Id.StructuralKey is string key && _cards.TryGetValue(key, out var slot) ? CardOf(slot) : null;
         }
     }
 }
