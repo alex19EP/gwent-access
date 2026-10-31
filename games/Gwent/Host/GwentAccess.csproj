@@ -3,6 +3,7 @@
        GameInfo.cs. The module is ../Module/GwentAccess.Module.csproj. -->
   <PropertyGroup>
     <ModName>GwentAccess</ModName>
+    <GameDirEnvVar>GWENT_DIR</GameDirEnvVar>
     <DefaultGameDir>C:\Program Files (x86)\Steam\steamapps\common\GWENT The Witcher Card Game</DefaultGameDir>
     <!-- The name the build took before there were other games: dotnet build -p:GwentDir=... -->
     <GameDir Condition="'$(GameDir)' == ''">$(GwentDir)</GameDir>

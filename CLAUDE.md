@@ -8,7 +8,7 @@ Screen-reader (NVDA) mods for the games on Gwent's engine, each a BepInEx 6 (be.
 
 ## Commands
 
-Commands go through the `justfile` (needs `just`, pwsh 7, .NET SDK 6+). Pick the game with `game=gwent` (default) or `game=tb`: `just game=tb deploy`. The game folders come from `GWENT_DIR` / `THRONEBREAKER_DIR` (env or the git-ignored `.env`), else the default Steam path. Default config is Debug; use `just config=Release <recipe>` for Release.
+Commands go through the `justfile` (needs `just`, pwsh 7, .NET SDK 6+). Pick the game with `game=gwent` (default) or `game=tb`: `just game=tb deploy`. The game folders come from `GWENT_DIR` / `THRONEBREAKER_DIR` (env or the git-ignored `.env`), else the default Steam path; `build/GameReferences.props` reads the same `.env` line, so plain `dotnet build` and the language server (csharp-ls loads `gwent-access.sln`) find the install too. Default config is Debug; use `just config=Release <recipe>` for Release.
 
 - `just test` — graph kernel unit tests (no game needed). Single test: `dotnet test tests/Access.Core.Tests/Access.Core.Tests.csproj --filter "FullyQualifiedName~KeyGraphTests.SomeTest"`
 - `just build` — compile host + module (the module project references the host, so one build does both)

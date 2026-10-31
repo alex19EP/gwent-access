@@ -76,7 +76,12 @@ namespace GwentAccess.Ui
             {
                 if (!c.gameObject.activeInHierarchy) return;
                 var layer = c.ParentLayer;
-                if (layer != null && (layer.SelectedControl == null || layer.SelectedControl.Pointer != c.Pointer))
+                // Only a control the layer can select: a button-bar button (settings' Применить, a popup's ОК)
+                // never is. Gwent ignores the request; Thronebreaker's older layer drops the selection and puts
+                // it back on the previous control, which the navigator then follows, pulling the cursor off the
+                // button the player just tabbed to.
+                if (layer != null && c.IsCurrentlySelectable()
+                    && (layer.SelectedControl == null || layer.SelectedControl.Pointer != c.Pointer))
                     layer.RequestControlSelection(c);
                 try { c.OnHover?.Invoke(c); }
                 catch (Exception e) { Plugin.LogInfo("[screens] hover failed: " + e.Message); }

@@ -5,8 +5,17 @@
        Directory.Build.props: the kernel tests must not see any of these.
 
        GameDir: the game's install folder (BepInEx already run once so BepInEx\interop exists). The game project
-       sets DefaultGameDir; override with dotnet build -p:GameDir=... (the Gwent projects also take GwentDir). -->
+       sets DefaultGameDir and GameDirEnvVar (GWENT_DIR, THRONEBREAKER_DIR). First wins: dotnet build
+       -p:GameDir=... (the Gwent projects also take GwentDir), that environment variable, the same line in the
+       repo's git-ignored .env (what the justfile reads; parsed here so a language server, which runs MSBuild
+       without the justfile, finds the same install), then DefaultGameDir. -->
   <PropertyGroup>
+    <GameDir Condition="'$(GameDir)' == '' and '$(GameDirEnvVar)' != ''">$([System.Environment]::GetEnvironmentVariable('$(GameDirEnvVar)'))</GameDir>
+    <_RepoEnvFile>$(MSBuildThisFileDirectory)..\.env</_RepoEnvFile>
+    <_EnvLinePattern>(?m)^[ \t]*$(GameDirEnvVar)[ \t]*=.*$</_EnvLinePattern>
+    <_EnvText Condition="'$(GameDir)' == '' and '$(GameDirEnvVar)' != '' and Exists('$(_RepoEnvFile)')">$([System.IO.File]::ReadAllText('$(_RepoEnvFile)'))</_EnvText>
+    <_EnvLine Condition="'$(_EnvText)' != ''">$([System.Text.RegularExpressions.Regex]::Match($(_EnvText), $(_EnvLinePattern)).Value)</_EnvLine>
+    <GameDir Condition="'$(GameDir)' == '' and '$(_EnvLine)' != ''">$([System.Text.RegularExpressions.Regex]::Replace($(_EnvLine), '^[^=]*=[ \t]*["%27]?(.*?)["%27]?[ \t\r]*$', '$1'))</GameDir>
     <GameDir Condition="'$(GameDir)' == ''">$(DefaultGameDir)</GameDir>
     <PluginDeployDir>$(GameDir)\BepInEx\plugins\$(ModName)</PluginDeployDir>
   </PropertyGroup>
