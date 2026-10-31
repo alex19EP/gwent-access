@@ -36,9 +36,12 @@ namespace GwentAccess.Ui
         public override string Key => "contacts";
         public override int Layer => 1;
 
-        // The search field's text and the search result as last spoken, for the echo in Tick.
-        private string _typed;
+        // The search field, read and echoed as an edit box; the search result as last spoken, for Tick.
+        private readonly EditBox _search = new EditBox(SearchField, "Find a friend");
         private string _result;
+
+        private static InputFieldControl SearchField() =>
+            Window()?.GetComponentInChildren<SearchSectionRenderer>(false)?.InputFieldControl;
 
         // The window has no title of its own; the game names it in its friends section.
         public override string ScreenName => GameText.Get("contacts_section_friends", "Friends");
@@ -68,11 +71,8 @@ namespace GwentAccess.Ui
 
         public override void OnPop()
         {
-            _typed = null;
+            _search.Reset();
             _result = null;
-            _caret = -1;
-            _editing = false;
-            _leaving = false;
         }
 
         public override void Build(GraphBuilder b)
@@ -102,11 +102,11 @@ namespace GwentAccess.Ui
 
         // ---- search ----
 
-        private static void AddSearch(GraphBuilder b, SearchSectionRenderer search)
+        private void AddSearch(GraphBuilder b, SearchSectionRenderer search)
         {
             b.BeginStop("search");
             var field = search.InputFieldControl;
-            if (field != null && field.gameObject.activeInHierarchy) b.AddItem(CrimsonNodes.Id(field), Field(field));
+            if (field != null && field.gameObject.activeInHierarchy) b.AddItem(CrimsonNodes.Id(field), _search.Vtable(field));
 
             // The bar's icon button next to the field runs the search, as Enter in the field does.
             var bar = field != null ? field.transform.parent : null;
@@ -121,47 +121,6 @@ namespace GwentAccess.Ui
                 b.AddLabel(ControlId.Structural(CrimsonNodes.PathKey(search.m_MessageRenderer.transform, null)), () => message);
         }
 
-        // The field reads its placeholder ("Найти друга…") as its name, then what is typed, as a sighted player
-        // sees one or the other in the box. Enter puts the caret in it.
-        private static NodeVtable Field(InputFieldControl field)
-        {
-            return new NodeVtable
-            {
-                Announcements = new[]
-                {
-                    new NodeAnnouncement(() => Placeholder(field) ?? "Find a friend", kind: AnnouncementKinds.Label),
-                    NodeAnnouncement.Static("edit"),
-                    new NodeAnnouncement(() => Typed(field) is string t && t.Length > 0 ? t : null, kind: AnnouncementKinds.Value),
-                },
-                OnActivate = () =>
-                {
-                    try { field.ActivateInputField(); }
-                    catch (System.Exception e) { Plugin.LogInfo("[contacts] activate field failed: " + e.Message); }
-                },
-                OnTooltip = () => Speech.Say((Placeholder(field) ?? "Find a friend") + ": " + (Typed(field) is string t && t.Length > 0 ? t : "blank"), true),
-            };
-        }
-
-        private static string Placeholder(InputFieldControl field)
-        {
-            try
-            {
-                var p = field.InputField?.m_PlaceholderText;
-                return p != null ? UiText.Clean(p.text) is string s && s.Length > 0 ? s : null : null;
-            }
-            catch { return null; }
-        }
-
-        private static string Typed(InputFieldControl field)
-        {
-            try { return field.Text ?? ""; } catch { return ""; }
-        }
-
-        private static bool Editing(InputFieldControl field)
-        {
-            try { return field.InputField != null && field.InputField.isFocused; } catch { return false; }
-        }
-
         // The game's message under the field after a search ("no such player" and the like), if shown.
         private static string ResultMessage(SearchSectionRenderer search)
         {
@@ -171,105 +130,31 @@ namespace GwentAccess.Ui
             return texts.Count > 0 ? string.Join(". ", texts) : null;
         }
 
-        private static InputFieldControl EditedField()
-        {
-            var w = Window();
-            var field = w?.GetComponentInChildren<SearchSectionRenderer>(false)?.InputFieldControl;
-            return field != null && Editing(field) ? field : null;
-        }
+        /// <summary>While the caret is in the search field, the game gets the editing keys (see <see cref="EditBox"/>).</summary>
+        public override bool LeavesToGame(KeyCode key) => _search.LeavesToGame(key);
 
-        /// <summary>While the caret is in the search field, the game gets the editing keys (Left/Right, Home/End,
-        /// Backspace, Space, Enter to search); Tab and Up/Down still move off the one-line field.</summary>
-        public override bool LeavesToGame(KeyCode key) =>
-            key != KeyCode.Tab && key != KeyCode.UpArrow && key != KeyCode.DownArrow && EditedField() != null;
-
-        /// <summary>Landing anywhere but the search field takes the caret out of it, so the keys are the
-        /// navigator's again. (Landing on the field only reads it; Enter starts editing.)</summary>
+        /// <summary>Landing anywhere but the search field takes the caret out of it.</summary>
         public override void OnCursorMoved(GraphNode node)
         {
             base.OnCursorMoved(node);
-            var field = Window()?.GetComponentInChildren<SearchSectionRenderer>(false)?.InputFieldControl;
-            if (field == null) return;
-            bool onField = node?.Id.Reference is AControl c && c.Pointer == field.Pointer;
-            if (onField || !Editing(field)) return;
-            _leaving = true; // the landing speaks for itself; no "not editing" after it
-            try { field.DeactivateInputField(); }
-            catch (System.Exception e) { Plugin.LogInfo("[contacts] field deactivate failed: " + e.Message); }
+            _search.OnCursorMoved(node);
         }
 
-        // The field's caret as last seen, whether it was being edited, and whether the cursor just left it.
-        private int _caret = -1;
-        private bool _editing;
-        private bool _leaving;
-
-        /// <summary>
-        /// Echo the search field as a screen reader echoes an edit box, and speak the search result.
-        /// Entering and leaving edit mode say so; a typed character is spoken, a deleted one too; moving the
-        /// caret by one (Left/Right) speaks the character it now sits on, a longer jump (Home/End, Ctrl+arrows)
-        /// the word there; "blank" past the end. A result (a contact found, or the game's message) is spoken
-        /// when it appears.
-        /// </summary>
+        /// <summary>Echo the search field as an edit box (<see cref="EditBox.Tick"/>), and speak the search
+        /// result (a contact found, or the game's message) when it appears.</summary>
         public override void Tick()
         {
             var w = Window();
             var search = w?.GetComponentInChildren<SearchSectionRenderer>(false);
             if (search == null) return;
 
-            var field = search.InputFieldControl;
-            string now = field != null ? Typed(field) : null;
-            bool editing = field != null && Editing(field);
-            int caret = editing ? Caret(field) : -1;
-            if (editing != _editing)
-            {
-                if (editing) Speech.Say("editing", true);
-                else if (!_leaving) Speech.Say("not editing", true);
-                _leaving = false;
-            }
-            else if (editing && _typed != null && now != null && now != _typed) Speech.Say(Change(_typed, now), true);
-            else if (editing && caret >= 0 && _caret >= 0 && caret != _caret && now != null)
-                Speech.Say(System.Math.Abs(caret - _caret) == 1 ? CharAt(now, caret) : WordAt(now, caret), true);
-            _editing = editing;
-            _typed = now;
-            _caret = caret;
+            _search.Tick();
 
             var found = search.m_ContactEntryRenderer?.GetComponentInChildren<ContactEntryRenderer>(false);
             string result = found != null ? ContactLabel(found) : ResultMessage(search);
             if (result != null && result != _result) Speech.Say(result, false);
             _result = result;
         }
-
-        private static int Caret(InputFieldControl field)
-        {
-            try { return field.InputField.caretPositionInternal; } catch { return -1; }
-        }
-
-        // What an edit did: the characters inserted, else those deleted (wherever in the text), as typed.
-        private static string Change(string before, string after)
-        {
-            int p = 0;
-            while (p < before.Length && p < after.Length && before[p] == after[p]) p++;
-            int s = 0;
-            while (s < before.Length - p && s < after.Length - p && before[before.Length - 1 - s] == after[after.Length - 1 - s]) s++;
-            string added = after.Substring(p, after.Length - p - s);
-            string removed = before.Substring(p, before.Length - p - s);
-            return Spoken(added.Length > 0 ? added : removed);
-        }
-
-        // The character the caret sits before; "blank" at the end.
-        private static string CharAt(string text, int caret) =>
-            caret >= 0 && caret < text.Length ? Spoken(text[caret].ToString()) : "blank";
-
-        // The word the caret is in or before; "blank" at the end.
-        private static string WordAt(string text, int caret)
-        {
-            if (caret < 0 || caret >= text.Length) return "blank";
-            int start = caret, end = caret;
-            while (start > 0 && !char.IsWhiteSpace(text[start - 1])) start--;
-            while (end < text.Length && !char.IsWhiteSpace(text[end])) end++;
-            return end > start ? text.Substring(start, end - start) : Spoken(text[caret].ToString());
-        }
-
-        private static string Spoken(string s) => s == " " ? "space" : s;
 
         // ---- sections and contacts ----
 

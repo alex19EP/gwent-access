@@ -144,10 +144,9 @@ namespace GwentAccess.Ui
         {
             try
             {
-                var overlay = Object.FindObjectOfType<GwentUnity.UIPlayerInfoOverlay>();
                 var amounts = new List<string>();
-                AddAmount(amounts, w.m_ScrapsGainText, overlay?.m_ScrapsButton);
-                AddAmount(amounts, w.m_PowderGainText, overlay?.m_PowderButton);
+                AddAmount(amounts, w.m_ScrapsGainText, Currency.Scraps());
+                AddAmount(amounts, w.m_PowderGainText, Currency.Powder());
                 if (amounts.Count == 0) return null;
                 var head = w.transform.Find("CardCount/GainText");
                 string title = head != null ? Text(head) : null;
@@ -156,13 +155,12 @@ namespace GwentAccess.Ui
             catch (System.Exception e) { Plugin.LogInfo("[mill] gain failed: " + e.Message); return null; }
         }
 
-        private static void AddAmount(List<string> amounts, TMPro.TMP_Text text, AControl counter)
+        private static void AddAmount(List<string> amounts, TMPro.TMP_Text text, string currency)
         {
             if (text == null || !text.gameObject.activeInHierarchy) return;
             string amount = UiText.Clean(text.text);
             if (amount.Length == 0) return;
-            string currency = counter != null ? CrimsonNodes.TooltipText(counter) : null;
-            amounts.Add(string.IsNullOrEmpty(currency) ? amount : amount + " " + currency);
+            amounts.Add(currency == null ? amount : amount + " " + currency);
         }
 
         // ---- the rest of the panel: the settings toggle, the examples button, the footer lines ----
