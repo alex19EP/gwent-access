@@ -476,14 +476,16 @@ namespace GwentAccess.Ui
             MouseClick(track);
         }
 
-        /// <summary>A left click the way the mouse makes one: the press, then the release over the same control,
-        /// so the control's press sounds and click handlers both run.</summary>
+        /// <summary>A left click the way the mouse makes one: the press, the release, then the click the layer
+        /// sends for a release over the pressed control, so the control's press sounds and click handlers both
+        /// run. The release alone only resets the button's look; only <c>Click</c> raises <c>OnLeftClick</c>
+        /// (the claim button's <c>HandleClaim</c>).</summary>
         private static void MouseClick(ButtonControl c)
         {
             if (c == null || !c.gameObject.activeInHierarchy) return;
             try
             {
-                foreach (var state in new[] { CursorButtonEventArgs.EState.ButtonDown, CursorButtonEventArgs.EState.ButtonUp })
+                foreach (var state in new[] { CursorButtonEventArgs.EState.ButtonDown, CursorButtonEventArgs.EState.ButtonUp, CursorButtonEventArgs.EState.Click })
                     c.HandleCursorButtonEvent(new CursorButtonEventArgs(c.ParentLayer, CursorInputEventArgs.EMouseButton.Left, Camera.main,
                         state, c, c, new Il2CppSystem.Collections.Generic.List<CrimsonUI.EventSystems.RaycastResult>()));
             }
