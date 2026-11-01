@@ -1,6 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 using CrimsonUI;
+using Modules.Common;
 using UnityEngine;
 
 namespace GwentAccess.Ui
@@ -14,6 +15,23 @@ namespace GwentAccess.Ui
         public static string Scraps() => Name(o => o.m_ScrapsButton);
         public static string Powder() => Name(o => o.m_PowderButton);
         public static string Ore() => Name(o => o.m_GoldButton);
+        public static string RewardPoints() => Name(o => o.m_RewardButton);
+
+        /// <summary>The running event's currency ("Капли крови"): each event has its own translation key, but
+        /// the counter's tooltip already carries the current one's name.</summary>
+        public static string Event() => Name(o => o.m_EventButton);
+
+        /// <summary>A currency by the game's type, as its counter names it; the game's plain name for it if the
+        /// counter has none to give. Null for a type the game has no words for.</summary>
+        public static string Of(EVirtualCurrencyType type) => type switch
+        {
+            EVirtualCurrencyType.Gold => Ore() ?? GameText.Get("gold_currency", null),
+            EVirtualCurrencyType.Scraps => Scraps() ?? GameText.Get("card_scraps_currency", null),
+            EVirtualCurrencyType.Powder => Powder() ?? GameText.Get("powder_currency", null),
+            EVirtualCurrencyType.RewardPoints => RewardPoints() ?? GameText.Get("reward_point_currency", null),
+            EVirtualCurrencyType.EventCurrency => Event(),
+            _ => null,
+        };
 
         private static string Name(Func<GwentUnity.UIPlayerInfoOverlay, AControl> counter)
         {

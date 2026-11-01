@@ -5,6 +5,7 @@ using Access.Core.Graph;
 using CrimsonUI;
 using GwentUnity.UI.PlayerProfile;
 using GwentVisuals;
+using Modules.Common;
 using Modules.RewardBook.Entities;
 using UnityEngine;
 using ENodeType = Modules.RewardBook.Entities.RewardSystemTreeElementData.ENodeType;
@@ -14,14 +15,19 @@ namespace GwentAccess.Ui
     /// <summary>
     /// The reward book. Two views, as on screen:
     ///
-    /// The book's page: its tabs, then the trees on the page (each with its progress, as the game prints it
-    /// under the tree), then the window's buttons. Enter on a tree opens it through the tree's own button.
+    /// Both views start with the currency balances and the tabs, and end with the window's buttons, exit or back
+    /// first. The tab bar stays live over an open tree, and a single-tree page (a running event, which is what
+    /// the book opens on then) has no page of trees at all: its tree is the page, Back closes the book, and the
+    /// tabs are the only way to the other pages.
+    ///
+    /// The book's page: the trees on the page (each with its progress, as the game prints it under the tree).
+    /// Enter on a tree opens it through the tree's own button.
     ///
     /// An open tree: its nodes nearest the root first (left to right within a step), each read as its kind,
     /// whether it is claimed, can be claimed or is out of reach, its cost and its rewards in the game's own
-    /// words; then the side panel's text and buttons (the tree's title, story, progress, buy), then the
-    /// window's buttons. Enter on a node is the game's own click on it — claiming spends reward points, so the
-    /// game's own claim flow, hold and confirmation included, decides what happens.
+    /// words; then the side panel's text and buttons (the tree's title, story, progress, buy). Enter on a node
+    /// is the game's own click on it — claiming spends the node's currency, so the game's own claim flow, hold
+    /// and confirmation included, decides what happens.
     ///
     /// Active while the reward book panel is attached to the input layer that has the input; the tutorial
     /// panels and popups the book opens take the input and step in above it.
@@ -125,14 +131,20 @@ namespace GwentAccess.Ui
 
             AddPoints(b);
             AddHint(b, p);
-            // The tab bar stays live behind an open tree; it is the page's, and never one of the leftovers.
-            var tabs = Tabs(p, used);
+            AddTabs(b, p, used);
+            _firstContent = null;
             var nodes = OpenTree(p);
             if (nodes != null) BuildTree(b, p, nodes, used);
-            else BuildPage(b, p, tabs, used);
+            else BuildPage(b, p, used);
 
-            // Whatever else the window offers (close, the glyph-key buttons), in the game's order.
+            // The window's way out leads its buttons, under the label the game gives it for this view (exit on
+            // a page or a single-tree page, back in a tree); the icon beside it is the same action again.
             var rest = new List<AControl>();
+            var back = p.m_BackButton?.Button;
+            if (back != null && back.gameObject.activeInHierarchy && used.Add(back.Pointer)) rest.Add(back);
+            if (p.m_IconBackButton != null) used.Add(p.m_IconBackButton.Pointer);
+
+            // Whatever else the window offers (zoom, the glyph-key buttons), in the game's order.
             foreach (var c in CrimsonNodes.Leaves(p)) if (used.Add(c.Pointer)) rest.Add(c);
             foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
             {
@@ -149,9 +161,56 @@ namespace GwentAccess.Ui
                 b.BeginStop("buttons");
                 foreach (var c in rest) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
             }
+
+            SteerOnViewChange(b, p);
         }
 
-        // ---- the book's page ----
+        // ---- moving between views ----
+
+        // What the book is showing: the open tab and the tree open in it. The game sets both the moment it is
+        // asked, ahead of the animation that swaps what is drawn.
+        private static string _view;
+
+        // The cursor is to land in the new view's content once the animation ends.
+        private static bool _landInContent;
+
+        // Where this render's content takes the cursor: the first reward, the first tree, or the tree last open.
+        private static ControlId _firstContent;
+
+        // The tree most recently open.
+        private static string _lastTree;
+
+        private static readonly ControlId ChangingView = ControlId.Structural("reward-book:changing-view");
+
+        // Opening a tree or going back takes away the node the cursor was on, and the kernel's fallback would then
+        // read out whatever precedes it (the last tab); the new view's first tree or reward is where the player
+        // is headed. A cursor on a tab or the balances stays put, so a tab can be pressed and pressed again.
+        // During the animation there is nothing to land on yet, so a silent node holds the cursor until there is.
+        private static void SteerOnViewChange(GraphBuilder b, UIRewardSystemPanel p)
+        {
+            string tree = p.m_CurrentTreeData?.MosaicElementName;
+            if (!string.IsNullOrEmpty(tree)) _lastTree = tree;
+            string view = SafeOpenTab(p) + "/" + tree;
+            if (_view != null && view != _view)
+            {
+                var stop = GraphNavigator.CurrentNode?.StopKey as string;
+                if (stop != "tabs" && stop != "points") _landInContent = true;
+            }
+            _view = view;
+            if (!_landInContent) return;
+
+            if (p.IsAnimating)
+            {
+                b.BeginStop("changing-view");
+                b.AddItem(ChangingView, new NodeVtable { Announcements = new[] { new NodeAnnouncement(() => null, kind: AnnouncementKinds.Label) } });
+                GraphNavigator.Suggest(ChangingView);
+                return;
+            }
+            _landInContent = false;
+            if (_firstContent != null) GraphNavigator.Suggest(_firstContent);
+        }
+
+        // ---- the tabs ----
 
         private static List<AControl> Tabs(UIRewardSystemPanel p, HashSet<IntPtr> used)
         {
@@ -165,35 +224,39 @@ namespace GwentAccess.Ui
             return tabs;
         }
 
-        private static void BuildPage(GraphBuilder b, UIRewardSystemPanel p, List<AControl> tabs, HashSet<IntPtr> used)
+        private static void AddTabs(GraphBuilder b, UIRewardSystemPanel p, HashSet<IntPtr> used)
         {
-            if (tabs.Count > 0)
+            var tabs = Tabs(p, used);
+            if (tabs.Count == 0) return;
+            b.BeginStop("tabs");
+            b.PushContext("Tabs");
+            for (int i = 0; i < tabs.Count; i++)
             {
-                b.BeginStop("tabs");
-                b.PushContext("Tabs");
-                for (int i = 0; i < tabs.Count; i++)
+                int index = i;
+                var v = CrimsonNodes.Button(tabs[i], () => TabName(p, index));
+                v.Announcements = new[]
                 {
-                    int index = i;
-                    var v = CrimsonNodes.Button(tabs[i], () => TabName(p, index));
-                    v.Announcements = new[]
-                    {
-                        v.Announcements[0],
-                        new NodeAnnouncement(() => SafeOpenTab(p) == index ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
-                        new NodeAnnouncement(() => SafeOpenTab(p) != index && InWalkthrough(p) ? "locked" : null, live: true, kind: AnnouncementKinds.Enabled),
-                    };
-                    // A locked tab ignores the click; the game's own notice says what unlocks it.
-                    var click = v.OnActivate;
-                    v.OnActivate = () =>
-                    {
-                        if (SafeOpenTab(p) != index && InWalkthrough(p))
-                            Speech.Say(GameText.Get("rb_ftux_notification_locked_tabs", "To reach the other pages, claim every reward in one tree."), true);
-                        else click();
-                    };
-                    b.AddItem(CrimsonNodes.Id(tabs[i]), v);
-                }
-                b.PopContext();
+                    v.Announcements[0],
+                    new NodeAnnouncement(() => SafeOpenTab(p) == index ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                    new NodeAnnouncement(() => SafeOpenTab(p) != index && InWalkthrough(p) ? "locked" : null, live: true, kind: AnnouncementKinds.Enabled),
+                };
+                // A locked tab ignores the click; the game's own notice says what unlocks it.
+                var click = v.OnActivate;
+                v.OnActivate = () =>
+                {
+                    if (SafeOpenTab(p) != index && InWalkthrough(p))
+                        Speech.Say(GameText.Get("rb_ftux_notification_locked_tabs", "To reach the other pages, claim every reward in one tree."), true);
+                    else click();
+                };
+                b.AddItem(CrimsonNodes.Id(tabs[i]), v);
             }
+            b.PopContext();
+        }
 
+        // ---- the book's page ----
+
+        private static void BuildPage(GraphBuilder b, UIRewardSystemPanel p, HashSet<IntPtr> used)
+        {
             var trees = new List<RewardSystemMosaicElement>();
             var elements = p.ImageCanvas?.m_MosaicElements;
             for (int i = 0; elements != null && i < elements.Count; i++)
@@ -202,6 +265,9 @@ namespace GwentAccess.Ui
                 if (m != null && m.isActiveAndEnabled && m.BtnControl != null) trees.Add(m);
             }
             if (trees.Count == 0) return;
+            // Back from a tree lands on that tree, not the top of the page.
+            var landing = trees.Find(m => m.ElementData?.MosaicElementName == _lastTree) ?? trees[0];
+            _firstContent = CrimsonNodes.Id(landing.BtnControl);
             b.BeginStop("trees");
             b.PushContext("Trees");
             foreach (var m in trees)
@@ -246,40 +312,57 @@ namespace GwentAccess.Ui
             try { return p.m_FTUX != null && p.m_FTUX.IsInFTUX; } catch { return false; }
         }
 
-        // ---- the reward point balance ----
+        // ---- the currency balances ----
 
-        // While the book is open the top bar shows the reward points to spend in it; the player sees it
-        // throughout, so it is the book's first item, live (it drops as rewards are claimed).
-        private static Transform _pointsCount;
+        // While the book is open the top bar shows what there is to spend in it: the reward points and, during
+        // an event, the event's currency, which is what the event's tree costs. The player sees both throughout,
+        // so they are the book's first item, one line so that landing on it says both, and live (they drop as
+        // rewards are claimed). The names and counters are found once per opening: this is read every frame.
+        private static List<(string Name, TMPro.TMP_Text Count)> _balances;
 
-        private static string Points()
+        private static string Balances()
         {
             try
             {
-                if (_pointsCount == null || !_pointsCount.gameObject.activeInHierarchy)
+                if (_balances == null || _balances.Exists(x => x.Count == null || !x.Count.gameObject.activeInHierarchy))
+                    _balances = FindBalances();
+                var parts = new List<string>();
+                foreach (var (name, count) in _balances)
                 {
-                    _pointsCount = null;
-                    var bar = UnityEngine.Object.FindObjectOfType<GwentUnity.UIPlayerInfoOverlay>();
-                    var t = bar?.transform.Find("SafeArea/Banner/RightInfo/RewardPoints/Layout/Count");
-                    if (t != null && t.gameObject.activeInHierarchy) _pointsCount = t;
+                    string n = UiText.Clean(count.text);
+                    if (n.Length > 0) parts.Add(name + ", " + n);
                 }
-                string n = _pointsCount == null ? "" : UiText.Clean(_pointsCount.GetComponent<TMPro.TMP_Text>()?.text);
-                return n.Length > 0 ? n : null;
+                return parts.Count > 0 ? string.Join(", ", parts) : null;
             }
-            catch { _pointsCount = null; return null; }
+            catch { _balances = null; return null; }
+        }
+
+        private static List<(string, TMPro.TMP_Text)> FindBalances()
+        {
+            var found = new List<(string, TMPro.TMP_Text)>();
+            var bar = UnityEngine.Object.FindObjectOfType<GwentUnity.UIPlayerInfoOverlay>();
+            if (bar == null) return found;
+            foreach (var (button, type) in new (AControl, EVirtualCurrencyType)[]
+            {
+                (bar.m_EventButton, EVirtualCurrencyType.EventCurrency),
+                (bar.m_RewardButton, EVirtualCurrencyType.RewardPoints),
+            })
+            {
+                if (button == null || !button.gameObject.activeInHierarchy) continue;
+                var count = button.GetComponentInChildren<TMPro.TMP_Text>(false);
+                string name = Currency.Of(type);
+                if (count != null && !string.IsNullOrEmpty(name)) found.Add((name, count));
+            }
+            return found;
         }
 
         private static void AddPoints(GraphBuilder b)
         {
-            if (Points() == null) return;
+            if (Balances() == null) return;
             b.BeginStop("points");
             b.AddItem(ControlId.Structural("reward-book:points"), new NodeVtable
             {
-                Announcements = new[]
-                {
-                    new NodeAnnouncement(() => GameText.Get("reward_point_currency", "Reward points"), kind: AnnouncementKinds.Label),
-                    new NodeAnnouncement(Points, live: true, kind: AnnouncementKinds.Value),
-                },
+                Announcements = new[] { new NodeAnnouncement(Balances, live: true, kind: AnnouncementKinds.Label) },
             });
         }
 
@@ -290,6 +373,11 @@ namespace GwentAccess.Ui
         {
             Release();
             _hint = null;
+            _balances = null;
+            _costNames.Clear();
+            _view = null;
+            _lastTree = null;
+            _landInContent = false;
         }
 
         // The walkthrough's floating hint, while one shows over the book: the first thing on the page, read on
@@ -370,6 +458,7 @@ namespace GwentAccess.Ui
                 .OrderBy(t => t.Steps).ThenByDescending(t => t.Y)
                 .Select(t => t.Node).ToList();
             var exits = Exits(ordered);
+            _firstContent = CrimsonNodes.Id(ordered[0]);
 
             b.BeginStop("nodes");
             b.PushContext("Rewards");
@@ -521,20 +610,45 @@ namespace GwentAccess.Ui
             };
         }
 
-        // Claimed, or what stands between the player and claiming it — the cost as the node prints it.
+        // Claimed, or what stands between the player and claiming it. The cost comes from the node's data, which
+        // is what the game prints and checks: a single-tree page draws it in a separate label with the currency's
+        // icon, and the usual label stays hidden there holding the prefab's placeholder. The icon is said as the
+        // currency's name, since one tree can mix currencies (an event's story node costs reward points).
         private static string State(RewardSystemTreeElement n)
         {
             try
             {
                 var d = n.ElementData;
                 if (d.Claimed) return "claimed";
-                string cost = UiText.Clean(n.m_CostText?.text);
-                string costPart = cost.Length > 0 ? ", cost " + cost : "";
+                var cost = d.ClaimCost;
+                int amount = cost == null ? 0 : cost.Amount;
+                string name = amount > 0 ? CostName(cost.CostType) : null;
+                string costPart = amount <= 0 ? "" : name == null ? ", cost " + amount : ", cost " + amount + " " + name;
                 if (!n.MeetCondition) return "out of reach" + costPart;
-                if (!n.IsEnoughCurrencyForClaiming()) return "not enough points" + costPart;
+                if (!n.IsEnoughCurrencyForClaiming()) return NotEnough(cost.CostType, amount, name);
                 return "can claim" + costPart;
             }
             catch (Exception e) { Plugin.LogInfo("[reward-book] state failed: " + e.Message); return null; }
+        }
+
+        // The game's own words for falling short, which name the currency; its reward point line also says how
+        // many are needed.
+        private static string NotEnough(EVirtualCurrencyType type, int amount, string name)
+        {
+            if (type == EVirtualCurrencyType.RewardPoints
+                && GameText.Get("interface_rewards_node_not_enough_rp", null) is string points)
+                return points.Replace("{0}", amount.ToString());
+            string template = GameText.Get("interface_rewards_node_not_enough_currency", "Not enough {0}");
+            return template.Replace("{0}", name ?? "").TrimEnd('!', ' ') + ", cost " + amount;
+        }
+
+        // Currency names by type, found once per opening: a focused node's state is read every frame.
+        private static readonly Dictionary<EVirtualCurrencyType, string> _costNames = new Dictionary<EVirtualCurrencyType, string>();
+
+        private static string CostName(EVirtualCurrencyType type)
+        {
+            if (!_costNames.TryGetValue(type, out var name)) _costNames[type] = name = Currency.Of(type);
+            return name;
         }
 
         // The node's rewards in the game's own words, then the cards it gives by name.
