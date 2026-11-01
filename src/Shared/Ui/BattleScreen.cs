@@ -26,7 +26,8 @@ namespace GwentAccess.Ui
     /// coin for as long as E is held — the game's own hold, so letting go early cancels — saying the score (or
     /// that orders are still ready) as the hold starts.
     ///
-    /// Jumps (Hearthstone Access letters): C your hand, B your melee row, G the opponent's melee row, V your
+    /// Jumps (Hearthstone Access letters): C your hand, B / Shift+B your melee / ranged row, G / Shift+G the
+    /// opponent's melee / ranged row, V your
     /// leader, F the opponent's leader; Shift+C the opponent's hand size, A the score. The number row jumps to
     /// the board rows as the first version of the mod numbered them (1 your melee, 2 your ranged, 3 the
     /// opponent's melee, 4 the opponent's ranged; while placing, to that row's spots), and Shift+number reads
@@ -507,7 +508,11 @@ namespace GwentAccess.Ui
                 foreach (var l in new[] { ELocation.Melee, ELocation.Ranged }) board += Battle.Cards(gc, me, l).Count;
             }
             catch { }
-            return BattleInput.Mode + "|" + P(_plays.Pending) + P(_plays.Placing) + P(_plays.Confirming) + P(_plays.Targets) + P(_plays.Rows) + P(_plays.Choice) + "|" + hand + "|" + board;
+            // Chosen: a multi-step target (Geralt's Aard) marks its first pick "chosen" without leaving the
+            // targeting, and that counts as something happening.
+            int chosen = 0;
+            try { chosen = _plays.Chosen; } catch { }
+            return BattleInput.Mode + "|" + P(_plays.Pending) + P(_plays.Placing) + P(_plays.Confirming) + P(_plays.Targets) + P(_plays.Rows) + P(_plays.Choice) + "|" + chosen + "|" + hand + "|" + board;
         }
 
         private bool Mine(Card c)
@@ -683,7 +688,9 @@ namespace GwentAccess.Ui
                     new ScreenKey { Key = KeyCode.C, Run = () => JumpTo("hand"), Hint = "C, your hand" },
                     new ScreenKey { Key = KeyCode.C, Shift = true, Run = SayOpponentHand, Hint = "Shift C, opponent's hand size" },
                     new ScreenKey { Key = KeyCode.B, Run = () => JumpTo("my-melee"), Hint = "B, your melee row" },
+                    new ScreenKey { Key = KeyCode.B, Shift = true, Run = () => JumpTo("my-ranged"), Hint = "Shift B, your ranged row" },
                     new ScreenKey { Key = KeyCode.G, Run = () => JumpTo("opp-melee"), Hint = "G, opponent's melee row" },
+                    new ScreenKey { Key = KeyCode.G, Shift = true, Run = () => JumpTo("opp-ranged"), Hint = "Shift G, opponent's ranged row" },
                     new ScreenKey { Key = KeyCode.V, Run = () => JumpTo("my-leader"), Hint = "V, your leader" },
                     new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = "F, opponent's leader" },
                     new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = "A, score" },

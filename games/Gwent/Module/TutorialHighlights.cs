@@ -43,7 +43,7 @@ namespace GwentAccess
             {
                 case EHighlightType.Spotlight_Leader: Say(mine ? "your leader" : "the opponent's leader", mine ? "V" : "F"); break;
                 case EHighlightType.Spotlight_MeleeGlyph: Say(mine ? "your melee row" : "the opponent's melee row", mine ? "B" : "G"); break;
-                case EHighlightType.Spotlight_RangedGlyph: Say(mine ? "your ranged row" : "the opponent's ranged row", mine ? "2" : "4"); break;
+                case EHighlightType.Spotlight_RangedGlyph: Say(mine ? "your ranged row" : "the opponent's ranged row", mine ? "Shift B" : "Shift G"); break;
                 case EHighlightType.Spotlight_Deck: Say(mine ? "your deck" : "the opponent's deck", mine ? "D" : null); break;
                 case EHighlightType.Spotlight_Graveyard: Say(mine ? "your graveyard" : "the opponent's graveyard", mine ? "Y" : "Shift Y"); break;
                 case EHighlightType.Interactible_AbilityIcon:
@@ -93,9 +93,9 @@ namespace GwentAccess
                 var gc = Battle.Controller();
                 bool mine = gc == null || __instance.Player == Battle.Me(gc);
                 string who = mine ? "your " : "the opponent's ";
-                if (__instance.Melee && __instance.Ranged) TutorialHighlights.Say(who + "melee and ranged rows", mine ? "B and 2" : "G and 4");
+                if (__instance.Melee && __instance.Ranged) TutorialHighlights.Say(who + "melee and ranged rows", mine ? "B and Shift B" : "G and Shift G");
                 else if (__instance.Melee) TutorialHighlights.Say(who + "melee row", mine ? "B" : "G");
-                else if (__instance.Ranged) TutorialHighlights.Say(who + "ranged row", mine ? "2" : "4");
+                else if (__instance.Ranged) TutorialHighlights.Say(who + "ranged row", mine ? "Shift B" : "Shift G");
             }
             catch (Exception e) { Plugin.LogInfo("[highlight] row failed: " + e.Message); }
         }

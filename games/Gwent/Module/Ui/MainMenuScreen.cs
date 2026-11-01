@@ -77,8 +77,49 @@ namespace GwentAccess.Ui
         public override bool IsActive()
         {
             var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base) return false;
-            return ContentPanel(layer) != null;
+            if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base || ContentPanel(layer) == null)
+            {
+                _shownSince = -1;
+                return false;
+            }
+            if (_shownSince < 0) _shownSince = UnityEngine.Time.realtimeSinceStartup;
+            return !PassingThrough();
+        }
+
+        // When the menu first showed this time; -1 while it isn't up.
+        private float _shownSince = -1;
+        private static GwentVisuals.GwentApp _app;
+
+        /// <summary>
+        /// The new-player flow only passes through the menu: at start-up and between tutorial battles the game
+        /// shows it while its current FTUX step gets going — opening the intro panel, a cinematic, the next
+        /// tutorial battle — and reading it ("Profile and currencies, CARDSMITH, unavailable") announced a place
+        /// the player never gets to use. Quiet while the step hasn't run its opening actions, a transition is
+        /// under way, or the step launches a battle or cinematic. Bounded: after 15 seconds of menu the menu is
+        /// read regardless, so a stalled flow can't leave the player in silence.
+        /// </summary>
+        private bool PassingThrough()
+        {
+            if (UnityEngine.Time.realtimeSinceStartup - _shownSince > 15f) return false;
+            try
+            {
+                if (_app == null || _app.Pointer == System.IntPtr.Zero || _app.WasCollected) _app = UnityEngine.Object.FindObjectOfType<GwentVisuals.GwentApp>();
+                var ux = _app?.UX;
+                if (ux == null || !ux.IsInitialized) return true;
+                if (!ux.IsInUXFlow) return false;
+                var fs = ux.FlowState;
+                var step = fs?.CurrentStep;
+                if (step == null || fs.m_InProgressTransitionState != null) return true;
+                if (step.m_CurrentActionIdToTrigger < step.m_IntroActions.Count) return true;
+                var intro = step.UXStep?.IntroActions;
+                for (int i = 0; intro != null && i < intro.Count; i++)
+                {
+                    var a = intro[i]?.Action;
+                    if (a == GwentVisuals.UX.EUXActionType.LaunchBattle || a == GwentVisuals.UX.EUXActionType.PlayCinematic) return true;
+                }
+            }
+            catch { }
+            return false;
         }
 
         private static UIMainMenuContentPanel ContentPanel(CrimsonInputLayer layer)
@@ -450,9 +491,27 @@ namespace GwentAccess.Ui
         private static string CardLabel(AControl c, UIMainMenuCardItem card)
         {
             CardTexts(card, out string title, out var timer);
-            title ??= CrimsonNodes.Label(c);
+            title ??= KeyTitle(card) ?? CrimsonNodes.Label(c);
             string detail = LockedReason(card) ?? (timer.Count > 0 ? string.Join(" ", timer) : null);
             return detail == null ? title : title + ", " + detail;
+        }
+
+        // A card whose title isn't drawn yet (the menu still building, or a locked card's stand-in up) is named
+        // from its object, "Item(mainmenu_practice_title)": the game's own string for that key. The stand-in's
+        // own name ("Look Disabled Highlight Control") was spoken otherwise.
+        private static string KeyTitle(UIMainMenuCardItem card)
+        {
+            try
+            {
+                string n = card.gameObject.name;
+                int open = n.IndexOf('('), close = n.LastIndexOf(')');
+                if (open < 0 || close <= open + 1) return null;
+                string key = n.Substring(open + 1, close - open - 1);
+                if (key == "Clone") return null;
+                string t = UiText.Clean(GameText.Get(key, ""));
+                return t.Length > 0 ? t : null;
+            }
+            catch { return null; }
         }
 
         // Space on a stand-in, which holds no text of its own: the card's label, then what the mode is.
