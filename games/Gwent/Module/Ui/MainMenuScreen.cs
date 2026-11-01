@@ -10,7 +10,10 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// The main menu: the play-mode cards, the deck chosen for them, the menu bar (rewards, settings, quit…),
-    /// the profile and currency bar, notifications and the social panel — one Tab stop each, in that order.
+    /// the profile and currency bar, notifications and the social panel — one list in that order, each part
+    /// spoken as context on entry (Hearthstone Access's single menu list). The modes are one row (Left/Right
+    /// change the mode), Left/Right on the deck button change the deck, Tab moves like Down, and a letter jumps
+    /// to an item (opening it when it is the only one with that letter).
     ///
     /// Built from the controls the Base input layer has attached, so whatever the game shows (the top-level
     /// cards, or the play stack with its mode cards and deck selector; new-player gating that hides most of
@@ -73,6 +76,68 @@ namespace GwentAccess.Ui
         private bool? _steerToList;
         private float _steerUntil;
         private AControl _steer;
+
+        // ---- keys ----
+
+        private List<ScreenKey> _keys;
+
+        /// <summary>Tab and Shift+Tab move like Down and Up (one list); a letter jumps to the next item whose name
+        /// starts with it and, when it is the only one, opens it (Hearthstone Access's main-menu letters).</summary>
+        public override IReadOnlyList<ScreenKey> ExtraKeys
+        {
+            get
+            {
+                if (_keys != null) return _keys;
+                _keys = new List<ScreenKey>
+                {
+                    new ScreenKey { Key = KeyCode.Tab, Run = () => GraphNavigator.Step(GraphDir.Down), Hint = "Tab, next item, as Down" },
+                    new ScreenKey { Key = KeyCode.Tab, Shift = true, Run = () => GraphNavigator.Step(GraphDir.Up), Hint = "Shift Tab, previous item, as Up" },
+                };
+                bool first = true;
+                for (var k = KeyCode.A; k <= KeyCode.Z; k++)
+                {
+                    char letter = (char)('a' + (k - KeyCode.A));
+                    _keys.Add(new ScreenKey
+                    {
+                        Key = k,
+                        Run = () => Letter(letter),
+                        Hint = first ? "A letter, jump to the next item starting with it; when it is the only one, open it" : null,
+                    });
+                    first = false;
+                }
+                return _keys;
+            }
+        }
+
+        // Items a letter never opens, only reaches: leaving the game.
+        private static bool NeverOpenByLetter(string label) =>
+            label.StartsWith("Quit", System.StringComparison.OrdinalIgnoreCase)
+            || label.StartsWith("Exit", System.StringComparison.OrdinalIgnoreCase)
+            || label.StartsWith(GameText.Get("main_menu_quit", "Quit"), System.StringComparison.OrdinalIgnoreCase);
+
+        private static void Letter(char letter)
+        {
+            var nodes = GraphNavigator.Nodes();
+            if (nodes.Count == 0) return;
+            var matches = new List<GraphNode>();
+            foreach (var n in nodes)
+            {
+                if (!n.Focusable) continue;
+                string l = GraphNavigator.LabelOf(n)?.Trim();
+                if (!string.IsNullOrEmpty(l) && char.ToLowerInvariant(l[0]) == letter) matches.Add(n);
+            }
+            if (matches.Count == 0) { Speech.Say("Nothing starting with " + char.ToUpperInvariant(letter) + ".", true); return; }
+            // The next match after the cursor, wrapping, so pressing the letter again walks them.
+            var cur = GraphNavigator.CurrentNode;
+            int curAt = -1;
+            for (int i = 0; i < matches.Count; i++) if (cur != null && matches[i].Id.Equals(cur.Id)) curAt = i;
+            var target = matches[(curAt + 1) % matches.Count];
+            if (cur == null || !target.Id.Equals(cur.Id)) GraphNavigator.FocusNode(target.Id);
+            if (matches.Count == 1 && !NeverOpenByLetter(GraphNavigator.LabelOf(target) ?? "")) GraphNavigator.ActivateCurrent();
+        }
+
+        // The game modes and the deck can hold one entry (a new player's PLAY, the starter deck): "1 of 1" says so.
+        public override bool PositionOfOne => true;
 
         public override bool IsActive()
         {
@@ -172,18 +237,28 @@ namespace GwentAccess.Ui
             // silently instead of falling to a neighbour (spec §9: no content yet).
             if (!TrackSelector(selector, byStop, active)) return;
 
+            // One list, top to bottom (Hearthstone Access's main menu, Accessible Arena's): Up/Down walk every
+            // part of the menu; the parts are spoken as context on entering them, not separate Tab stops.
+            b.BeginStop("main-menu");
             for (int r = 0; r < byStop.Length; r++)
             {
                 if (byStop[r] == null) continue;
                 bool known = r < Regions.Length;
-                b.BeginStop(known ? Regions[r].Stop : "other");
                 string context = r == DeckListRegion
                     ? GameText.Get(DeckSelector.SELECT_DECK_TEXT_LOCALIZATION_KEY, "Change deck")
                     : r == FriendRegion ? GameText.Get("friend_match_setup_title", "Friend match setup")
                     : known ? Regions[r].Context : null;
                 if (context != null) b.PushContext(context);
                 if (r == ProfileRegion && overlay != null) AddProfile(b, overlay);
-                AddControls(b, byStop[r], activeDeck);
+                if (known && Regions[r].Stop == "modes" && byStop[r].Count > 1)
+                {
+                    // The game modes lie side by side, as the game draws them: Left/Right change the mode (the
+                    // game's selection follows the cursor), Up/Down leave the row.
+                    b.StartRow("modes");
+                    foreach (var c in byStop[r]) b.AddItem(CrimsonNodes.Id(c), Vtable(c, activeDeck));
+                    b.EndRow();
+                }
+                else AddControls(b, byStop[r], activeDeck);
                 if (context != null) b.PopContext();
             }
 
@@ -335,6 +410,25 @@ namespace GwentAccess.Ui
             return _steer;
         }
 
+        // The next or previous deck in the selector's own list, chosen through the list's click handler.
+        private static void CycleDeck(AControl button, int delta)
+        {
+            try
+            {
+                var selector = button.GetComponentInParent<DeckSelector>();
+                var decks = selector?.GetDeckList();
+                if (decks == null || decks.Count == 0) { Speech.Say("No other decks.", true); return; }
+                if (decks.Count == 1) { Speech.Say("Only one deck.", true); return; }
+                ulong current = selector.GetSelectedDeck()?.Id ?? 0;
+                int at = 0;
+                for (int i = 0; i < decks.Count; i++) if (decks[i]?.Id == current) { at = i; break; }
+                int next = ((at + (delta >= 0 ? 1 : -1)) % decks.Count + decks.Count) % decks.Count;
+                selector.OnDeckButtonClicked(decks[next]);
+                Plugin.LogInfo("[menu] deck " + at + " -> " + next);
+            }
+            catch (System.Exception e) { Plugin.LogInfo("[menu] deck change failed: " + e.Message); Speech.Say("Couldn't change the deck.", true); }
+        }
+
         private static ulong DeckOf(AControl c)
         {
             try { return c.TryCast<GwentVisuals.UIDeckButtonControl>()?.Deck?.Id ?? 0; } catch { return 0; }
@@ -420,6 +514,8 @@ namespace GwentAccess.Ui
                         kind: AnnouncementKinds.Value),
             };
             v.Announcements = anns;
+            // Left/Right on the deck button change the deck, as picking the next one in its list does.
+            if (!inList) v.OnAdjust = (delta, large) => CycleDeck(c, delta);
             return v;
         }
 
