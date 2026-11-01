@@ -109,6 +109,7 @@ namespace GwentAccess.Ui
             for (int i = 0; i < attached.Count; i++)
                 foreach (var c in CrimsonNodes.Leaves(attached[i], seen))
                 {
+                    if (BehindStandIn(c)) continue;
                     int r = RegionOf(c);
                     if (r < 0) continue;
                     (byStop[r] ??= new List<AControl>()).Add(c);
@@ -365,6 +366,7 @@ namespace GwentAccess.Ui
         private static NodeVtable Vtable(AControl c, ulong activeDeck)
         {
             if (c.TryCast<SocialButton>() is SocialButton social) return SocialToggle(c, social);
+            if (CardOf(c) is UIMainMenuCardItem card) return CardVtable(c, card);
             if (!IsDeckButton(c)) return CrimsonNodes.Button(c);
             var v = CrimsonNodes.Button(c, () => DeckLabel(c));
             bool inList = RegionOf(c) == DeckListRegion;
@@ -393,6 +395,100 @@ namespace GwentAccess.Ui
                 new NodeAnnouncement(() => toggle.IsToggled ? "pressed" : null, live: true, kind: AnnouncementKinds.Selected),
             };
             return v;
+        }
+
+        // ---- menu cards ----
+
+        /// <summary>The menu card a control is the face of: its button, or the stand-in below. Null for anything
+        /// else, such as the opponent toggles on a card.</summary>
+        private static UIMainMenuCardItem CardOf(AControl c)
+        {
+            var card = c.GetComponentInParent<UIMainMenuCardItem>();
+            if (card == null) return null;
+            return c.Pointer == card.m_Button?.Pointer || IsStandIn(c, card) ? card : null;
+        }
+
+        // A disabled card (one locked by level, a mode outside its dates, the Balance Council before voting
+        // opens; or, looking disabled, a mode with no valid deck) gets a textless button over it, its
+        // m_LookDisabledButtonControl, which takes the selection and the press in the card's place.
+        private static bool IsStandIn(AControl c, UIMainMenuCardItem card) =>
+            c.Pointer == card.m_LookDisabledButtonControl?.Pointer;
+
+        /// <summary>A card's own button while its stand-in is up: the two are one card to a sighted player, so
+        /// the graph keeps only the stand-in, which is where the game's selection lands.</summary>
+        private static bool BehindStandIn(AControl c)
+        {
+            var card = CardOf(c);
+            var standIn = card?.m_LookDisabledButtonControl;
+            return card != null && !IsStandIn(c, card) && standIn != null && standIn.gameObject.activeInHierarchy;
+        }
+
+        /// <summary>
+        /// A card reads as its title, then why it is locked (the game's own words, the ones its popup shows) or
+        /// else any countdown on it. A disabled card with no reason to give says it is unavailable. Enter on a
+        /// stand-in is the mouse's press and release: the popup explaining the lock opens on the press alone
+        /// (<c>HandleControlStatesChanged</c>), which the click a keyboard submit sends never reaches.
+        /// </summary>
+        private static NodeVtable CardVtable(AControl c, UIMainMenuCardItem card)
+        {
+            var v = CrimsonNodes.Button(c, () => CardLabel(c, card));
+            if (!IsStandIn(c, card)) return v;
+            var button = c.TryCast<ButtonControl>();
+            v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+            {
+                new NodeAnnouncement(() => LockedReason(card) == null ? "unavailable" : null, live: true, kind: AnnouncementKinds.Enabled),
+            };
+            v.OnActivate = () =>
+            {
+                BattleInput.SendButton(button, CursorButtonEventArgs.EState.ButtonDown);
+                BattleInput.ReleaseButton(button);
+            };
+            v.OnTooltip = () => Speech.Say(CardDetails(c, card), true);
+            return v;
+        }
+
+        private static string CardLabel(AControl c, UIMainMenuCardItem card)
+        {
+            CardTexts(card, out string title, out var timer);
+            title ??= CrimsonNodes.Label(c);
+            string detail = LockedReason(card) ?? (timer.Count > 0 ? string.Join(" ", timer) : null);
+            return detail == null ? title : title + ", " + detail;
+        }
+
+        // Space on a stand-in, which holds no text of its own: the card's label, then what the mode is.
+        private static string CardDetails(AControl c, UIMainMenuCardItem card)
+        {
+            string details = CardLabel(c, card);
+            string description = null;
+            try { description = UiText.Clean(card.GetDescription()); } catch { } // not every kind of card has one
+            return string.IsNullOrEmpty(description) ? details : details + ". " + description;
+        }
+
+        // The card's title and its countdown's texts, as drawn; its description panel is left to Space.
+        private static void CardTexts(UIMainMenuCardItem card, out string title, out List<string> timer)
+        {
+            title = null;
+            timer = new List<string>();
+            foreach (var t in card.GetComponentsInChildren<TMPro.TMP_Text>(false))
+            {
+                if (t.GetComponentInParent<UIPlayMenuCardDescription>() != null) continue;
+                string s = UiText.Clean(t.text);
+                if (s.Length == 0 || UiText.IsPlaceholder(s)) continue;
+                if (t.GetComponentInParent<TimerCountdownRenderer>() != null) timer.Add(s);
+                else title ??= s;
+            }
+        }
+
+        // Why a disabled card is locked, or null: the game has no reason for some kinds of card.
+        private static string LockedReason(UIMainMenuCardItem card)
+        {
+            try
+            {
+                if (!card.IsDisabled) return null;
+                string reason = UiText.Clean(card.GetLockedDescription());
+                return string.IsNullOrEmpty(reason) ? null : reason;
+            }
+            catch { return null; }
         }
 
         // The button's texts without its deck-stats panel (card count and provisions), which the game shows
