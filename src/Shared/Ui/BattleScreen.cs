@@ -143,7 +143,8 @@ namespace GwentAccess.Ui
                 var cards = Battle.Cards(gc, who, row.Where);
                 Location loc = null;
                 try { loc = gc.BoardManager.GetLocation(who, row.Where); } catch { }
-                b.PushContext(row.Name, row.Scored ? "score " + Score(cards) : null);
+                // A leader row also says whose it is, as the player panel beside it shows: name and title.
+                b.PushContext(row.Name, row.Scored ? "score " + Score(cards) : row.Where == ELocation.Leader ? PlayerTag(row.Mine) : null);
                 b.StartRow();
                 var rowIds = new List<ControlId>();
                 if (cards.Count == 0)
@@ -775,8 +776,52 @@ namespace GwentAccess.Ui
         private void SayOpponentHand()
         {
             if (_gc == null) return;
+            // The counter on the opponent's panel ("3/10": cards in hand of the limit) when it is drawn.
+            string shown = PanelText(false, "RightSideVerticalGroup/HandCountView/Hand Icon/Hand Card Number");
+            if (shown != null && shown.Contains("/")) { Speech.Say("Opponent's hand, " + shown.Replace("/", " of ") + " cards", true); return; }
             int n = Battle.HandCount(_gc, Battle.Them(_gc));
             Speech.Say("Opponent's hand, " + (n == 1 ? "1 card" : n + " cards"), true);
+        }
+
+        // The player panels beside the board (UIBoardPlayerControl under the battle dialogue's PlayerViewAnchors:
+        // BottomPlayer is you, TopPlayer the opponent), found once per battle.
+        private static UnityEngine.Transform _top, _bottom;
+
+        private static UnityEngine.Transform PlayerPanel(bool mine)
+        {
+            var t = mine ? _bottom : _top;
+            try { if (t != null && t.gameObject != null) return t; } catch { }
+            var root = UnityEngine.GameObject.Find("MainCanvas/UIBattleDialoguePrefab(Clone)/PlayerViewAnchors");
+            if (root == null) return null;
+            var anchor = root.transform.Find(mine ? "BottomPlayer" : "TopPlayer");
+            var panel = anchor != null && anchor.childCount > 0 ? anchor.GetChild(0) : null;
+            if (mine) _bottom = panel; else _top = panel;
+            return panel;
+        }
+
+        // A drawn text in a player panel, cleaned; null when it isn't shown.
+        private static string PanelText(bool mine, string path)
+        {
+            try
+            {
+                var t = PlayerPanel(mine)?.Find(path)?.GetComponent<TMPro.TMP_Text>();
+                if (t == null || !t.isActiveAndEnabled || t.color.a < 0.3f) return null;
+                string s = UiText.Clean(t.text);
+                return s.Length > 0 ? s : null;
+            }
+            catch { return null; }
+        }
+
+        // "Monsters, CARDSMITH": the player's name and title as their panel shows them.
+        private static string PlayerTag(bool mine)
+        {
+            var parts = new List<string>();
+            foreach (var part in new[] { "Vertical/PlayerInfo/Slideable/NameAndTitle/Name", "Vertical/PlayerInfo/Slideable/NameAndTitle/Title" })
+            {
+                var s = PanelText(mine, part);
+                if (s != null) parts.Add(s);
+            }
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
 
         // T: whose turn, and who has passed, as the turn banner and the pass markers show it.
