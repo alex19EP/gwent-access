@@ -20,6 +20,8 @@ Commands go through the `justfile` (needs `just`, pwsh 7, .NET SDK 6+). Pick the
 
 Without just: `dotnet build games/Gwent/Module/GwentAccess.Module.csproj -c Release -p:Deploy=true [-p:GameDir="..."]` (Thronebreaker: `games/Thronebreaker/Module/ThronebreakerAccess.Module.csproj`).
 
+Gwent and Rogue Mage crash at boot, before any plugin loads, unless `BepInEx\config\BepInEx.cfg` has `UnityLogListening = false`: BepInEx's Unity log hook converts a delegate through `ClassInjector`, which hits an access violation on those games. `scripts/package.ps1` ships that setting in the player zip. Any other delegate conversion to an IL2CPP type is suspect there too.
+
 The dev server (port 8773 for Gwent, 8774 for Thronebreaker) exists only in Debug builds and only starts when `devserver.enable` is in the plugin folder (`just devserver-on`). Eval/main-thread work only runs once a `CrimsonInputLayer` is active (main menu), not during boot. Eval scripts cannot see the module's `internal` classes; reach them via reflection on `ModuleLoader.CurrentAssembly` or find game objects directly.
 
 ## Architecture

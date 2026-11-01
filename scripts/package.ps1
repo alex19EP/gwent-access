@@ -9,6 +9,7 @@
         BepInEx\plugins\GwentAccess\Module\GwentAccess.Module.dll   the module (stable file name)
         BepInEx\plugins\GwentAccess\prism.dll                       speech (built from third_party/prism)
         BepInEx\plugins\GwentAccess\build.txt                       what was built, for bug reports
+        BepInEx\config\BepInEx.cfg                                  UnityLogListening off, or the game crashes at boot
         Install.bat, Update.bat, Uninstall.bat, MakeShortcut.bat, Gwent-NoLauncher.bat, README.txt   (from package/)
 
     Build first (dotnet build games/Gwent/Module/GwentAccess.Module.csproj -c Release); this only packs the
@@ -76,6 +77,15 @@ Copy-Item $hostDll $plugin
 Copy-Item $modDll.FullName (Join-Path $plugin 'Module/GwentAccess.Module.dll')
 Copy-Item $prismDll $plugin
 Copy-Item (Join-Path $repo 'package/*') $stage
+
+# BepInEx's Unity log hook converts a delegate through Il2CppInterop's ClassInjector, which dies with an access
+# violation on Gwent's GameAssembly.dll: with the default (true) the game crashes before any plugin loads. The zip
+# has to carry the setting, since a fresh install would otherwise generate the default. BepInEx fills in the rest
+# of the file on the next start. Install.bat and Update.bat copy this over a tester's existing config on purpose,
+# which also repairs an install that already crashed.
+$config = Join-Path $stage 'BepInEx/config'
+New-Item -ItemType Directory -Path $config -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $config 'BepInEx.cfg'), "[Logging]`r`nUnityLogListening = false`r`n")
 
 $commit = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { (git -C $repo rev-parse HEAD).Trim() }
 @(
