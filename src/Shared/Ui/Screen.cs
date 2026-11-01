@@ -17,6 +17,9 @@ namespace GwentAccess.Ui
 
         /// <summary>Spoken by the key help, e.g. "D, deck details".</summary>
         public string Hint { get; init; }
+        /// <summary>Only while this holds (null: always); otherwise the key does what it would without it, e.g.
+        /// Up/Down read the focused card's lines only while a card is focused.</summary>
+        public Func<bool> When { get; init; }
     }
 
     /// <summary>

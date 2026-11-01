@@ -312,12 +312,17 @@ namespace GwentAccess.Ui
             Plugin.LogInfo("[key] " + mods + k + (game ? " (game)" : "") + " on " + _screen.Key + (at != null ? " @ " + at : ""));
         }
 
+        // A screen key pressed this frame; the arrows also repeat while held (Up/Down reading a card's lines).
+        private static bool Pressed(KeyCode k) =>
+            k == KeyCode.UpArrow || k == KeyCode.DownArrow || k == KeyCode.LeftArrow || k == KeyCode.RightArrow
+                ? Keys.DownOrRepeat(k) : Keys.Down(k);
+
         private static void HandleKeys()
         {
             try { LogKeys(); } catch { }
             if (Keys.Alt) return;
             foreach (var k in _screen.ExtraKeys)
-                if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Keys.Down(k.Key))
+                if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Pressed(k.Key) && (k.When == null || k.When()))
                 {
                     try { k.Run(); }
                     catch (Exception e) { ScreenManager.LogOnce(_screen, "key " + k.Key, e); }

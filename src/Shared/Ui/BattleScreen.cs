@@ -11,11 +11,12 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// The battle board as one graph, laid out the way it sits on screen: opponent's leader, opponent's ranged
-    /// and melee rows, your melee and ranged rows, your hand, your leader. Up/Down move between rows keeping
-    /// the spot along the row (rows are centred, so the card nearest above or below); Left/Right move along a
-    /// row, silent at the ends. Each card reads <see cref="CardReader.Summary"/>, your own cards with their
-    /// abilities (<see cref="CardReader.WithAbilities"/>); Ctrl+Up/Down step through its
-    /// lines, I explains its keywords, K reads its kind and base power, Space the whole card.
+    /// and melee rows, your melee and ranged rows, your hand, your leader. Zones as in Hearthstone Access and
+    /// Accessible Arena: Left/Right move along the row you are in (silent at the ends), the zone keys below and
+    /// Tab change the row, and Up/Down read the focused card line by line (on a spot with no card they say
+    /// where the cursor is). Each card reads <see cref="CardReader.Summary"/>, your own cards with their
+    /// abilities (<see cref="CardReader.WithAbilities"/>); I explains its keywords, K reads its kind and base
+    /// power, Space the whole card.
     ///
     /// Playing works like a gamepad player's (Hearthstone Access in spirit): the game's own selection — the
     /// hover the opponent sees too — follows the cursor, and Enter is the game's A, so picking up, ordering,
@@ -679,7 +680,9 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, Players);
+                // Up/Down always read the card here; on a spot with no card (an empty row, a gap while placing)
+                // they say where the cursor is.
+                _cardKeys = new CardKeys(FocusedCard, Players, always: true, noCard: GraphNavigator.SayWhere);
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.Tab, Run = () => Cycle(1), Hint = "Tab, next valid play or target" },

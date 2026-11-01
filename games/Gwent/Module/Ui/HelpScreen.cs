@@ -72,8 +72,8 @@ namespace GwentAccess.Ui
             if (covered != null)
             {
                 b.PushContext("Moving around");
-                Line(b, ref n, "Up and Down arrows, previous or next item");
-                Line(b, ref n, "Left and Right arrows, along a row, or change a setting");
+                Line(b, ref n, "Up and Down arrows, previous or next item; on a card, its lines one by one");
+                Line(b, ref n, "Left and Right arrows, through the cards of a row, or change a setting, a game mode or a deck");
                 Line(b, ref n, "Tab and Shift Tab, next or previous section");
                 Line(b, ref n, "Home and End, first or last item");
                 Line(b, ref n, "Enter, use the item");

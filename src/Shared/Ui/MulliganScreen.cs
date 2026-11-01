@@ -290,7 +290,7 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager);
+                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager, always: true);
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, keep the rest and finish" },

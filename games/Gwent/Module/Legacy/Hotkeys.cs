@@ -105,8 +105,6 @@ namespace GwentAccess
                             var a = kv.Value; int k = kv.Key;
                             MainThread.Post(() =>
                             {
-                                // Ctrl+arrows belong to a mod screen when one is up (the battle screen reads card lines).
-                                if (k >= 0x25 && k <= 0x28 && Ui.GraphNavigator.Owns) return;
                                 Plugin.LogInfo("Hotkey Ctrl+" + (k >= 0x30 && k <= 0x5A ? ((char)k).ToString() : "0x" + k.ToString("X2")));
                                 a();
                             });

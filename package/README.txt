@@ -82,9 +82,16 @@ Ctrl+Q           Press the screen's Exit or Back button. In the deck editor: sav
 MENUS
 - Popups are read with their choices and keys. In popups, Enter is always Accept and
   Escape is always Cancel, no matter which choice is highlighted.
-- Settings: Shift+F3 jumps between Categories, Options and Buttons. Left/Right arrow
-  changes a value. Remember to press Apply Settings.
-- Daily rewards popup: press F3 until "Click anywhere to continue", then F4.
+- Main menu: one list. Up/Down go through the game modes, your deck, the menu bar
+  (quests, options, quit) and your profile. Left/Right change the game mode, or the
+  deck when you are on it. A letter jumps to the next item starting with it, and opens
+  it when it is the only one (Quit is only ever reached, never opened, this way).
+- Settings: Up/Down go through the categories. Enter opens one and takes you to its
+  options; Apply, Restore Defaults, Exit and Back follow the options. Left/Right change
+  a value. Escape or Backspace in the options goes back to the categories; Escape on
+  the categories closes settings. Remember to press Apply Settings.
+- Daily rewards: Left/Right go through the days, Up/Down read a card reward, Tab
+  reaches the buttons.
 - Shop: pick an item (a keg or pack), then its price option (like "x1 for 100 Ore"),
   then press Ctrl+B. The mod asks you to press Ctrl+B again to confirm. It only buys
   with Ore, and refuses anything that costs real money.
@@ -95,9 +102,11 @@ Gwent is best of three rounds. Each turn you play ONE card, then end your turn.
 When a player passes, they are out for the rest of that round; the other player can
 keep playing. The round ends when both have passed, and the higher score wins it.
 
-Moving around the board: Up/Down move between rows (the opponent's ranged and melee
-rows, your melee and ranged rows, your hand, your leader), Left/Right along a row.
-Each card reads its name, power and abilities.
+Moving around the board works by zones, as in Hearthstone Access: Left/Right move
+through the cards of the row you are in, Up/Down read the focused card line by line
+(name and power, categories, ability, keywords, flavor; "End of card" at the end), and
+the keys below change the row. The same goes for every screen of cards: the mulligan,
+card choices, your deck and graveyards, rewards and kegs.
 
 C / Shift+C         Your hand / the opponent's hand size.
 B / Shift+B         Your melee / ranged row.
@@ -116,7 +125,7 @@ A                   Score, round and passes.
 T / Shift+T         Whose turn it is (and who has passed) / time left in your turn.
 D                   Your deck. Y: your graveyard. Shift+Y: the opponent's graveyard.
 O                   Battle log: everything said this match, newest first.
-Space               The whole card. Ctrl+Up/Down: its lines one by one.
+Space               The whole card at once.
 I                   What the card's keywords mean. K: card kind and base power.
 F1                  Every key for the screen you're on.
 

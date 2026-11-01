@@ -65,6 +65,7 @@ namespace GwentAccess.Ui
             {
                 b.BeginStop("rewards");
                 b.PushContext("Rewards");
+                b.StartRow("rewards"); // side by side as drawn: Left/Right move, Up/Down read a card reward
                 foreach (var s in slots)
                 {
                     var slot = s;
@@ -80,6 +81,7 @@ namespace GwentAccess.Ui
                         OnTooltip = () => Speech.Say(RewardDetails(slot), true),
                     });
                 }
+                b.EndRow();
                 b.PopContext();
             }
 

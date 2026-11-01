@@ -72,6 +72,7 @@ namespace GwentAccess.Ui
             if (slots != null && slots.Count > 0)
             {
                 b.BeginStop("days");
+                b.StartRow("days"); // the days side by side as drawn: Left/Right move, Up/Down read a card reward
                 ControlId start = null;
                 for (int i = 0; i < slots.Count; i++)
                 {
@@ -84,6 +85,7 @@ namespace GwentAccess.Ui
                     if (start == null || Shown(slot.m_ClaimBox) || Shown(slot.m_TimerCountdownRenderer)) start = id;
                     b.AddItem(id, Day(p, slot));
                 }
+                b.EndRow();
                 if (start != null) b.SetStart(start);
             }
 
