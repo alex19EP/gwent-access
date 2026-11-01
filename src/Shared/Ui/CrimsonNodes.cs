@@ -211,7 +211,7 @@ namespace GwentAccess.Ui
                 var tip = c.TooltipRequestCreator?.Invoke()?.TooltipData?.TryCast<GwentUnity.UI.SimpleTooltip>();
                 string text = tip?.Text;
                 if (string.IsNullOrEmpty(text)) return null;
-                if (tip.IsLocKey && GameText.Get(text, null) is string translated) return translated;
+                if (tip.IsLocKey && GameText.Get(text, null) is string translated) return Formatted(translated, tip);
                 // An untranslated key ("social_facebook_name") is no words at all.
                 if (text.IndexOf('_') >= 0 && text.IndexOf(' ') < 0) return null;
                 text = UiText.Clean(text);
@@ -220,6 +220,31 @@ namespace GwentAccess.Ui
             catch { return null; }
 #endif
         }
+
+#if GWENT
+        /// <summary>A translated tooltip with its parameters filled in ("Сменить задание ({0}/{1})" → "Сменить
+        /// задание (1/1)"). They come boxed from the game, and a boxed int's <c>ToString</c> through the interop
+        /// reads garbage, so ints are unboxed; a parameter of any other value type leaves the text as it is.</summary>
+        private static string Formatted(string text, GwentUnity.UI.SimpleTooltip tip)
+        {
+            try
+            {
+                var given = tip.LocalizationParams;
+                if (given == null || given.Length == 0) return text;
+                var args = new object[given.Length];
+                for (int i = 0; i < args.Length; i++)
+                {
+                    var p = given[i];
+                    string type = p?.GetIl2CppType().FullName;
+                    if (type == "System.Int32") args[i] = p.Unbox<int>();
+                    else if (type == null || type == "System.String") args[i] = p?.ToString();
+                    else return text;
+                }
+                return string.Format(text, args);
+            }
+            catch { return text; }
+        }
+#endif
 
         // An icon-only action button (the back arrow) names itself by its action icon: "Back". Other icon
         // buttons are known by their icon picture; the game has no words for these.

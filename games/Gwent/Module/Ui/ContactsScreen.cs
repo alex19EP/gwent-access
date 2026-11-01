@@ -49,7 +49,11 @@ namespace GwentAccess.Ui
         public override bool IsActive() => Window() != null;
 
         /// <summary>The open Contacts window of a social panel attached to the input layer that has the input.</summary>
-        private static ContactsWindow Window()
+        private static ContactsWindow Window() => OpenWindow<ContactsWindow>(SocialPanel.SocialPanelSection.Contacts);
+
+        /// <summary>The window of a social panel attached to the input layer that has the input, while that
+        /// panel has the given section open.</summary>
+        internal static T OpenWindow<T>(SocialPanel.SocialPanelSection section) where T : Component
         {
             var layer = CrimsonInputManager.Instance?.ActiveLayer;
             if (layer == null) return null;
@@ -60,10 +64,10 @@ namespace GwentAccess.Ui
                 if (panel == null || !panel.gameObject.activeInHierarchy) continue;
                 try
                 {
-                    if (!panel.IsWindowOpen || panel.CurrentSection != SocialPanel.SocialPanelSection.Contacts) continue;
+                    if (!panel.IsWindowOpen || panel.CurrentSection != section) continue;
                 }
                 catch { continue; }
-                var w = panel.GetComponentInChildren<ContactsWindow>(false);
+                var w = panel.GetComponentInChildren<T>(false);
                 if (w != null) return w;
             }
             return null;
@@ -221,7 +225,7 @@ namespace GwentAccess.Ui
 
         /// <summary>A foldout header: Enter and Right/Left click it through the game, which opens or closes the
         /// foldout with its animation and sound; the group's expanded state is read back from the game.</summary>
-        private static NodeVtable Foldout(AControl header, FoldoutSectionComponent foldout, System.Func<string> label)
+        internal static NodeVtable Foldout(AControl header, FoldoutSectionComponent foldout, System.Func<string> label)
         {
             var v = CrimsonNodes.Button(header, label);
             void Toggle(bool open)
