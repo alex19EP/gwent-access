@@ -36,6 +36,11 @@ namespace GwentAccess
 
         /// <summary>Speak "20 seconds left" and "8 seconds left" as your turn's timer runs down.</summary>
         public static bool TimerWarnings => _timerWarnings?.Value ?? true;
+
+        private static ConfigEntry<bool> _opponentCardText;
+
+        /// <summary>Read what the opponent's played card does after its name.</summary>
+        public static bool OpponentCardText => _opponentCardText?.Value ?? true;
 #endif
 
         public static void Load()
@@ -51,8 +56,10 @@ namespace GwentAccess
                 _screenCues = _file.Bind("Sound", "ScreenCues", true,
                     "While exploring, play a sound when something you can use comes into view: a different sound per kind of thing, from the side it is on (darker when it is behind, south).");
 #if GWENT
+                _opponentCardText = _file.Bind("Battle", "OpponentCardText", true,
+                    "When the opponent plays a card, read what it does after its name, as the game's tooltip shows it.");
                 _timerWarnings = _file.Bind("Battle", "TimerWarnings", true,
-                    "Say \"20 seconds left\" and \"8 seconds left\" as your turn's timer runs down. T in a battle reads the time left whenever you like.");
+                    "Say \"20 seconds left\" and \"8 seconds left\" as your turn's timer runs down. Shift+T in a battle reads the time left whenever you like.");
 #endif
                 _stamp = File.GetLastWriteTimeUtc(path);
                 Plugin.LogInfo("[config] " + path + ": ReadSubtitles=" + ReadSubtitles);

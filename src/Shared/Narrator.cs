@@ -589,7 +589,15 @@ namespace GwentAccess
                 if (row != null) what += ", " + row;
             }
             catch { }
-            Narrator.Say(Narrator.Opponent() + ": " + what + ".");
+            // What the card does, as the game shows it in the card's tooltip when the opponent plays it (its
+            // gameplay option "Display tooltips for cards played by opponent"); Hearthstone Access and Accessible
+            // Arena read it too. Off with the mod's option Battle.OpponentCardText.
+            string text = "";
+#if GWENT
+            if (ModConfig.OpponentCardText)
+#endif
+                try { text = CardReader.Abilities(__1, Battle.Controller()?.PlayerManager); } catch { }
+            Narrator.Say(Narrator.Opponent() + ": " + what + "." + (text.Length > 0 ? " " + text : ""));
         });
     }
 

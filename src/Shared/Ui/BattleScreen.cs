@@ -694,7 +694,8 @@ namespace GwentAccess.Ui
                     new ScreenKey { Key = KeyCode.V, Run = () => JumpTo("my-leader"), Hint = "V, your leader" },
                     new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = "F, opponent's leader" },
                     new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = "A, score" },
-                    new ScreenKey { Key = KeyCode.T, Run = SayTimer, Hint = "T, time left in your turn" },
+                    new ScreenKey { Key = KeyCode.T, Run = SayTurn, Hint = "T, whose turn it is" },
+                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = "Shift T, time left in your turn" },
                     new ScreenKey { Key = KeyCode.O, Run = LogScreen.Toggle, Hint = "O, battle log: everything said this match, newest first" },
                     new ScreenKey { Key = KeyCode.D, Run = () => PileScreen.Open(deck: true, mine: true), Hint = "D, your deck" },
                     new ScreenKey { Key = KeyCode.Y, Run = () => PileScreen.Open(deck: false, mine: true), Hint = "Y, your graveyard" },
@@ -778,7 +779,24 @@ namespace GwentAccess.Ui
             Speech.Say("Opponent's hand, " + (n == 1 ? "1 card" : n + " cards"), true);
         }
 
-        // T: the turn clock, as a sighted player glances at it (Accessible Arena's timer key).
+        // T: whose turn, and who has passed, as the turn banner and the pass markers show it.
+        private void SayTurn()
+        {
+            var gc = _gc;
+            if (gc == null) return;
+            string turn = _plays.MyTurn ? GameText.Get("gwent_message_your_turn_main", "Your turn") : GameText.Get("gwent_message_opponent_turn_main", "Opponent's turn");
+            var parts = new List<string> { Narrator.Sentence(turn) };
+            try
+            {
+                var me = gc.PlayerManager.LocalUser;
+                if (me.HasPassed) parts.Add("You have passed.");
+                if (me.OpponentPlayer.HasPassed) parts.Add("Opponent has passed.");
+            }
+            catch { }
+            Speech.Say(string.Join(" ", parts), true);
+        }
+
+        // Shift+T: the turn clock, as a sighted player glances at it (Accessible Arena's timer key).
         private void SayTimer()
         {
             var gc = _gc;

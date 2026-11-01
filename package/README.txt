@@ -113,7 +113,7 @@ Backspace           Cancel (put a card back, stop targeting).
 E (hold)            End your turn, or pass when you have played. Letting go early
                     cancels. It tells you the score as you start holding.
 A                   Score, round and passes.
-T                   Time left in your turn.
+T / Shift+T         Whose turn it is (and who has passed) / time left in your turn.
 D                   Your deck. Y: your graveyard. Shift+Y: the opponent's graveyard.
 O                   Battle log: everything said this match, newest first.
 Space               The whole card. Ctrl+Up/Down: its lines one by one.
@@ -161,6 +161,7 @@ The mod's options are in BepInEx\config\gwentaccess.cfg in the Gwent folder (ope
 with Notepad; it is created the first time the game starts with the mod). Changes apply
 while the game runs.
 TimerWarnings    true / false: say "20 seconds left" and "8 seconds left" in your turn.
+OpponentCardText true / false: read what the opponent's played card does after its name.
 
 TROUBLESHOOTING
 - No speech at all: make sure NVDA is running before you start Gwent. Press F8: if you hear

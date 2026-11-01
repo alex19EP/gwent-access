@@ -78,9 +78,11 @@ namespace GwentAccess.Ui
             for (int i = _lines.Count - 1; i >= 0; i--)
             {
                 string t = _lines[i];
+                // Drop the line's closing stop, so the position after it reads "…opponent 6, 1 of 4".
+                string shown = t.EndsWith(".") ? t.Substring(0, t.Length - 1) : t;
                 b.AddItem(ControlId.Structural("log:" + i), new NodeVtable
                 {
-                    Announcements = new[] { new NodeAnnouncement(() => t, kind: AnnouncementKinds.Label) },
+                    Announcements = new[] { new NodeAnnouncement(() => shown, kind: AnnouncementKinds.Label) },
                     OnTooltip = () => Speech.Say(t, true),
                 });
             }
