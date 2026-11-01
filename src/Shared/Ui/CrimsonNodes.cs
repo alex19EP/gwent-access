@@ -31,12 +31,25 @@ namespace GwentAccess.Ui
             var container = c.TryCast<AContainer>();
             if (container == null)
             {
-                if (c.IsCurrentlySelectable() && seen.Add(c.Pointer)) found.Add(c);
+                if (c.IsCurrentlySelectable() && !Noise(c) && seen.Add(c.Pointer)) found.Add(c);
                 return;
             }
             var children = container.GetChildren();
             if (children == null) return;
             for (int i = 0; i < children.Count; i++) Walk(children[i], found, seen, depth + 1);
+        }
+
+        // Selectable but nothing to a player: a key-glyph label with no words (the bar's "Label Basic Glyph",
+        // shown beside a button for its key) and a list's scrollbar ("Vertical Scroll Bar Prefab").
+        private static bool Noise(AControl c)
+        {
+            try
+            {
+                string n = c.gameObject.name.Replace(" ", "");
+                if (n.IndexOf("ScrollBar", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                return c.TryCast<GlyphLabelControl>() != null && Texts(c).Count == 0;
+            }
+            catch { return false; }
         }
 
         /// <summary>The node id for a control: its full scene path (<see cref="PathKey"/>), backed by the control.</summary>
@@ -93,12 +106,16 @@ namespace GwentAccess.Ui
                     ? GameText.Get("cosmetic_locked", "locked") : null, live: true, kind: AnnouncementKinds.Value));
                 anns.Add(new NodeAnnouncement(() => thumb.CanShowSelected && Shown(thumb.m_SelectedFrame) ? "selected" : null,
                     live: true, kind: AnnouncementKinds.Selected));
+                // The description panel beside the picker shows the item under the cursor (its group, "Basic",
+                // and what it is): read with it, as a sighted player reads the panel.
+                anns.Add(new NodeAnnouncement(() => VanityDescription(VanityLabel(thumb)), live: true, kind: AnnouncementKinds.Tooltip));
             }
 #endif
             return new NodeVtable
             {
                 Announcements = anns,
-                OnActivate = () => Navigator.ClickControl(c),
+                // A disabled button does nothing when clicked: say so rather than stay silent.
+                OnActivate = () => { if (SafeEnabled(c)) Navigator.ClickControl(c); else Speech.Say("Not available right now.", true); },
                 OnTooltip = () => Speech.Say(Details(c), true),
             };
         }
@@ -110,6 +127,21 @@ namespace GwentAccess.Ui
         /// tooltip the game gives a customise button on hover ("Изменить рубашку"), then its visible unlock
         /// progress ("0/3").
         /// </summary>
+        // The words of the cosmetics description panel, less the item's name already said.
+        private static string VanityDescription(string label)
+        {
+            try
+            {
+                var panel = UnityEngine.Object.FindObjectOfType<GwentUnity.UIVanitySimpleDescription>();
+                if (panel == null || !panel.gameObject.activeInHierarchy) return null;
+                var parts = new List<string>();
+                foreach (var t in Texts(panel))
+                    if ((label == null || label.IndexOf(t, StringComparison.OrdinalIgnoreCase) < 0) && !parts.Contains(t)) parts.Add(t);
+                return parts.Count > 0 ? string.Join(", ", parts) : null;
+            }
+            catch { return null; }
+        }
+
         private static string VanityLabel(VirtualSkinThumbnailButton t)
         {
             var parts = new List<string>();

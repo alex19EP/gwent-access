@@ -217,6 +217,17 @@ namespace GwentAccess
         }
 
         private static readonly System.Text.RegularExpressions.Regex Spaces = new System.Text.RegularExpressions.Regex(@"\s+");
+        private static readonly System.Text.RegularExpressions.Regex Counter = new System.Text.RegularExpressions.Regex(@"(?<![\d/])(\d+)\s*/\s*(\d+)(?![\d/])");
+
+        // <sprite="[PC]" name=Action_Preview>, <sprite name="ScrapsNeg">: the sprite asset (quoted or not, may be
+        // absent) and the sprite's name.
+        private static readonly System.Text.RegularExpressions.Regex SpriteTag = new System.Text.RegularExpressions.Regex(
+            @"<sprite(?:=""?(?<asset>[^"" >]*)""?)?[^>]*?\bname=""?(?<name>[^"" >]+)""?[^>]*>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>Names an inline sprite (asset, sprite name) in words, or null to drop it as decoration. Set by
+        /// a game module (Gwent: <c>KeyGlyphs</c>, which names input glyphs by the mod's or the controller's key).</summary>
+        public static Func<string, string, string> SpriteWords;
         private static readonly System.Text.RegularExpressions.Regex SpaceBeforeClose = new System.Text.RegularExpressions.Regex(@" ([.,:;!?)»])");
         private static readonly System.Text.RegularExpressions.Regex SpaceAfterOpen = new System.Text.RegularExpressions.Regex(@"([(«]) ");
 
@@ -226,6 +237,18 @@ namespace GwentAccess
         public static string Clean(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
+            // Some translation strings carry escaped line breaks as the two characters '\' 'n' (the new-player
+            // intro's "minutes.\n\nIf you..."); TextMeshPro draws them as breaks, a screen reader would say them.
+            if (s.IndexOf('\\') >= 0) s = s.Replace("\\r", " ").Replace("\\n", " ");
+            // An input glyph drawn inline ("Take a look by using <sprite="[PC]" name=Action_Preview>") is a key the
+            // sentence depends on: the game's resolver names it, before the tags are stripped.
+            if (SpriteWords != null && s.IndexOf("<sprite", StringComparison.OrdinalIgnoreCase) >= 0)
+                s = SpriteTag.Replace(s, m =>
+                {
+                    string words = null;
+                    try { words = SpriteWords(m.Groups["asset"].Value, m.Groups["name"].Value); } catch { }
+                    return string.IsNullOrEmpty(words) ? m.Value : " " + words + " ";
+                });
             var sb = new StringBuilder(s.Length);
             bool inTag = false;
             foreach (char ch in s)
@@ -236,6 +259,9 @@ namespace GwentAccess
                 if (!inTag) sb.Append(ch);
             }
             string t = Spaces.Replace(sb.ToString(), " ").Trim();
+            // A counter drawn as "0/3" (quests, hand size) reads "0 of 3": a screen reader says "slash" otherwise.
+            // Not inside longer runs like a date ("1/2/2026").
+            t = Counter.Replace(t, "$1 of $2");
             t = SpaceBeforeClose.Replace(t, "$1");
             return SpaceAfterOpen.Replace(t, "$1");
         }

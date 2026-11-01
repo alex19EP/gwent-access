@@ -71,7 +71,10 @@ namespace GwentAccess.Ui
             for (int i = 0; i < attached.Count; i++)
             {
                 var p = attached[i]?.TryCast<GwentUnity.UI.UIMulliganPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
+                // Not while it is hiding: after the confirm popup's YES the panel plays its closing animation, and
+                // taking the cursor back for those frames re-announced "Mulligan, 1 swap left".
+                if (p != null && p.gameObject.activeInHierarchy
+                    && p.Visibility != CrimsonUIBehaviour.EVisibility.Hiding && p.Visibility != CrimsonUIBehaviour.EVisibility.Hidden) return p;
             }
             return null;
         }
@@ -287,7 +290,7 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager);
+                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager, always: true);
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, keep the rest and finish" },

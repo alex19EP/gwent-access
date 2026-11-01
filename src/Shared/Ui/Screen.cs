@@ -17,6 +17,9 @@ namespace GwentAccess.Ui
 
         /// <summary>Spoken by the key help, e.g. "D, deck details".</summary>
         public string Hint { get; init; }
+        /// <summary>Only while this holds (null: always); otherwise the key does what it would without it, e.g.
+        /// Up/Down read the focused card's lines only while a card is focused.</summary>
+        public Func<bool> When { get; init; }
     }
 
     /// <summary>
@@ -52,6 +55,9 @@ namespace GwentAccess.Ui
         /// dialogue line the game's voice acting is already speaking.</summary>
         public virtual bool QuietLanding(GraphNode node) => false;
 
+        /// <summary>A list with a single item still says "1 of 1" (a menu whose size is news: Gwent's game modes
+        /// and deck while a new player has only one of each).</summary>
+        public virtual bool PositionOfOne => false;
         /// <summary>Tab past the last stop returns to the first.</summary>
         public virtual bool Wrap => true;
 

@@ -15,7 +15,6 @@ namespace GwentAccess
     /// </summary>
     internal static class KeyHints
     {
-        private static Dictionary<string, List<string>> _keysByAction;
 
         private static readonly Dictionary<string, string> Cache = new Dictionary<string, string>();
 

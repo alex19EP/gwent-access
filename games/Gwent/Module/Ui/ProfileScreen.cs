@@ -342,7 +342,7 @@ namespace GwentAccess.Ui
                 else
                 {
                     var pp = a.PointProgress;
-                    if (pp != null && pp.PointsRequired > 1) parts.Add(pp.PointsEarned + "/" + pp.PointsRequired);
+                    if (pp != null && pp.PointsRequired > 1) parts.Add(pp.PointsEarned + " of " + pp.PointsRequired); // drawn "2/5"
                 }
                 if (a.IsTracked) parts.Add(GameText.Get("achievements_tracking", "Tracked"));
                 return Joined(parts);

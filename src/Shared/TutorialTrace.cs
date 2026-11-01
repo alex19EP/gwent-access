@@ -15,6 +15,11 @@ namespace GwentAccess
     [HarmonyPatch(typeof(ACommand), nameof(ACommand.Execute))]
     internal static class TutorialTracePatch
     {
+        /// <summary>Off unless "flowtrace.enable" is in the plugin folder: this prefix runs on every flowchart
+        /// command, every frame of a tutorial, and both coreclr access-violation crashes seen in the tutorial
+        /// battles (fault offset 0x1d1fdd) happened with it on. Opt-in until that is cleared.</summary>
+        static bool Prepare() => System.IO.File.Exists(System.IO.Path.Combine(Plugin.Dir, "flowtrace.enable"));
+
         // Each command instance is logged once: waits run every frame, and parallel ones alternate.
         private static readonly System.Collections.Generic.HashSet<IntPtr> Seen = new System.Collections.Generic.HashSet<IntPtr>();
 

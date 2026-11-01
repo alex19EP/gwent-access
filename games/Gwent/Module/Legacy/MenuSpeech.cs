@@ -48,6 +48,14 @@ namespace GwentAccess
 
                 if (value.gameObject.name.StartsWith("ShutterView")) { _newView = true; return; }
                 string text = UiText.DescribeSelection(value);
+                // A control with no words of its own describes as its object's name ("Look Disabled Highlight
+                // Control" on a menu card, "Controller Glyph" on the pass button): the game moving its selection
+                // through a screen being built, nothing a player can read. Say nothing for it.
+                if (Ui.CrimsonNodes.Texts(value).Count == 0 && text == UiText.Prettify(value.gameObject.name))
+                {
+                    Plugin.LogInfo("Selected (name only, not spoken): " + UiText.DebugPath(value));
+                    return;
+                }
                 Navigator.NoteShopItem(value, text);
                 if (_newView) { _newView = false; text = "New page. " + text + ". F3 to explore, Control Q or Escape to go back"; }
 

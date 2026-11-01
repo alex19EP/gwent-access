@@ -197,7 +197,7 @@ namespace GwentAccess.Ui
         {
             var m = q.Quest;
             if (m == null) return null;
-            return m.IsCompleted ? GameText.Get("daily_quest_completed", "Completed") : m.CurrentValue + "/" + m.CompleteValue;
+            return m.IsCompleted ? GameText.Get("daily_quest_completed", "Completed") : "progress " + m.CurrentValue + " of " + m.CompleteValue; // drawn "1/3"
         }
 
         /// <summary>

@@ -29,7 +29,7 @@ INSTALLING
    the folder that contains Gwent.exe.
 4. Start Gwent. The FIRST start after installing takes several minutes with no speech
    while the mod prepares itself. That is normal. Later starts are quick.
-5. When you hear "Gwent Access loaded", you're ready.
+5. When you hear "Gwent Access ... loaded. Press F1 for help.", you're ready.
 
 IMPORTANT: If your Gwent folder contains a file called winhttp.dll, rename it to
 winhttp.dll.off. Some older mod setups use that file, and it breaks Gwent's login
@@ -59,29 +59,39 @@ The mod's files stay in your Gwent folder. To turn it back on, run Install.bat a
 
 
 KEYS EVERYWHERE
-F3 / F2          Next / previous item on the screen. Moves the game's selection there.
-Shift+F3 / F2    Jump to the next / previous section (top bar, main area, buttons...).
-F4               Click the current item.
-Enter            Choose (the game's own Accept). Escape: back / cancel.
-Arrow keys       The game's own movement. Left/Right also change a setting's value.
-F1               Full details of the selected card: abilities, categories, faction,
-                 rarity, what each keyword means, and flavor text.
-F6               What keys work on this screen.
+F1               Help: the keys for the screen you're on, then the keys that work
+                 everywhere. Up and Down to move through it, F1 or Escape to close.
+Arrow keys       Move around the screen. Left/Right also change a setting's value.
+Tab / Shift+Tab  Next / previous section.
+Enter            Use the current item. Escape: the game's own back / menu.
+Space            Details of the current item, or read it again.
 F7               Repeat the last thing spoken.
 Shift+F7         Repeat the last popup, tutorial or screen message. Press again
                  (within 5 seconds) to hear older ones, up to 15 back.
-F8               Read the current screen.
-F9               Check that the mod is running.
-F5               Switch the game between controller and mouse mode (leave it on
-                 controller mode; that is what the mod is built around).
+F9               Read the current screen.
+F6               The game's own key hints for this screen.
+F8               Accessibility on/off ("Accessibility off" / "on"), so a sighted
+                 helper can play: off, the mod is silent and gives the game every key.
+F5               Switch controller mode by hand. The mod already switches it on
+                 when a controller is connected and off when there is none.
+Shift+F1         Full card details on the screens that still use the older keys.
+F3 / F2, F4      Next / previous item and click, on the screens that still use
+                 the older keys (F1 help lists them when they apply).
 Ctrl+Q           Press the screen's Exit or Back button. In the deck editor: save and exit.
 
 MENUS
 - Popups are read with their choices and keys. In popups, Enter is always Accept and
   Escape is always Cancel, no matter which choice is highlighted.
-- Settings: Shift+F3 jumps between Categories, Options and Buttons. Left/Right arrow
-  changes a value. Remember to press Apply Settings.
-- Daily rewards popup: press F3 until "Click anywhere to continue", then F4.
+- Main menu: one list. Up/Down go through the game modes, your deck, the menu bar
+  (quests, options, quit) and your profile. Left/Right change the game mode, or the
+  deck when you are on it. A letter jumps to the next item starting with it, and opens
+  it when it is the only one (Quit is only ever reached, never opened, this way).
+- Settings: Up/Down go through the categories. Enter opens one and takes you to its
+  options; Apply, Restore Defaults, Exit and Back follow the options. Left/Right change
+  a value. Escape or Backspace in the options goes back to the categories; Escape on
+  the categories closes settings. Remember to press Apply Settings.
+- Daily rewards: Left/Right go through the days, Up/Down read a card reward, Tab
+  reaches the buttons.
 - Shop: pick an item (a keg or pack), then its price option (like "x1 for 100 Ore"),
   then press Ctrl+B. The mod asks you to press Ctrl+B again to confirm. It only buys
   with Ore, and refuses anything that costs real money.
@@ -92,19 +102,32 @@ Gwent is best of three rounds. Each turn you play ONE card, then end your turn.
 When a player passes, they are out for the rest of that round; the other player can
 keep playing. The round ends when both have passed, and the higher score wins it.
 
-Ctrl+Right / Left   Pick a card from your hand (and select it on the board).
-Enter               Pick up the selected card. Then arrows choose a row, Enter places it.
-Escape              While holding a card: put it back.
-Ctrl+E              End your turn (needed after you play a card).
-Ctrl+P, twice       Pass. The first press tells you the score so you can think again.
-Ctrl+M              At the start of a round: swap the selected card in your hand.
-Ctrl+S              Score, round, rounds won, whose turn, passes, cards in hand.
-Ctrl+H              Read your hand.
-Ctrl+1 / Ctrl+2     Your melee / ranged row.
-Ctrl+3 / Ctrl+4     Opponent's melee / ranged row.
-Ctrl+Up / Down      Step through the opponent's cards on the board.
-Ctrl+L              Both leaders.
-Ctrl+G              Your deck and graveyard counts.
+Moving around the board works by zones, as in Hearthstone Access: Left/Right move
+through the cards of the row you are in, Up/Down read the focused card line by line
+(name and power, categories, ability, keywords, flavor; "End of card" at the end), and
+the keys below change the row. The same goes for every screen of cards: the mulligan,
+card choices, your deck and graveyards, rewards and kegs.
+
+C / Shift+C         Your hand / the opponent's hand size.
+B / Shift+B         Your melee / ranged row.
+G / Shift+G         The opponent's melee / ranged row.
+V / F               Your leader / the opponent's leader.
+1, 2, 3, 4          Jump to your melee, your ranged, the opponent's melee, the
+                    opponent's ranged row. Shift+number reads that row aloud.
+Enter               Use the card: pick it up from your hand (then arrows choose a spot
+                    and Enter places it), use a ready order (your leader's ability),
+                    choose a target.
+Tab / Shift+Tab     Next / previous card you can use, target or row.
+Backspace           Cancel (put a card back, stop targeting).
+E (hold)            End your turn, or pass when you have played. Letting go early
+                    cancels. It tells you the score as you start holding.
+A                   Score, round and passes.
+T / Shift+T         Whose turn it is (and who has passed) / time left in your turn.
+D                   Your deck. Y: your graveyard. Shift+Y: the opponent's graveyard.
+O                   Battle log: everything said this match, newest first.
+Space               The whole card at once.
+I                   What the card's keywords mean. K: card kind and base power.
+F1                  Every key for the screen you're on.
 
 The mod announces: your turn and the opponent's turn, every card the opponent plays,
 passes, new rounds, what you played and where, when a card needs a target, turn timer
@@ -142,10 +165,18 @@ Provisions are the deck-building budget: 150 plus your leader ability's bonus.
 Every card costs provisions; stronger cards cost more.
 
 
+OPTIONS
+The mod's options are in BepInEx\config\gwentaccess.cfg in the Gwent folder (open it
+with Notepad; it is created the first time the game starts with the mod). Changes apply
+while the game runs.
+TimerWarnings    true / false: say "20 seconds left" and "8 seconds left" in your turn.
+OpponentCardText true / false: read what the opponent's played card does after its name.
+
 TROUBLESHOOTING
-- No speech at all: make sure NVDA is running before you start Gwent. Press F9.
+- No speech at all: make sure NVDA is running before you start Gwent. Press F8: if you hear
+  "Accessibility on", it had been switched off.
   If nothing, the mod didn't load; check BepInEx\LogOutput.log in the Gwent folder.
-- Speech stopped mid-game: press F7 to repeat, F8 to read the screen.
+- Speech stopped mid-game: press F7 to repeat, F9 to read the screen.
 - Stuck on a screen: Ctrl+Q, then Escape. Alt+F4 closes the game if all else fails.
 - Reporting a problem: send BepInEx\LogOutput.log from your Gwent folder, right after
   the problem happens (it is replaced each time you start the game).
