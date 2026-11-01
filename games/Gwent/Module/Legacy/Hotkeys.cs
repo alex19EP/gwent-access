@@ -47,8 +47,7 @@ namespace GwentAccess
         private const int VK_CONTROL = 0x11;
         private static readonly Dictionary<int, Action> CtrlKeys = new Dictionary<int, Action>
         {
-            { 0x53, Battle.SayStatus },                                   // Ctrl+S
-            { 0x48, () => { if (DeckBuilder.Active) DeckBuilder.SayList(); else Battle.SayHand(); } }, // Ctrl+H (hand / deck list)
+            { 0x48, () => { if (DeckBuilder.Active) DeckBuilder.SayList(); } },  // Ctrl+H deck list
             { 0x41, DeckBuilder.Add },                                    // Ctrl+A add card to deck
             { 0x52, DeckBuilder.Remove },                                 // Ctrl+R remove card from deck
             { 0x44, DeckBuilder.SayStats },                               // Ctrl+D deck stats
@@ -57,19 +56,7 @@ namespace GwentAccess
             { 0x46, DeckBuilder.Search },                                 // Ctrl+F card search
             { 0x55, DeckBuilder.Duplicate },                              // Ctrl+U duplicate deck
             { 0x42, Navigator.Buy },                                      // Ctrl+B buy with Ore (asks twice)
-            { 0x31, () => { if ((DeckBuilder.Edit != null || DeckBuilder.List != null) && Battle.Controller() == null) Navigator.ClickExit(); else Battle.SayRow(true, GwentGameplay.ELocation.Melee); } },   // Ctrl+1 (in the deck builder: same as Ctrl+Q, the keys are next to each other)
-            { 0x32, () => Battle.SayRow(true, GwentGameplay.ELocation.Ranged) },  // Ctrl+2
-            { 0x33, () => Battle.SayRow(false, GwentGameplay.ELocation.Melee) },  // Ctrl+3
-            { 0x34, () => Battle.SayRow(false, GwentGameplay.ELocation.Ranged) }, // Ctrl+4
-            { 0x4C, Battle.SayLeaders },                                  // Ctrl+L
-            { 0x47, Battle.SayPiles },                                    // Ctrl+G
-            { 0x4D, HandNav.Mulligan },                                   // Ctrl+M
-            { 0x50, HandNav.Pass },                                       // Ctrl+P (twice)
-            { 0x45, HandNav.EndTurn },                                    // Ctrl+E
-            { 0x26, () => HandNav.OpponentCard(-1) },                     // Ctrl+Up
-            { 0x28, () => HandNav.OpponentCard(1) },                      // Ctrl+Down
-            { 0x27, () => HandNav.Move(1) },                              // Ctrl+Right
-            { 0x25, () => HandNav.Move(-1) },                             // Ctrl+Left
+            { 0x31, () => { if ((DeckBuilder.Edit != null || DeckBuilder.List != null) && Battle.Controller() == null) Navigator.ClickExit(); } },   // Ctrl+1 (in the deck builder: same as Ctrl+Q, the keys are next to each other)
         };
         private static readonly HashSet<int> CtrlDown = new HashSet<int>();
 

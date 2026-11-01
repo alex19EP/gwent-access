@@ -95,19 +95,29 @@ Gwent is best of three rounds. Each turn you play ONE card, then end your turn.
 When a player passes, they are out for the rest of that round; the other player can
 keep playing. The round ends when both have passed, and the higher score wins it.
 
-Ctrl+Right / Left   Pick a card from your hand (and select it on the board).
-Enter               Pick up the selected card. Then arrows choose a row, Enter places it.
-Escape              While holding a card: put it back.
-Ctrl+E              End your turn (needed after you play a card).
-Ctrl+P, twice       Pass. The first press tells you the score so you can think again.
-Ctrl+M              At the start of a round: swap the selected card in your hand.
-Ctrl+S              Score, round, rounds won, whose turn, passes, cards in hand.
-Ctrl+H              Read your hand.
-Ctrl+1 / Ctrl+2     Your melee / ranged row.
-Ctrl+3 / Ctrl+4     Opponent's melee / ranged row.
-Ctrl+Up / Down      Step through the opponent's cards on the board.
-Ctrl+L              Both leaders.
-Ctrl+G              Your deck and graveyard counts.
+Moving around the board: Up/Down move between rows (the opponent's ranged and melee
+rows, your melee and ranged rows, your hand, your leader), Left/Right along a row.
+Each card reads its name, power and abilities.
+
+C / Shift+C         Your hand / the opponent's hand size.
+B / Shift+B         Your melee / ranged row.
+G / Shift+G         The opponent's melee / ranged row.
+V / F               Your leader / the opponent's leader.
+1, 2, 3, 4          Jump to your melee, your ranged, the opponent's melee, the
+                    opponent's ranged row. Shift+number reads that row aloud.
+Enter               Use the card: pick it up from your hand (then arrows choose a spot
+                    and Enter places it), use a ready order (your leader's ability),
+                    choose a target.
+Tab / Shift+Tab     Next / previous card you can use, target or row.
+Backspace           Cancel (put a card back, stop targeting).
+E (hold)            End your turn, or pass when you have played. Letting go early
+                    cancels. It tells you the score as you start holding.
+A                   Score, round and passes.
+D                   Your deck. Y: your graveyard. Shift+Y: the opponent's graveyard.
+O                   Battle log: everything said this match, newest first.
+Space               The whole card. Ctrl+Up/Down: its lines one by one.
+I                   What the card's keywords mean. K: card kind and base power.
+F1                  Every key for the screen you're on.
 
 The mod announces: your turn and the opponent's turn, every card the opponent plays,
 passes, new rounds, what you played and where, when a card needs a target, turn timer

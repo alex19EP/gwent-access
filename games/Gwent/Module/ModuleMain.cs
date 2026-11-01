@@ -65,7 +65,7 @@ namespace GwentAccess
         public void Tick()
         {
             if (!ModSwitch.On) return; // F8 switched the mod off: the game runs as without it
-            BattleWatcher.Tick();
+            TurnTimer.Tick();
             ControllerMode.Tick();
             Narrator.Tick();
             Ui.ScreenManager.Tick();
