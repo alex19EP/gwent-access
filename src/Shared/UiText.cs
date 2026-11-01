@@ -226,6 +226,9 @@ namespace GwentAccess
         public static string Clean(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
+            // Some translation strings carry escaped line breaks as the two characters '\' 'n' (the new-player
+            // intro's "minutes.\n\nIf you..."); TextMeshPro draws them as breaks, a screen reader would say them.
+            if (s.IndexOf('\\') >= 0) s = s.Replace("\\r", " ").Replace("\\n", " ");
             var sb = new StringBuilder(s.Length);
             bool inTag = false;
             foreach (char ch in s)
