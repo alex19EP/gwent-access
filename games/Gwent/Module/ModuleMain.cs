@@ -19,9 +19,10 @@ namespace GwentAccess
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
                 Speech.Say(first
-                    ? "Gwent Access loaded. F3 and F2 move, F4 clicks, F1 card details, F6 keys, F8 reads the screen."
+                    ? Plugin.Name + " " + Plugin.Version + " loaded. Press F1 for help."
                     : "Gwent Access reloaded.");
             Hotkeys.Start();
+            KeyGlyphs.Install();
 
             // Per-generation id: Dispose unpatches by id, and a fixed id would also strip a newer generation's
             // patches if an old Dispose ran late. Each class is patched separately so one failure can't disable the mod.
@@ -40,6 +41,8 @@ namespace GwentAccess
             Ui.ScreenManager.Register(new Ui.BattleScreen());
             Ui.ScreenManager.Register(new Ui.MulliganScreen());
             Ui.ScreenManager.Register(new Ui.ChoiceScreen());
+            Ui.ScreenManager.Register(new Ui.PileScreen());
+            Ui.ScreenManager.Register(new Ui.LogScreen());
             Ui.ScreenManager.Register(new Ui.RewardBookScreen());
             Ui.ScreenManager.Register(new Ui.ShopScreen());
             Ui.ScreenManager.Register(new Ui.KegOpeningScreen());
@@ -56,11 +59,14 @@ namespace GwentAccess
             Ui.ScreenManager.Register(new Ui.RewardPopupScreen());
             Ui.ScreenManager.Register(new Ui.PopupScreen());
             Ui.ScreenManager.Register(new Ui.BattleResultsScreen());
+            Ui.ScreenManager.Register(new Ui.HelpScreen());
         }
 
         public void Tick()
         {
+            if (!ModSwitch.On) return; // F8 switched the mod off: the game runs as without it
             BattleWatcher.Tick();
+            ControllerMode.Tick();
             Narrator.Tick();
             Ui.ScreenManager.Tick();
             Ui.GraphNavigator.Tick();
@@ -72,6 +78,7 @@ namespace GwentAccess
             try { Ui.GraphNavigator.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] navigator: " + e); }
             try { Ui.ScreenManager.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] screens: " + e); }
             try { Hotkeys.Stop(); } catch (Exception e) { Plugin.LogError("[dispose] hotkeys: " + e); }
+            KeyGlyphs.Uninstall();
             try { _harmony?.UnpatchSelf(); } catch (Exception e) { Plugin.LogError("[dispose] harmony: " + e); }
             _harmony = null;
 #if DEBUG

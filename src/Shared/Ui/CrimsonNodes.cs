@@ -98,7 +98,8 @@ namespace GwentAccess.Ui
             return new NodeVtable
             {
                 Announcements = anns,
-                OnActivate = () => Navigator.ClickControl(c),
+                // A disabled button does nothing when clicked: say so rather than stay silent.
+                OnActivate = () => { if (SafeEnabled(c)) Navigator.ClickControl(c); else Speech.Say("Not available right now.", true); },
                 OnTooltip = () => Speech.Say(Details(c), true),
             };
         }

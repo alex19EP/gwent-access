@@ -49,6 +49,16 @@ namespace GwentAccess
                     Plugin.LogInfo("Navigator click (ButtonControl): " + UiText.DebugPath(c));
                     bc.LeftClick();
 #else
+                    // The cursor path first (press, release, click, as the mouse sends them): in play, a settings
+                    // category opened from the starter-deck screen and a reward popup's reward ignored
+                    // InvokeOnLeftClick and reacted to the cursor click, which also runs OnLeftClick (so a bar
+                    // button's callback and the UX interaction event, below). InvokeOnLeftClick is the fallback
+                    // for when the cursor click throws.
+                    if (MouseClick(bc))
+                    {
+                        Plugin.LogInfo("Navigator click (cursor" + (bc.UXId > 0 ? ", ux " + bc.UXId : "") + "): " + UiText.DebugPath(c));
+                        return;
+                    }
                     Plugin.LogInfo("Navigator click (ButtonControl): " + UiText.DebugPath(c));
                     bc.InvokeOnLeftClick();
 #endif
@@ -69,5 +79,23 @@ namespace GwentAccess
                 Speech.Say("Click failed.", true);
             }
         }
+
+#if !THRONEBREAKER
+        /// <summary>A left click the way the mouse makes one: ButtonDown, ButtonUp, then the Click the layer sends
+        /// for a release over the pressed control. Press sounds, click handlers, a bar button's callback and the
+        /// UX interaction event all run. False when the button is gone or the game threw.</summary>
+        public static bool MouseClick(ButtonControl c)
+        {
+            if (c == null || !c.gameObject.activeInHierarchy) return false;
+            try
+            {
+                foreach (var state in new[] { CursorButtonEventArgs.EState.ButtonDown, CursorButtonEventArgs.EState.ButtonUp, CursorButtonEventArgs.EState.Click })
+                    c.HandleCursorButtonEvent(new CursorButtonEventArgs(c.ParentLayer, CursorInputEventArgs.EMouseButton.Left, UnityEngine.Camera.main,
+                        state, c, c, new Il2CppSystem.Collections.Generic.List<CrimsonUI.EventSystems.RaycastResult>()));
+                return true;
+            }
+            catch (Exception e) { Plugin.LogInfo("Cursor click failed: " + e.Message); return false; }
+        }
+#endif
     }
 }

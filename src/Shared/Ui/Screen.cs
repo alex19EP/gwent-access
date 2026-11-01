@@ -52,6 +52,9 @@ namespace GwentAccess.Ui
         /// dialogue line the game's voice acting is already speaking.</summary>
         public virtual bool QuietLanding(GraphNode node) => false;
 
+        /// <summary>A list with a single item still says "1 of 1" (a menu whose size is news: Gwent's game modes
+        /// and deck while a new player has only one of each).</summary>
+        public virtual bool PositionOfOne => false;
         /// <summary>Tab past the last stop returns to the first.</summary>
         public virtual bool Wrap => true;
 

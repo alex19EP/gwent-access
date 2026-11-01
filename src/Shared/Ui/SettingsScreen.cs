@@ -67,7 +67,7 @@ namespace GwentAccess.Ui
             {
                 b.BeginStop("categories");
                 b.PushContext("Categories");
-                foreach (var c in categories) b.AddItem(CrimsonNodes.Id(c), Category(c));
+                foreach (var c in categories) b.AddItem(CrimsonNodes.Id(c), Category(c, categories));
                 b.PopContext();
             }
 
@@ -101,18 +101,36 @@ namespace GwentAccess.Ui
             return rows;
         }
 
+        // The category last opened with Enter, by path: the cursor click opens a category without setting its
+        // toggle (the toggles then all read off), so the open one is known from the click instead.
+        private static string _opened;
+
         // A category button: its name, and "selected" on the open one.
-        private static NodeVtable Category(AControl c)
+        private static NodeVtable Category(AControl c, List<AControl> all)
         {
             var v = CrimsonNodes.Button(c);
             var toggle = c.TryCast<ToggleButtonControl>();
             if (toggle == null) return v;
+            string key = CrimsonNodes.PathKey(c.transform, null);
+            var click = v.OnActivate;
+            v.OnActivate = () => { _opened = key; click?.Invoke(); };
             v.Announcements = new[]
             {
                 v.Announcements[0],
-                new NodeAnnouncement(() => toggle.IsToggled ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                new NodeAnnouncement(() => Selected(toggle, key, all) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
             };
             return v;
+        }
+
+        private static bool Selected(ToggleButtonControl toggle, string key, List<AControl> all)
+        {
+            try
+            {
+                if (toggle.IsToggled) return true;
+                foreach (var c in all) if (c.TryCast<ToggleButtonControl>()?.IsToggled == true) return false;
+            }
+            catch { }
+            return key == _opened;
         }
 
         // A row is keyed by its switcher's path (the game selects the switcher's main button or an arrow inside
