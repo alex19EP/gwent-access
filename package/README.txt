@@ -55,7 +55,7 @@ At the end it reads out which build you now have; include that when reporting a 
 
 UNINSTALLING
 Run Uninstall.bat. It turns the mod off by renaming version.dll to version.dll.off.
-To turn it back on, run Install.bat again.
+The mod's files stay in your Gwent folder. To turn it back on, run Install.bat again.
 
 
 KEYS EVERYWHERE
@@ -155,5 +155,7 @@ CREDITS AND LICENSES
 Gwent Access: written by Claude (Anthropic) together with smoovgunner, a blind player
 who did all of the testing by ear. Source code is included in the GwentAccess-source zip.
 Uses BepInEx 6 (LGPL 2.1, https://github.com/BepInEx/BepInEx), HarmonyX and
-Il2CppInterop, and Prism for speech (MPL 2.0, https://github.com/ethindp/prism).
+Il2CppInterop, Prism for speech (MPL 2.0, https://github.com/ethindp/prism), NAudio
+(Ms-PL, https://github.com/naudio/NAudio) and sounds from WrathAccess (zlib). The full
+notices are in BepInEx\plugins\GwentAccess\THIRD-PARTY-NOTICES.md.
 Gwent is a trademark of CD PROJEKT RED. This is an unofficial fan mod.

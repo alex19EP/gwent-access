@@ -9,7 +9,8 @@ if exist "%SRC%Gwent.exe" set "DEST=%SRC:~0,-1%"
 
 if not exist "%DEST%\Gwent.exe" (
   echo Could not find Gwent in:
-  echo   %DEST%
+  rem Quoted: the block is parsed as a whole, and a bare ")" from "Program Files (x86)" would end it and kill the script.
+  echo   "%DEST%"
   echo.
   echo Copy all files and folders from this package into your Gwent folder by hand,
   echo the folder that contains Gwent.exe. See README.txt.

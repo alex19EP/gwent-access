@@ -9,7 +9,8 @@ if "%DEST:~-1%"=="\" set "DEST=%DEST:~0,-1%"
 
 if not exist "%DEST%\Gwent.exe" (
   echo Could not find Gwent in:
-  echo   %DEST%
+  rem Quoted: the block is parsed as a whole, and a bare ")" from "Program Files (x86)" would end it and kill the script.
+  echo   "%DEST%"
   echo Copy Update.bat into your Gwent folder, the folder that contains Gwent.exe, and run it from there.
   pause
   exit /b 1

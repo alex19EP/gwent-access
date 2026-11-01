@@ -8,6 +8,9 @@
         BepInEx\plugins\GwentAccess\GwentAccess.dll                 the host
         BepInEx\plugins\GwentAccess\Module\GwentAccess.Module.dll   the module (stable file name)
         BepInEx\plugins\GwentAccess\prism.dll                       speech (built from third_party/prism)
+        BepInEx\plugins\GwentAccess\NAudio.dll                      the sound mixer; the module does not load without it
+        BepInEx\plugins\GwentAccess\audio\                          the sound stems (assets/audio)
+        BepInEx\plugins\GwentAccess\THIRD-PARTY-NOTICES.md          licenses of what the zip carries
         BepInEx\plugins\GwentAccess\build.txt                       what was built, for bug reports
         BepInEx\config\BepInEx.cfg                                  UnityLogListening off, or the game crashes at boot
         Install.bat, Update.bat, Uninstall.bat, MakeShortcut.bat, Gwent-NoLauncher.bat, README.txt   (from package/)
@@ -52,6 +55,15 @@ $modDll = Get-ChildItem $modOut -Filter 'GwentAccess.Module_*.dll' -ErrorAction 
 if (-not $modDll) { throw "Module not built under $modOut" }
 $prismDll = Join-Path $hostOut 'prism.dll'
 if (-not (Test-Path $prismDll)) { throw "prism.dll not built: $prismDll (a zip without it is a mute mod)" }
+# The module's NuGet references are not copied to its output (CopyLocalLockFileAssemblies is off), so NAudio comes from
+# the package folder restore actually used. Same version and path as the deploy step in build/Module.props.
+$assetsFile = Join-Path $repo 'games/Gwent/Module/obj/project.assets.json'
+if (-not (Test-Path $assetsFile)) { throw "Module not restored: $assetsFile" }
+$nugetRoot = (Get-Content $assetsFile -Raw | ConvertFrom-Json).packageFolders.PSObject.Properties.Name | Select-Object -First 1
+$naudioDll = Join-Path $nugetRoot 'naudio/1.10.0/lib/netcoreapp3.0/NAudio.dll'
+if (-not (Test-Path $naudioDll)) { throw "NAudio.dll not found: $naudioDll (a zip without it can't load the module)" }
+$audioDir = Join-Path $repo 'assets/audio'
+if (-not (Get-ChildItem $audioDir -Recurse -Filter '*.wav' -ErrorAction SilentlyContinue)) { throw "No sounds under $audioDir" }
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
@@ -76,6 +88,9 @@ New-Item -ItemType Directory -Path (Join-Path $plugin 'Module') -Force | Out-Nul
 Copy-Item $hostDll $plugin
 Copy-Item $modDll.FullName (Join-Path $plugin 'Module/GwentAccess.Module.dll')
 Copy-Item $prismDll $plugin
+Copy-Item $naudioDll $plugin
+Copy-Item $audioDir (Join-Path $plugin 'audio') -Recurse
+Copy-Item (Join-Path $repo 'THIRD-PARTY-NOTICES.md') $plugin
 Copy-Item (Join-Path $repo 'package/*') $stage
 
 # BepInEx's Unity log hook converts a delegate through Il2CppInterop's ClassInjector, which dies with an access
