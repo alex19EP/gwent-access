@@ -31,12 +31,25 @@ namespace GwentAccess.Ui
             var container = c.TryCast<AContainer>();
             if (container == null)
             {
-                if (c.IsCurrentlySelectable() && seen.Add(c.Pointer)) found.Add(c);
+                if (c.IsCurrentlySelectable() && !Noise(c) && seen.Add(c.Pointer)) found.Add(c);
                 return;
             }
             var children = container.GetChildren();
             if (children == null) return;
             for (int i = 0; i < children.Count; i++) Walk(children[i], found, seen, depth + 1);
+        }
+
+        // Selectable but nothing to a player: a key-glyph label with no words (the bar's "Label Basic Glyph",
+        // shown beside a button for its key) and a list's scrollbar ("Vertical Scroll Bar Prefab").
+        private static bool Noise(AControl c)
+        {
+            try
+            {
+                string n = c.gameObject.name.Replace(" ", "");
+                if (n.IndexOf("ScrollBar", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                return c.TryCast<GlyphLabelControl>() != null && Texts(c).Count == 0;
+            }
+            catch { return false; }
         }
 
         /// <summary>The node id for a control: its full scene path (<see cref="PathKey"/>), backed by the control.</summary>
