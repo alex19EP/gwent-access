@@ -491,7 +491,9 @@ namespace GwentAccess.Ui
             var sideButtons = CrimsonNodes.Leaves(side, used);
             var buttonTexts = new HashSet<string>();
             foreach (var c in sideButtons) foreach (var s in CrimsonNodes.Texts(c)) buttonTexts.Add(s);
-            var info = CrimsonNodes.Texts(side).Where(s => !buttonTexts.Contains(s)).ToList();
+            var locked = LockedStory(side);
+            var info = CrimsonNodes.Texts(side).Where(s => !buttonTexts.Contains(s) && !locked.Contains(s)).ToList();
+            if (StoryPartLocked(side)) info.Add(GameText.Get("interface_rewards_story_text_unlock_desc", "Claim story nodes to read more."));
             if (info.Count == 0 && sideButtons.Count == 0) return;
             b.BeginStop("details");
             b.PushContext("Details");
@@ -504,8 +506,104 @@ namespace GwentAccess.Ui
                     OnTooltip = () => Speech.Say(text, true),
                 });
             }
-            foreach (var c in sideButtons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            var sections = StorySections(side);
+            foreach (var c in sideButtons)
+            {
+                var v = CrimsonNodes.Button(c);
+                if (sections.TryGetValue(c.Pointer, out var section))
+                {
+                    var toggle = c.TryCast<ToggleButtonControl>();
+                    v = CrimsonNodes.Button(c, () => section.Label);
+                    // One value, and not the Selected kind: that would make the selected tab where the stop is
+                    // entered, ahead of the text this stop opens with.
+                    v.Announcements = new[]
+                    {
+                        v.Announcements[0],
+                        new NodeAnnouncement(() =>
+                        {
+                            string selected = toggle != null && toggle.IsToggled ? "selected" : null;
+                            return selected != null && section.State != null ? section.State + ", " + selected : selected ?? section.State;
+                        }, live: true, kind: AnnouncementKinds.Value),
+                    };
+                }
+                b.AddItem(CrimsonNodes.Id(c), v);
+            }
             b.PopContext();
+        }
+
+        // The story text a sighted player can't read yet. The game keeps a locked part's whole text in its label,
+        // invisible under a mask, until its node is claimed and the reveal has played; speaking it would give away
+        // what the screen withholds.
+        private static HashSet<string> LockedStory(RewardSystemSidePanel side)
+        {
+            var locked = new HashSet<string>();
+            try
+            {
+                var parts = side.m_StoryTextes;
+                for (int i = 0; parts != null && i < parts.Count; i++) AddIfLocked(locked, parts[i]);
+                AddIfLocked(locked, side.m_ChestElement);
+            }
+            catch (Exception e) { Plugin.LogInfo("[reward-book] locked story failed: " + e.Message); }
+            return locked;
+        }
+
+        private static void AddIfLocked(HashSet<string> locked, RewardSystemStoryTextElement part)
+        {
+            if (part == null || !part.gameObject.activeInHierarchy || part.TextIsRevealed) return;
+            string text = UiText.Clean(part.m_StoryText?.text);
+            if (text.Length > 0) locked.Add(text);
+        }
+
+        // Whether a part of the story on show is still locked (a large reward's own text is the tab's "not claimed").
+        private static bool StoryPartLocked(RewardSystemSidePanel side)
+        {
+            try
+            {
+                var parts = side.m_StoryTextes;
+                for (int i = 0; parts != null && i < parts.Count; i++)
+                    if (parts[i] != null && parts[i].gameObject.activeInHierarchy && !parts[i].TextIsRevealed) return true;
+            }
+            catch { }
+            return false;
+        }
+
+        // The side panel's section tabs, by control. They are bare icons choosing which text the panel shows: the
+        // story's parts (several only on a tree that tells more than one story), then one tab per large reward
+        // that has a story of its own, its icon gold once that reward is claimed.
+        private static Dictionary<IntPtr, (string Label, string State)> StorySections(RewardSystemSidePanel side)
+        {
+            var found = new Dictionary<IntPtr, (string, string)>();
+            try
+            {
+                string storyName = GameText.Get("interface_rewards_story_node_title", "Story");
+                var stories = ActiveTabs(side.m_StoryTabs);
+                for (int i = 0; i < stories.Count; i++)
+                    found[stories[i].Pointer] = (stories.Count > 1 ? storyName + " " + (i + 1) : storyName, null);
+
+                var chests = ActiveTabs(side.m_ChestTabs);
+                var large = side.CurrentData?.ElementTree?.LargeElements;
+                for (int i = 0; i < chests.Count; i++)
+                {
+                    string state = large != null && i < large.Count ? (large[i].Claimed ? "claimed" : "not claimed") : null;
+                    found[chests[i].Pointer] = (chests.Count > 1 ? "Large reward " + (i + 1) : "Large reward", state);
+                }
+            }
+            catch (Exception e) { Plugin.LogInfo("[reward-book] story sections failed: " + e.Message); }
+            return found;
+        }
+
+        // The controls of the tabs on show, in the panel's order.
+        private static List<AControl> ActiveTabs(Il2CppSystem.Collections.Generic.List<RewardBookTabButtonView> views)
+        {
+            var controls = new List<AControl>();
+            for (int i = 0; views != null && i < views.Count; i++)
+            {
+                var view = views[i];
+                if (view == null || !view.gameObject.activeInHierarchy) continue;
+                var control = view.GetComponentInParent<ToggleButtonControl>();
+                if (control != null) controls.Add(control);
+            }
+            return controls;
         }
 
         // Each node's links, each given the arrow nearest the way its connector runs on screen. A node has at
