@@ -9,7 +9,7 @@ namespace GwentAccess
     /// <summary>
     /// Watches the keyboard on a background thread using Windows directly.
     /// Only reacts while a window from this game process is in front.
-    /// F1 = help (Shift+F1 = card details on the older screens). F2/F3 = previous/next item, F4 = click it. F5 = toggle controller mode. F6 = what can I do here (key hints). F8 = accessibility on/off. F9 = read the current screen.  F7 = repeat the last thing spoken. (F10 avoided: Windows uses it for menus and it steals focus.)
+    /// F1 = help (Shift+F1 = card details on the older screens). F2/F3 = previous/next item, F4 = click it. F5 = toggle controller mode. F6 = what can I do here (key hints). F8 = accessibility on/off. F9 = read the current screen. F11 (Debug builds) = load a newer module build.  F7 = repeat the last thing spoken. (F10 avoided: Windows uses it for menus and it steals focus.)
     /// </summary>
     internal static class Hotkeys
     {
@@ -83,6 +83,20 @@ namespace GwentAccess
             a();
         });
 
+#if DEBUG
+        private const int VK_F11 = 0x7A;
+        private static bool f11Was;
+
+        private static void ReloadModule()
+        {
+            string result = ModuleLoader.Reload();
+            Plugin.LogInfo("[F11] " + result.Trim());
+            if (result.Contains("unchanged")) Speech.Say("No new build to load.", true);
+            else if (result.Contains("aborted") || result.Contains("failed")) Speech.Say("Reload failed. Restart the game.", true);
+            // A successful reload is announced by the new generation ("Gwent Access reloaded").
+        }
+#endif
+
         private static void Loop()
         {
             bool f1Was = false, f2Was = false, f3Was = false, f4Was = false, f5Was = false, f6Was = false, f8Was = false, f9Was = false, f7Was = false;
@@ -144,6 +158,13 @@ namespace GwentAccess
                     if (f9 && !f9Was && GameInFront()) MainThread.Post(Screens.ReadCurrent);
                     if (f7 && !f7Was && GameInFront()) { if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0) Speech.RepeatMessage(); else Speech.Repeat(); }
                     f9Was = f9; f7Was = f7;
+#if DEBUG
+                    // F11 (Debug builds): load the module file in the plugin folder, as `just reload` does, when a
+                    // newer build has been copied there. Says why when there is nothing to load.
+                    bool f11 = (GetAsyncKeyState(VK_F11) & 0x8000) != 0;
+                    if (f11 && !f11Was && GameInFront()) MainThread.Post(ReloadModule);
+                    f11Was = f11;
+#endif
                 }
                 catch { }
                 Thread.Sleep(30);

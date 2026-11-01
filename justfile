@@ -131,6 +131,11 @@ reload:
          Write-Host 'warning: the host changed too; the game still runs the old one (just restart)' -ForegroundColor Yellow }; \
      curl.exe -s -m 90 -X POST '{{devurl}}/reload'; if ($LASTEXITCODE -ne 0) { Write-Host 'dev server not answering' -ForegroundColor Red; exit 1 }
 
+# Build the module and copy it into the running game WITHOUT loading it; press F11 in the game (Debug builds)
+stage:
+    dotnet build '{{modproj}}' -c {{config}} -p:GameDir='{{gamedir}}' -p:DeployModule=true
+    @Write-Host 'staged: press F11 in the game to load it' -ForegroundColor Green
+
 # Which module generation and build the game is running
 module:
     @curl.exe -s -m 5 '{{devurl}}/module'
