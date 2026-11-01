@@ -262,7 +262,39 @@ namespace GwentAccess.Ui
                 if (context != null) b.PopContext();
             }
 
+            AddNotes(b, byStop[System.Array.FindIndex(Regions, x => x.Stop == "notifications")]);
+
             if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
+        }
+
+        /// <summary>
+        /// The notifications pinned on the menu (a new player's "Finish the 2nd game out of 3 in Standard mode",
+        /// with its "1/3" progress): drawn for everyone but not selectable when they carry no button, so they
+        /// would be missing from the list. Each shown one with no control already listed becomes a read-only item
+        /// with its words ("1/3" read as "1 of 3").
+        /// </summary>
+        private static void AddNotes(GraphBuilder b, List<AControl> listed)
+        {
+            UINotificationControl[] notes;
+            try { notes = UnityEngine.Object.FindObjectsOfType<UINotificationControl>(); } catch { return; }
+            bool pushed = false;
+            foreach (var note in notes)
+            {
+                if (note == null || !note.gameObject.activeInHierarchy) continue;
+                if (listed != null && listed.Exists(c => c.transform.IsChildOf(note.transform))) continue;
+                var texts = CrimsonNodes.Texts(note);
+                if (texts.Count == 0) continue;
+                for (int i = 0; i < texts.Count; i++)
+                    if (System.Text.RegularExpressions.Regex.IsMatch(texts[i], @"^\d+/\d+$")) texts[i] = "progress " + texts[i].Replace("/", " of ");
+                string text = string.Join(", ", texts);
+                if (!pushed) { b.PushContext("Notifications"); pushed = true; }
+                b.AddItem(ControlId.Structural("menu:note:" + CrimsonNodes.PathKey(note.transform, null)), new NodeVtable
+                {
+                    Announcements = new[] { new NodeAnnouncement(() => text, kind: AnnouncementKinds.Label) },
+                    OnTooltip = () => Speech.Say(text, true),
+                });
+            }
+            if (pushed) b.PopContext();
         }
 
         /// <summary>
@@ -569,6 +601,12 @@ namespace GwentAccess.Ui
         private static NodeVtable CardVtable(AControl c, UIMainMenuCardItem card)
         {
             var v = CrimsonNodes.Button(c, () => CardLabel(c, card));
+            // The description drawn on a play-mode card ("Standard Mode. Play against worthy opponents…", a new
+            // player's next goal) is read after the card's name, as a sighted player reads it on the card.
+            v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+            {
+                new NodeAnnouncement(() => DrawnDescription(card), kind: AnnouncementKinds.Tooltip),
+            };
             if (!IsStandIn(c, card)) return v;
             var button = c.TryCast<ButtonControl>();
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
@@ -606,6 +644,19 @@ namespace GwentAccess.Ui
                 if (key == "Clone") return null;
                 string t = UiText.Clean(GameText.Get(key, ""));
                 return t.Length > 0 ? t : null;
+            }
+            catch { return null; }
+        }
+
+        // The description panel's words as drawn on the card (null when it shows none).
+        private static string DrawnDescription(UIMainMenuCardItem card)
+        {
+            try
+            {
+                var parts = new List<string>();
+                foreach (var d in card.GetComponentsInChildren<UIPlayMenuCardDescription>(false))
+                    foreach (var t in CrimsonNodes.Texts(d)) { var line = Narrator.Sentence(t); if (!parts.Contains(line)) parts.Add(line); }
+                return parts.Count > 0 ? string.Join(" ", parts) : null;
             }
             catch { return null; }
         }
