@@ -124,7 +124,10 @@ namespace GwentAccess.Ui
             if (_spokenKey == null || !_spokenKey.Equals(node.Id))
             {
                 // Queued: a landing nobody keyed follows the screen name or the feedback that caused it.
-                Say(GraphAnnouncer.Compose(_spokenNode, node), interrupt: false);
+                bool quiet = false;
+                try { quiet = _screen.QuietLanding(node); }
+                catch (Exception e) { ScreenManager.LogOnce(_screen, "QuietLanding", e); }
+                if (!quiet) Say(GraphAnnouncer.Compose(_spokenNode, node), interrupt: false);
                 Spoken(node);
             }
             SyncGame(node);

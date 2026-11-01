@@ -47,6 +47,11 @@ namespace GwentAccess.Ui
         /// the navigator keeps the cursor and tries again next frame.</summary>
         public virtual void Build(GraphBuilder b) { }
 
+        /// <summary>A landing nobody keyed (the differ's: content changed under the cursor) on
+        /// <paramref name="node"/> stays silent. The cursor still moves; a key move onto it still speaks. E.g. a
+        /// dialogue line the game's voice acting is already speaking.</summary>
+        public virtual bool QuietLanding(GraphNode node) => false;
+
         /// <summary>Tab past the last stop returns to the first.</summary>
         public virtual bool Wrap => true;
 

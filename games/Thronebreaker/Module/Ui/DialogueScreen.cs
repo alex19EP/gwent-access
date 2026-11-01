@@ -110,6 +110,11 @@ namespace GwentAccess.Ui
 
         public override AControl GameSelection() => null;
 
+        /// <summary>With subtitles off, the cursor falling back onto the line (the choices just closed, a new
+        /// dialog opened) doesn't read it over the voice acting.</summary>
+        public override bool QuietLanding(GraphNode node) =>
+            !ModConfig.ReadSubtitles && node.Id.StructuralKey is string k && k.StartsWith("dialogue:line");
+
         // ---- reading ----
 
         private static readonly Regex ColorTags = new Regex("</?color[^>]*>", RegexOptions.IgnoreCase);
