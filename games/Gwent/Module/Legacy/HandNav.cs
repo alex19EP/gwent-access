@@ -189,6 +189,7 @@ namespace GwentAccess
         private static float _armedUntil = -1;
         static bool Prefix()
         {
+            if (!ModSwitch.On) return true; // a sighted helper has the game: no guard
             try
             {
                 float now = Time.realtimeSinceStartup;

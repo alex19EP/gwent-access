@@ -57,6 +57,22 @@ namespace GwentAccess
             if (!first) Speech.Say(Force ? "Controller connected. Controller mode on." : "Controller disconnected. Mouse and keyboard interface.", true);
         }
 
+        /// <summary>The mod switched off: stop forcing the controller interface; the game picks its own mode.</summary>
+        public static void Suspend()
+        {
+            Force = false;
+            Apply();
+        }
+
+        /// <summary>The mod switched on: follow the hardware again from the next check.</summary>
+        public static void Resume()
+        {
+            _lastConnected = null;
+            _nextCheck = 0;
+            Force = ControllerConnected() ?? false;
+            Apply();
+        }
+
         // Push the mode into the game's input mode manager.
         private static void Apply()
         {

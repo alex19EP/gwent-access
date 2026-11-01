@@ -63,6 +63,23 @@ namespace GwentAccess.Ui
             GraphNavigator.Attach(cur);
         }
 
+        /// <summary>The mod switched off: unfocus and pop every screen (so a held key such as the end-turn coin
+        /// is let go) and give the game its keys back. The next <see cref="Tick"/> rebuilds the stack from what
+        /// the game shows.</summary>
+        public static void Suspend()
+        {
+            if (_focused != null) Safe(_focused.OnUnfocus, _focused, "OnUnfocus");
+            for (int i = _stack.Count - 1; i >= 0; i--)
+            {
+                var gone = _stack[i];
+                Safe(gone.OnPop, gone, "OnPop");
+                GraphNavigator.ScreenClosed(gone);
+            }
+            _stack = new List<Screen>();
+            _focused = null;
+            GraphNavigator.Reset();
+        }
+
         /// <summary>Forget the stack (module dispose). No hooks run: the game is unaffected by our screens.</summary>
         public static void Reset()
         {

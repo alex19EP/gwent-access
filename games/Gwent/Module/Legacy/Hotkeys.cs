@@ -9,7 +9,7 @@ namespace GwentAccess
     /// <summary>
     /// Watches the keyboard on a background thread using Windows directly.
     /// Only reacts while a window from this game process is in front.
-    /// F1 = card details. F2/F3 = previous/next item, F4 = click it. F5 = toggle controller mode. F6 = what can I do here (key hints). F8 = read the current screen. F9 = check the mod is running.  F7 = repeat the last thing spoken. (F10 avoided: Windows uses it for menus and it steals focus.)
+    /// F1 = help (Shift+F1 = card details on the older screens). F2/F3 = previous/next item, F4 = click it. F5 = toggle controller mode. F6 = what can I do here (key hints). F8 = accessibility on/off. F9 = read the current screen.  F7 = repeat the last thing spoken. (F10 avoided: Windows uses it for menus and it steals focus.)
     /// </summary>
     internal static class Hotkeys
     {
@@ -90,6 +90,11 @@ namespace GwentAccess
             {
                 try
                 {
+                    // F8: accessibility on/off (ModSwitch). While off, no other mod key does anything.
+                    bool f8 = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
+                    if (f8 && !f8Was && GameInFront()) MainThread.Post(ModSwitch.Toggle);
+                    f8Was = f8;
+                    if (!ModSwitch.On) { Thread.Sleep(30); continue; }
                     bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
                     foreach (var kv in CtrlKeys)
                     {
@@ -108,7 +113,12 @@ namespace GwentAccess
                         if (down) CtrlDown.Add(kv.Key); else CtrlDown.Remove(kv.Key);
                     }
                     bool f1 = (GetAsyncKeyState(VK_F1) & 0x8000) != 0;
-                    if (f1 && !f1Was && GameInFront()) MainThread.Post(CardText.ReadDetails);
+                    // F1 is the help (Ui.HelpScreen); the older screens' card details moved to Shift+F1.
+                    if (f1 && !f1Was && GameInFront())
+                    {
+                        if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0) MainThread.Post(CardText.ReadDetails);
+                        else MainThread.Post(Ui.HelpScreen.Toggle);
+                    }
                     f1Was = f1;
                     bool f2 = (GetAsyncKeyState(VK_F2) & 0x8000) != 0;
                     bool f3 = (GetAsyncKeyState(VK_F3) & 0x8000) != 0;
@@ -128,16 +138,10 @@ namespace GwentAccess
                     bool f6 = (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
                     if (f6 && !f6Was && GameInFront()) MainThread.Post(KeyHints.ReadHints);
                     f6Was = f6;
-                    bool f8 = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
-                    if (f8 && !f8Was && GameInFront()) MainThread.Post(Screens.ReadCurrent);
-                    f8Was = f8;
+                    // F9: read the current screen (was F8, now the on/off switch).
                     bool f9 = (GetAsyncKeyState(VK_F9) & 0x8000) != 0;
                     bool f7 = (GetAsyncKeyState(VK_F7) & 0x8000) != 0;
-                    if (f9 && !f9Was)
-                    {
-                        Plugin.LogInfo("F9 pressed, game in front: " + GameInFront());
-                        if (GameInFront()) Speech.Say("Gwent Access is running.", true);
-                    }
+                    if (f9 && !f9Was && GameInFront()) MainThread.Post(Screens.ReadCurrent);
                     if (f7 && !f7Was && GameInFront()) { if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0) Speech.RepeatMessage(); else Speech.Repeat(); }
                     f9Was = f9; f7Was = f7;
                 }

@@ -29,7 +29,7 @@ INSTALLING
    the folder that contains Gwent.exe.
 4. Start Gwent. The FIRST start after installing takes several minutes with no speech
    while the mod prepares itself. That is normal. Later starts are quick.
-5. When you hear "Gwent Access loaded", you're ready.
+5. When you hear "Gwent Access ... loaded. Press F1 for help.", you're ready.
 
 IMPORTANT: If your Gwent folder contains a file called winhttp.dll, rename it to
 winhttp.dll.off. Some older mod setups use that file, and it breaks Gwent's login
@@ -59,21 +59,24 @@ The mod's files stay in your Gwent folder. To turn it back on, run Install.bat a
 
 
 KEYS EVERYWHERE
-F3 / F2          Next / previous item on the screen. Moves the game's selection there.
-Shift+F3 / F2    Jump to the next / previous section (top bar, main area, buttons...).
-F4               Click the current item.
-Enter            Choose (the game's own Accept). Escape: back / cancel.
-Arrow keys       The game's own movement. Left/Right also change a setting's value.
-F1               Full details of the selected card: abilities, categories, faction,
-                 rarity, what each keyword means, and flavor text.
-F6               What keys work on this screen.
+F1               Help: the keys for the screen you're on, then the keys that work
+                 everywhere. Up and Down to move through it, F1 or Escape to close.
+Arrow keys       Move around the screen. Left/Right also change a setting's value.
+Tab / Shift+Tab  Next / previous section.
+Enter            Use the current item. Escape: the game's own back / menu.
+Space            Details of the current item, or read it again.
 F7               Repeat the last thing spoken.
 Shift+F7         Repeat the last popup, tutorial or screen message. Press again
                  (within 5 seconds) to hear older ones, up to 15 back.
-F8               Read the current screen.
-F9               Check that the mod is running.
-F5               Switch the game between controller and mouse mode (leave it on
-                 controller mode; that is what the mod is built around).
+F9               Read the current screen.
+F6               The game's own key hints for this screen.
+F8               Accessibility on/off ("Accessibility off" / "on"), so a sighted
+                 helper can play: off, the mod is silent and gives the game every key.
+F5               Switch controller mode by hand. The mod already switches it on
+                 when a controller is connected and off when there is none.
+Shift+F1         Full card details on the screens that still use the older keys.
+F3 / F2, F4      Next / previous item and click, on the screens that still use
+                 the older keys (F1 help lists them when they apply).
 Ctrl+Q           Press the screen's Exit or Back button. In the deck editor: save and exit.
 
 MENUS
@@ -143,9 +146,10 @@ Every card costs provisions; stronger cards cost more.
 
 
 TROUBLESHOOTING
-- No speech at all: make sure NVDA is running before you start Gwent. Press F9.
+- No speech at all: make sure NVDA is running before you start Gwent. Press F8: if you hear
+  "Accessibility on", it had been switched off.
   If nothing, the mod didn't load; check BepInEx\LogOutput.log in the Gwent folder.
-- Speech stopped mid-game: press F7 to repeat, F8 to read the screen.
+- Speech stopped mid-game: press F7 to repeat, F9 to read the screen.
 - Stuck on a screen: Ctrl+Q, then Escape. Alt+F4 closes the game if all else fails.
 - Reporting a problem: send BepInEx\LogOutput.log from your Gwent folder, right after
   the problem happens (it is replaced each time you start the game).
