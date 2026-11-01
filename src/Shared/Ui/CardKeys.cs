@@ -41,7 +41,9 @@ namespace GwentAccess.Ui
             if (_lineCard == null || _lineCard.Id != card.Id) { _lineCard = card; _line = 0; }
             var lines = CardReader.Lines(card, _players());
             int next = _line + dir;
-            if (next < 0 || next >= lines.Count) return;
+            // Past either end says so (Accessible Arena's "End of card"), instead of silence.
+            if (next < 0) { Speech.Say("Beginning of card", true); return; }
+            if (next >= lines.Count) { Speech.Say("End of card", true); return; }
             _line = next;
             Speech.Say(lines[next].Text, true);
         }

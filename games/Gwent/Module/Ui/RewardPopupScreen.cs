@@ -16,7 +16,8 @@ namespace GwentAccess.Ui
     /// Three stops, as on screen: the rewards (each in the game's own reward words; Enter is the slot's own
     /// click, which opens a card's preview; Space reads a card reward in full), then the text below them (the
     /// achievement or event the rewards came from, its description, score and date), then the popup's
-    /// glyph-key buttons (next, exit, open kegs, go to the reward book), clicked through the game's own controls.
+    /// glyph-key buttons (next, exit, open kegs, go to the reward book), clicked through the game's own controls,
+    /// the main action first.
     /// </summary>
     internal sealed class RewardPopupScreen : Screen
     {
@@ -110,7 +111,9 @@ namespace GwentAccess.Ui
         // reaches them by key — but clicking goes through the container's own callback.
         private static List<AControl> Buttons(UIRewardPopupPanel p, HashSet<IntPtr> used)
         {
-            var buttons = CrimsonNodes.Leaves(p, used);
+            // A bare key-glyph label (Label_BasicGlyph) can be selectable with nothing to say: it read as its
+            // object name, "Label Basic Glyph".
+            var buttons = CrimsonNodes.Leaves(p, used).Where(c => c.TryCast<GlyphLabelControl>() == null || CrimsonNodes.Texts(c).Count > 0).ToList();
             foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
             {
                 var children = bar.GetChildren();
@@ -122,7 +125,16 @@ namespace GwentAccess.Ui
                     if (used.Add(c.Pointer)) buttons.Add(c);
                 }
             }
-            return buttons;
+            // The popup's main action (Next, in ButtonsPanelMainParent) first, so Tab lands on it, not on the
+            // side panel's Skip training (ButtonsPanelLeftParent) a stray Enter would take.
+            return buttons.OrderBy(c => InMainPanel(c) ? 0 : 1).ToList();
+        }
+
+        private static bool InMainPanel(AControl c)
+        {
+            for (var t = c.transform; t != null; t = t.parent)
+                if (t.name.IndexOf("ButtonsPanelMain", StringComparison.Ordinal) >= 0) return true;
+            return false;
         }
 
         // The reward in the game's own words ("Гребаная пехтура (аватар)"), else what the slot prints.

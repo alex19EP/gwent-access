@@ -85,12 +85,16 @@ namespace GwentAccess.Ui
                 foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
                 return;
             }
-            string text = Text(panel, _captions);
+            // The image popup's loc key, when it has one: it keys the text node, and tells the glyph names which
+            // sentence they are in.
+            string key = panel.TryCast<UITutorialImagePopup>()?.CurrentString;
+            string text = KeyGlyphs.InContext(key, () => Text(panel, _captions));
+            var note = KeyGlyphs.KeyNote(key);
+            if (note != null && text.Length > 0) text += " " + note;
             if (text.Length > 0)
             {
                 // Keyed by the shown string (the image popup's loc key when it has one), not the panel, so a new
                 // text lands afresh and is spoken.
-                string key = panel.TryCast<UITutorialImagePopup>()?.CurrentString;
                 string textKey = string.IsNullOrEmpty(key) ? text : key;
                 var id = ControlId.Structural("tutorial:text:" + textKey);
                 b.AddItem(id, new NodeVtable

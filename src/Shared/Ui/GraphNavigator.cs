@@ -61,6 +61,7 @@ namespace GwentAccess.Ui
         {
             if (ReferenceEquals(screen, _screen)) return;
             _screen = screen;
+            GraphAnnouncer.MinPositionCount = screen != null && screen.PositionOfOne ? 1 : 2;
             _spokenKey = null;
             _spokenNode = null;
             _syncedKey = null;
@@ -444,6 +445,31 @@ namespace GwentAccess.Ui
         public static void Suggest(ControlId id)
         {
             if (_state != null) _state.NextSuggestedMove = id;
+        }
+
+        /// <summary>For a screen key: an arrow press (Tab as Down on a one-list screen).</summary>
+        public static void Step(GraphDir dir) { if (_graph != null) Arrow(dir); }
+
+        /// <summary>For a screen key: Enter on the focused node, as the key does.</summary>
+        public static void ActivateCurrent() { if (_graph != null) Activate(); }
+
+        /// <summary>The nodes of the current render, in declaration order (empty when none).</summary>
+        public static IReadOnlyList<GraphNode> Nodes()
+        {
+            if (_graph == null || !_graph.Rerender() || _graph.Current == null) return Array.Empty<GraphNode>();
+            return _graph.Current.Order;
+        }
+
+        /// <summary>A node's own name, its label announcement as spoken.</summary>
+        public static string LabelOf(GraphNode node)
+        {
+            try
+            {
+                foreach (var a in GraphAnnouncer.EffectiveAnnouncements(node))
+                    if (a.Kind == AnnouncementKinds.Label) return a.Text?.Invoke();
+            }
+            catch { }
+            return null;
         }
 
         /// <summary>Re-speak the focused control with its full context ("where am I").</summary>

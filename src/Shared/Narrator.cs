@@ -34,6 +34,18 @@ namespace GwentAccess
             if (string.IsNullOrWhiteSpace(text)) return;
             FlushDraws(); // draws gathered so far come first, in the order they happened
             Speech.Say(text, false);
+            Ui.LogScreen.Add(text); // kept for the battle log (O)
+        }
+
+        /// <summary>A game banner as a sentence: the translation strings mostly carry no closing stop ("Your
+        /// opponent passed"), and run into the scores after them they read as one sentence ("Your opponent passed
+        /// You 8…" heard as "passed you").</summary>
+        internal static string Sentence(string s)
+        {
+            s = (s ?? "").TrimEnd();
+            if (s.Length == 0) return s;
+            char last = s[s.Length - 1];
+            return last == '.' || last == '!' || last == '?' || last == '…' ? s : s + ".";
         }
 
         /// <summary>Whether <paramref name="history"/> is the real match's, not one of the AI's imagined games.</summary>
@@ -577,7 +589,15 @@ namespace GwentAccess
                 if (row != null) what += ", " + row;
             }
             catch { }
-            Narrator.Say(Narrator.Opponent() + ": " + what + ".");
+            // What the card does, as the game shows it in the card's tooltip when the opponent plays it (its
+            // gameplay option "Display tooltips for cards played by opponent"); Hearthstone Access and Accessible
+            // Arena read it too. Off with the mod's option Battle.OpponentCardText.
+            string text = "";
+#if GWENT
+            if (ModConfig.OpponentCardText)
+#endif
+                try { text = CardReader.Abilities(__1, Battle.Controller()?.PlayerManager); } catch { }
+            Narrator.Say(Narrator.Opponent() + ": " + what + "." + (text.Length > 0 ? " " + text : ""));
         });
     }
 
@@ -631,7 +651,7 @@ namespace GwentAccess
             string banner = Narrator.Mine(__0)
                 ? GameText.Get("gwent_message_player_pass_main", "You passed.")
                 : GameText.Get("gwent_opponent_passed_turn", "Opponent passed.");
-            Narrator.Say(banner + " " + Narrator.Scores() + ".");
+            Narrator.Say(Narrator.Sentence(banner) + " " + Narrator.Scores() + ".");
         });
     }
 
@@ -646,7 +666,7 @@ namespace GwentAccess
             string title = Narrator.Mine(winner) ? GameText.Get("gwent_message_round_won_main", "Round won.")
                 : winner == Battle.Them(gc) ? GameText.Get("gwent_message_round_lost_main", "Round lost.")
                 : GameText.Get("gwent_message_round_draw_main", "Round drawn.");
-            Narrator.Say(title + " " + Narrator.Scores() + ".");
+            Narrator.Say(Narrator.Sentence(title) + " " + Narrator.Scores() + ".");
         });
     }
 

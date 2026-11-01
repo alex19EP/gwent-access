@@ -25,7 +25,9 @@ namespace GwentAccess.Ui
         public static bool Update()
         {
             _kb = null;
-            if (!Application.isFocused) return false;
+            // Unity's focus flag can stay true while another window is in front (just after launch, when the game
+            // didn't take the foreground): ask Windows too, so keys typed elsewhere never reach the mod.
+            if (!Application.isFocused || !GameInFront()) return false;
             try
             {
                 if (!Rewired.ReInput.isReady) return false;
@@ -38,6 +40,17 @@ namespace GwentAccess.Ui
             Alt = _kb.GetKey(KeyCode.LeftAlt) || _kb.GetKey(KeyCode.RightAlt);
             if (_held != KeyCode.None && !_kb.GetKey(_held)) _held = KeyCode.None;
             return true;
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern System.IntPtr GetForegroundWindow();
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(System.IntPtr hWnd, out uint pid);
+        private static readonly uint MyPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+
+        /// <summary>Whether the game's window is the one in front (Windows' view, not Unity's).</summary>
+        public static bool GameInFront()
+        {
+            try { GetWindowThreadProcessId(GetForegroundWindow(), out uint pid); return pid == MyPid; }
+            catch { return true; }
         }
 
         /// <summary>Pressed this frame.</summary>

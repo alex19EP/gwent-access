@@ -25,7 +25,7 @@ namespace GwentAccess
                 _lastKey = locKey;
                 _lastAt = DateTime.UtcNow;
 
-                string text = UiText.Clean(__instance.HintText?.Text?.text);
+                string text = KeyGlyphs.Tutorial(__instance.HintText?.Text?.text, locKey);
                 if (text.Length == 0) text = GameText.Get(locKey, "");
                 if (text.Length == 0) return;
                 Plugin.LogInfo("Tutorial hint " + locKey + ": " + text);
@@ -51,7 +51,7 @@ namespace GwentAccess
             try
             {
                 if (canSkip) return;
-                string text = UiText.Clean(__instance.m_PopupText?.text);
+                string text = KeyGlyphs.Tutorial(__instance.m_PopupText?.text, popupTextKey);
                 if (text.Length == 0 && isPopupTextKey) text = GameText.Get(popupTextKey, "");
                 if (text.Length == 0) return;
                 Plugin.LogInfo("Tutorial side popup " + popupTextKey + ": " + text);

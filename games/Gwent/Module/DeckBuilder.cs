@@ -178,7 +178,6 @@ namespace GwentAccess
             Speech.Say("No search box here.", true);
         }
         public static float EnteredAt = -100;
-        private static float _quietUntil = -1;
 
         public static bool Active
         {
