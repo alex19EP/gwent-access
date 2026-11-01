@@ -22,6 +22,15 @@ namespace GwentAccess
         /// speaks them; a dialogue line is still read on request).</summary>
         public static bool ReadSubtitles => _readSubtitles?.Value ?? true;
 
+        private static ConfigEntry<int> _soundVolume;
+        private static ConfigEntry<bool> _screenCues;
+
+        /// <summary>The mod's own sounds (earcons, object cues), 0..1; 0 silences them.</summary>
+        public static float SoundVolume => Math.Clamp(_soundVolume?.Value ?? 70, 0, 100) / 100f;
+
+        /// <summary>A sound when something you can use comes into view while exploring.</summary>
+        public static bool ScreenCues => _screenCues?.Value ?? true;
+
         public static void Load()
         {
             try
@@ -30,6 +39,10 @@ namespace GwentAccess
                 _file = new ConfigFile(path, true);
                 _readSubtitles = _file.Bind("Speech", "ReadSubtitles", true,
                     "Speak cutscene subtitles and dialogue lines as they appear. Off: the game's voice acting speaks them; a dialogue line is still read when you move to it or press Space.");
+                _soundVolume = _file.Bind("Sound", "Volume", 70,
+                    "Volume of the mod's own sounds, 0 to 100 (0 turns them off). The game's volume settings don't change it.");
+                _screenCues = _file.Bind("Sound", "ScreenCues", true,
+                    "While exploring, play a sound when something you can use comes into view: a different sound per kind of thing, from the side it is on (darker when it is behind, south).");
                 _stamp = File.GetLastWriteTimeUtc(path);
                 Plugin.LogInfo("[config] " + path + ": ReadSubtitles=" + ReadSubtitles);
             }

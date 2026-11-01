@@ -34,6 +34,8 @@
     <Reference Include="Il2CppSystem.Core"><HintPath>$(GameDir)\BepInEx\interop\Il2CppSystem.Core.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony"><HintPath>$(GameDir)\BepInEx\core\0Harmony.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Il2CppInterop.Common"><HintPath>$(GameDir)\BepInEx\core\Il2CppInterop.Common.dll</HintPath><Private>false</Private></Reference>
+    <!-- NavMesh paths (Thronebreaker's exploration scanner). -->
+    <Reference Include="UnityEngine.AIModule" Condition="Exists('$(GameDir)\BepInEx\interop\UnityEngine.AIModule.dll')"><HintPath>$(GameDir)\BepInEx\interop\UnityEngine.AIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Rewired_Core"><HintPath>$(GameDir)\BepInEx\interop\Rewired_Core.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
   <!-- Thronebreaker keeps part of the engine's utility code (ASingleton, the RedToolkit Event) in assemblies of

@@ -19,6 +19,7 @@ namespace GwentAccess
             Speech.Observer = Dev.DevServer.TapSpeech; // before the first Say, so /speech sees it
 #endif
             ModConfig.Load();
+            Audio.NAudioResolver.Register(); // before anything touches the mixer
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
                 Speech.Say(first ? "Thronebreaker Access loaded." : "Thronebreaker Access reloaded.");
@@ -34,6 +35,7 @@ namespace GwentAccess
             Plugin.LogInfo("Patches applied: " + ok + ", failed: " + bad);
 
             Ui.ScreenManager.Register(new Ui.PanelScreen());
+            Ui.ScreenManager.Register(new Ui.ExplorationScreen());
             Ui.ScreenManager.Register(new Ui.MainMenuScreen());
             Ui.ScreenManager.Register(new Ui.CutsceneScreen());
             Ui.ScreenManager.Register(new Ui.DialogueScreen());
@@ -46,11 +48,26 @@ namespace GwentAccess
             ModConfig.Tick();
             Ui.CutsceneScreen.SpeakSubtitles();
             Ui.ScreenManager.Tick();
-            Ui.GraphNavigator.Tick();
+            Ui.GraphNavigator.Tick(); // reads the keyboard (Keys.Update) first
+            Exploration.Walk.Tick();
+            try { Exploration.World.Tick(); Exploration.Scanner.Tick(); }
+            catch (Exception e) { LogOnce("world", e); }
+        }
+
+        private static readonly System.Collections.Generic.HashSet<string> _logged = new System.Collections.Generic.HashSet<string>();
+
+        private static void LogOnce(string what, Exception e)
+        {
+            if (_logged.Add(what + "|" + e.GetType().Name + "|" + e.Message)) Plugin.LogError("[" + what + "] " + e);
         }
 
         public void Dispose()
         {
+            Exploration.Walk.Reset();
+            Exploration.Scanner.Reset();
+            Exploration.World.Clear();
+            try { Audio.AudioMixer.Shutdown(); } catch (Exception e) { Plugin.LogError("[dispose] audio: " + e); }
+            Audio.NAudioResolver.Unregister();
             try { Ui.GraphNavigator.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] navigator: " + e); }
             try { Ui.ScreenManager.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] screens: " + e); }
             try { _harmony?.UnpatchSelf(); } catch (Exception e) { Plugin.LogError("[dispose] harmony: " + e); }

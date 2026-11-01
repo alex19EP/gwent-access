@@ -43,7 +43,11 @@ namespace GwentAccess.Ui
         private static bool HasContent(AControl panel) =>
             CrimsonNodes.Texts(panel).Count > 0 || Controls(panel).Count > 0;
 
-        public override void Build(GraphBuilder b)
+        public override void Build(GraphBuilder b) => BuildPanels(b);
+
+        /// <summary>A stop per attached panel with content: its message, then its controls. Shared with screens
+        /// that sit over the same panels and add their own keys (<see cref="ExplorationScreen"/>).</summary>
+        internal static void BuildPanels(GraphBuilder b)
         {
             foreach (var panel in Panels())
             {
