@@ -31,6 +31,13 @@ namespace GwentAccess
         /// <summary>A sound when something you can use comes into view while exploring.</summary>
         public static bool ScreenCues => _screenCues?.Value ?? true;
 
+#if GWENT
+        private static ConfigEntry<bool> _timerWarnings;
+
+        /// <summary>Speak "20 seconds left" and "8 seconds left" as your turn's timer runs down.</summary>
+        public static bool TimerWarnings => _timerWarnings?.Value ?? true;
+#endif
+
         public static void Load()
         {
             try
@@ -43,6 +50,10 @@ namespace GwentAccess
                     "Volume of the mod's own sounds, 0 to 100 (0 turns them off). The game's volume settings don't change it.");
                 _screenCues = _file.Bind("Sound", "ScreenCues", true,
                     "While exploring, play a sound when something you can use comes into view: a different sound per kind of thing, from the side it is on (darker when it is behind, south).");
+#if GWENT
+                _timerWarnings = _file.Bind("Battle", "TimerWarnings", true,
+                    "Say \"20 seconds left\" and \"8 seconds left\" as your turn's timer runs down. T in a battle reads the time left whenever you like.");
+#endif
                 _stamp = File.GetLastWriteTimeUtc(path);
                 Plugin.LogInfo("[config] " + path + ": ReadSubtitles=" + ReadSubtitles);
             }

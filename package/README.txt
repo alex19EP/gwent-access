@@ -113,6 +113,7 @@ Backspace           Cancel (put a card back, stop targeting).
 E (hold)            End your turn, or pass when you have played. Letting go early
                     cancels. It tells you the score as you start holding.
 A                   Score, round and passes.
+T                   Time left in your turn.
 D                   Your deck. Y: your graveyard. Shift+Y: the opponent's graveyard.
 O                   Battle log: everything said this match, newest first.
 Space               The whole card. Ctrl+Up/Down: its lines one by one.
@@ -154,6 +155,12 @@ Ctrl+Q       Save and exit. If the game won't let you leave, press Ctrl+Q again
 Provisions are the deck-building budget: 150 plus your leader ability's bonus.
 Every card costs provisions; stronger cards cost more.
 
+
+OPTIONS
+The mod's options are in BepInEx\config\gwentaccess.cfg in the Gwent folder (open it
+with Notepad; it is created the first time the game starts with the mod). Changes apply
+while the game runs.
+TimerWarnings    true / false: say "20 seconds left" and "8 seconds left" in your turn.
 
 TROUBLESHOOTING
 - No speech at all: make sure NVDA is running before you start Gwent. Press F8: if you hear

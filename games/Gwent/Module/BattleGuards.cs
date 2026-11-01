@@ -41,7 +41,7 @@ namespace GwentAccess
                 var turn = gc.PlayerManager.CurrentPlayerId;
                 if (turn != _lastTurn) { _lastTurn = turn; _warned = 0; }
                 float secs = SecondsLeft(gc);
-                if (secs <= 0) return;
+                if (secs <= 0 || !ModConfig.TimerWarnings) return;
                 if (secs <= 20 && secs > 8 && _warned < 1) { _warned = 1; Speech.Say("20 seconds left in your turn.", false); }
                 else if (secs <= 8 && _warned < 2) { _warned = 2; Speech.Say("Hurry, 8 seconds left!", true); }
             }

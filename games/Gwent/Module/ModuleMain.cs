@@ -23,6 +23,7 @@ namespace GwentAccess
                     : "Gwent Access reloaded.");
             Hotkeys.Start();
             KeyGlyphs.Install();
+            ModConfig.Load();
 
             // Per-generation id: Dispose unpatches by id, and a fixed id would also strip a newer generation's
             // patches if an old Dispose ran late. Each class is patched separately so one failure can't disable the mod.
@@ -65,6 +66,7 @@ namespace GwentAccess
         public void Tick()
         {
             if (!ModSwitch.On) return; // F8 switched the mod off: the game runs as without it
+            ModConfig.Tick();
             TurnTimer.Tick();
             ControllerMode.Tick();
             Narrator.Tick();
