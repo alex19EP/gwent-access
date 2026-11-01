@@ -9,16 +9,24 @@ namespace GwentAccess
     /// </summary>
     internal static partial class Navigator
     {
-        /// <summary>Run a control's own click path: a bottom-bar button's container callback, a ButtonControl's
-        /// left click, or a Button's Click. Shared by the F4 navigator and the graph screens' Enter.</summary>
+        /// <summary>Run a control's own click path: a ButtonControl's left click or a Button's Click. Shared by the
+        /// F4 navigator and the graph screens' Enter.
+        ///
+        /// A bottom-bar button's callback must run through the button, not be invoked from the container's
+        /// <c>m_Buttons</c> map: <c>InvokeOnLeftClick</c> runs it (the container binds it to <c>OnLeftClick</c>) and
+        /// then raises the button's UX interaction event, and the new-player flow waits on that event. Its
+        /// ShowTutorialInfo step only moves on to the first tutorial battle when content id 20, the intro panel's
+        /// Continue button, reports a click; calling the callback alone leaves the panel up for good.</summary>
         public static void ClickControl(AControl c)
         {
             try
             {
                 var bc = c.TryCast<ButtonControl>();
-                // Bottom-bar buttons (Exit, Save and exit...) run a callback stored by their container, not a click handler.
                 if (bc != null)
                 {
+#if THRONEBREAKER
+                    // The older engine's ButtonControl has LeftClick, not InvokeOnLeftClick, and its bottom-bar
+                    // buttons are still driven through the container's stored callback.
                     try
                     {
                         var ibc = c.GetComponentInParent<InputButtonContainer>();
@@ -38,13 +46,10 @@ namespace GwentAccess
                         }
                     }
                     catch (Exception e) { Plugin.LogInfo("Container action failed: " + e.Message); }
-                }
-                if (bc != null)
-                {
                     Plugin.LogInfo("Navigator click (ButtonControl): " + UiText.DebugPath(c));
-#if THRONEBREAKER // the older engine's ButtonControl has LeftClick, not InvokeOnLeftClick
                     bc.LeftClick();
 #else
+                    Plugin.LogInfo("Navigator click (ButtonControl): " + UiText.DebugPath(c));
                     bc.InvokeOnLeftClick();
 #endif
                     return;

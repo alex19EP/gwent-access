@@ -13,8 +13,11 @@ namespace GwentAccess.Ui
     /// everything and hold the input until continued; Escape doesn't close them.
     ///
     /// One stop: the panel's text first — Enter continues through the panel's own handler, Space re-reads it —
-    /// then the panel's buttons (skip, settings, continue), clicked through the game's own controls. The text
+    /// then the panel's buttons (settings, continue, skip), clicked through the game's own controls. The text
     /// node is keyed by what it says, so a panel that pages to its next text lands afresh and is spoken.
+    ///
+    /// The intro panel opens the settings window on its own input layer (Escape or its settings button) and stays
+    /// attached underneath; the screen steps aside for it, so <see cref="SettingsScreen"/> gets the keyboard.
     /// </summary>
     internal sealed class TutorialPanelScreen : Screen
     {
@@ -28,24 +31,32 @@ namespace GwentAccess.Ui
         private string _lastKey;
         private bool _built;
 
-        public override void OnPush() { _lastKey = null; _built = false; }
+        // Every button caption seen this push. Kept across renders: opening settings removes the intro panel's
+        // Continue from its bar a frame before its caption goes, and a caption read as panel text would change
+        // the text node's key and speak the whole text again.
+        private readonly HashSet<string> _captions = new HashSet<string>();
 
-        // The tutorial panel attached to the input layer that has the input.
+        public override void OnPush() { _lastKey = null; _built = false; _captions.Clear(); }
+
+        // The tutorial panel attached to the input layer that has the input; none while the settings window is
+        // open on that layer, which the player is then in.
         private static AGwentPanel Panel()
         {
             var layer = CrimsonInputManager.Instance?.ActiveLayer;
             if (layer == null) return null;
             var attached = layer.GetAttachedControls();
+            AGwentPanel found = null;
             for (int i = 0; i < attached.Count; i++)
             {
                 var c = attached[i];
                 if (c == null || !c.gameObject.activeInHierarchy) continue;
+                if (c.TryCast<UISettingsPanel>() != null) return null;
                 AGwentPanel p = c.TryCast<ATutorialPanel>();
                 p ??= c.TryCast<UITutorialIntroPanel>();
                 p ??= c.TryCast<UIRoundTutorialPopupPanel>();
-                if (p != null) return p;
+                found ??= p;
             }
-            return null;
+            return found;
         }
 
         public override void Build(GraphBuilder b)
@@ -54,8 +65,17 @@ namespace GwentAccess.Ui
             if (panel == null) return;
 
             var buttons = Buttons(panel);
-            var buttonTexts = new HashSet<string>();
-            foreach (var c in buttons) foreach (var s in CrimsonNodes.Texts(c)) buttonTexts.Add(s);
+            var intro = panel.TryCast<UITutorialIntroPanel>();
+            var skip = intro != null ? SkipControl(intro) : null;
+            var skipTexts = skip != null ? CrimsonNodes.Texts(skip) : null;
+            if (intro != null)
+            {
+                // The skip node stands for both of the panel's skip controls, so neither is listed on its own.
+                buttons.RemoveAll(x => x.Pointer == intro.m_SkipTutorialButton?.Pointer
+                    || x.Pointer == intro.m_SkipTutorialLabel?.Pointer);
+            }
+            foreach (var c in buttons) foreach (var s in CrimsonNodes.Texts(c)) _captions.Add(s);
+            if (skipTexts != null) foreach (var s in skipTexts) _captions.Add(s);
 
             b.BeginStop("tutorial");
             var round = panel.TryCast<UIRoundTutorialPopupPanel>();
@@ -65,7 +85,7 @@ namespace GwentAccess.Ui
                 foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
                 return;
             }
-            string text = Text(panel, buttonTexts);
+            string text = Text(panel, _captions);
             if (text.Length > 0)
             {
                 // Keyed by the shown string (the image popup's loc key when it has one), not the panel, so a new
@@ -87,6 +107,27 @@ namespace GwentAccess.Ui
             }
             _built = true;
             foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            if (skipTexts != null && skipTexts.Count > 0) b.AddItem(CrimsonNodes.Id(skip), SkipNode(intro, skip, skipTexts[0]));
+        }
+
+        // The intro panel's skip: whichever of its two controls shows words for the input device, the button or
+        // the glyph label the game reaches by key. The other stays active with nothing drawn. Null while the
+        // panel's input is unbound.
+        private static AControl SkipControl(UITutorialIntroPanel intro)
+        {
+            AControl button = intro.m_SkipTutorialButton;
+            if (button != null && button.gameObject.activeInHierarchy && CrimsonNodes.Texts(button).Count > 0) return button;
+            AControl label = intro.m_SkipTutorialLabel;
+            return label != null && label.gameObject.activeInHierarchy && CrimsonNodes.Texts(label).Count > 0 ? label : null;
+        }
+
+        // Skip goes through the panel's own handler, as both controls do. It only asks: the game's confirmation
+        // popup takes the input, and nothing is sent unless the player accepts it there.
+        private static NodeVtable SkipNode(UITutorialIntroPanel intro, AControl skip, string caption)
+        {
+            var v = CrimsonNodes.Button(skip, () => caption);
+            v.OnActivate = () => intro.HandleSkipTutorial();
+            return v;
         }
 
         /// <summary>The round explainer's title ("РАУНД И КАРТЫ В ГВИНТЕ"), spoken as the screen's name.</summary>
@@ -203,6 +244,11 @@ namespace GwentAccess.Ui
                     if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
                 }
             }
+            // A glyph label or a bar's icon-only variant can be selectable too (the UX flow's gating decides) but
+            // shows no words, only the key or icon for the same action: it is no stop of its own. An icon button
+            // outside a bar, like the panel's settings, stays; it is named by its icon.
+            buttons.RemoveAll(c => CrimsonNodes.Texts(c).Count == 0
+                && (c.TryCast<GlyphLabelControl>() != null || c.GetComponentInParent<InputButtonContainer>() != null));
             return buttons;
         }
 
@@ -213,8 +259,17 @@ namespace GwentAccess.Ui
             {
                 var image = panel.TryCast<UITutorialImagePopup>();
                 if (image != null) { image.HandleContinue(); return; }
+                // The intro panel's Continue has to be clicked, not just handled: the new-player flow only leaves
+                // this step on the button's click event (see Navigator.ClickControl). The binding is gone while
+                // the panel's settings are open, as the game's own Continue is.
                 var intro = panel.TryCast<UITutorialIntroPanel>();
-                if (intro != null) { intro.HandleContinue(); return; }
+                if (intro != null)
+                {
+                    var button = intro.m_ContinueBinding?.Button;
+                    if (button != null) Navigator.ClickControl(button);
+                    else Speech.Say("No continue here.", true);
+                    return;
+                }
                 var round = panel.TryCast<UIRoundTutorialPopupPanel>();
                 if (round != null) { round.HandleContinue(); return; }
                 Speech.Say("No continue here.", true);
