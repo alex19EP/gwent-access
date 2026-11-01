@@ -285,7 +285,7 @@ namespace GwentAccess.Ui
                 var texts = CrimsonNodes.Texts(note);
                 if (texts.Count == 0) continue;
                 for (int i = 0; i < texts.Count; i++)
-                    if (System.Text.RegularExpressions.Regex.IsMatch(texts[i], @"^\d+/\d+$")) texts[i] = "progress " + texts[i].Replace("/", " of ");
+                    if (System.Text.RegularExpressions.Regex.IsMatch(texts[i], @"^\d+ of \d+$")) texts[i] = "progress " + texts[i];
                 string text = string.Join(", ", texts);
                 if (!pushed) { b.PushContext("Notifications"); pushed = true; }
                 b.AddItem(ControlId.Structural("menu:note:" + CrimsonNodes.PathKey(note.transform, null)), new NodeVtable
@@ -486,6 +486,10 @@ namespace GwentAccess.Ui
                     continue;
                 }
                 var items = controls.GetRange(i, end - i);
+                // A bar's icon twin of a captioned button (the cosmetics picker's two "Back"s) is one button to a
+                // sighted player: keep the first of any run with the same label.
+                for (int k = items.Count - 1; k > 0; k--)
+                    if (CrimsonNodes.Label(items[k]) == CrimsonNodes.Label(items[k - 1])) items.RemoveAt(k);
                 if (row.TryCast<GwentVisuals.VirtualDeckContainer>() != null)
                     items.Sort((x, y) => IsDeckButton(y).CompareTo(IsDeckButton(x)));
                 b.StartRow();

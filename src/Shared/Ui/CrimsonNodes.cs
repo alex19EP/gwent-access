@@ -106,6 +106,9 @@ namespace GwentAccess.Ui
                     ? GameText.Get("cosmetic_locked", "locked") : null, live: true, kind: AnnouncementKinds.Value));
                 anns.Add(new NodeAnnouncement(() => thumb.CanShowSelected && Shown(thumb.m_SelectedFrame) ? "selected" : null,
                     live: true, kind: AnnouncementKinds.Selected));
+                // The description panel beside the picker shows the item under the cursor (its group, "Basic",
+                // and what it is): read with it, as a sighted player reads the panel.
+                anns.Add(new NodeAnnouncement(() => VanityDescription(VanityLabel(thumb)), live: true, kind: AnnouncementKinds.Tooltip));
             }
 #endif
             return new NodeVtable
@@ -124,6 +127,21 @@ namespace GwentAccess.Ui
         /// tooltip the game gives a customise button on hover ("Изменить рубашку"), then its visible unlock
         /// progress ("0/3").
         /// </summary>
+        // The words of the cosmetics description panel, less the item's name already said.
+        private static string VanityDescription(string label)
+        {
+            try
+            {
+                var panel = UnityEngine.Object.FindObjectOfType<GwentUnity.UIVanitySimpleDescription>();
+                if (panel == null || !panel.gameObject.activeInHierarchy) return null;
+                var parts = new List<string>();
+                foreach (var t in Texts(panel))
+                    if ((label == null || label.IndexOf(t, StringComparison.OrdinalIgnoreCase) < 0) && !parts.Contains(t)) parts.Add(t);
+                return parts.Count > 0 ? string.Join(", ", parts) : null;
+            }
+            catch { return null; }
+        }
+
         private static string VanityLabel(VirtualSkinThumbnailButton t)
         {
             var parts = new List<string>();

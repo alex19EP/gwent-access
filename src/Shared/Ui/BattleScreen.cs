@@ -781,7 +781,7 @@ namespace GwentAccess.Ui
             if (_gc == null) return;
             // The counter on the opponent's panel ("3/10": cards in hand of the limit) when it is drawn.
             string shown = PanelText(false, "RightSideVerticalGroup/HandCountView/Hand Icon/Hand Card Number");
-            if (shown != null && shown.Contains("/")) { Speech.Say("Opponent's hand, " + shown.Replace("/", " of ") + " cards", true); return; }
+            if (shown != null && shown.Contains(" of ")) { Speech.Say("Opponent's hand, " + shown + " cards", true); return; }
             int n = Battle.HandCount(_gc, Battle.Them(_gc));
             Speech.Say("Opponent's hand, " + (n == 1 ? "1 card" : n + " cards"), true);
         }

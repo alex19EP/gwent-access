@@ -217,6 +217,7 @@ namespace GwentAccess
         }
 
         private static readonly System.Text.RegularExpressions.Regex Spaces = new System.Text.RegularExpressions.Regex(@"\s+");
+        private static readonly System.Text.RegularExpressions.Regex Counter = new System.Text.RegularExpressions.Regex(@"(?<![\d/])(\d+)\s*/\s*(\d+)(?![\d/])");
 
         // <sprite="[PC]" name=Action_Preview>, <sprite name="ScrapsNeg">: the sprite asset (quoted or not, may be
         // absent) and the sprite's name.
@@ -258,6 +259,9 @@ namespace GwentAccess
                 if (!inTag) sb.Append(ch);
             }
             string t = Spaces.Replace(sb.ToString(), " ").Trim();
+            // A counter drawn as "0/3" (quests, hand size) reads "0 of 3": a screen reader says "slash" otherwise.
+            // Not inside longer runs like a date ("1/2/2026").
+            t = Counter.Replace(t, "$1 of $2");
             t = SpaceBeforeClose.Replace(t, "$1");
             return SpaceAfterOpen.Replace(t, "$1");
         }
