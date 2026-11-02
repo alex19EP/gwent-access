@@ -246,10 +246,18 @@ namespace GwentAccess.Ui
             // between the items of the part you are in. The game modes and the play stack's mode cards also move
             // with Left/Right, as they lie side by side.
             ControlId first = null;
+            bool pickerShown = false;
             for (int r = 0; r < byStop.Length; r++)
             {
                 if (byStop[r] == null) continue;
                 bool known = r < Regions.Length;
+                if (known && Regions[r].Stop == "cosmetics")
+                {
+                    pickerShown = true;
+                    var start = AddCosmetics(b, byStop[r], activeDeck);
+                    first ??= start;
+                    continue;
+                }
                 b.BeginStop(known ? Regions[r].Stop : "other");
                 string context = r == DeckListRegion
                     ? GameText.Get(DeckSelector.SELECT_DECK_TEXT_LOCALIZATION_KEY, "Change deck")
@@ -292,6 +300,13 @@ namespace GwentAccess.Ui
             // (the shop button, at the bottom).
             if (first != null) b.SetStart(first);
             if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
+            // The cosmetics picker opening: the cursor goes to the equipped choice, the one the picker scrolls to.
+            if (pickerShown && !_pickerWasShown && _pickerStart != null)
+            {
+                GraphNavigator.Suggest(_pickerStart);
+                _pickerOpenedAt = UnityEngine.Time.realtimeSinceStartup;
+            }
+            _pickerWasShown = pickerShown;
         }
 
         /// <summary>
@@ -473,6 +488,10 @@ namespace GwentAccess.Ui
                 if (Keys.AnyDown()) _fresh = false;
                 return null;
             }
+            if (_steer == null && UnityEngine.Time.realtimeSinceStartup - _pickerOpenedAt < 1f) return null;
+            // On an item of the mod's own (the picker's Show all arrow, a profile line) the cursor can't hand its
+            // place to the game, so the game's selection, wherever it was left, isn't a move to follow.
+            if (_steer == null && GraphNavigator.CurrentNode != null && GraphNavigator.CurrentNode.Id.Reference is not AControl) return null;
             var real = base.GameSelection();
             if (_steer == null) return real;
             if (real == null || real.Pointer != _steer.Pointer) _steer.ParentLayer?.RequestControlSelection(_steer);
@@ -575,13 +594,26 @@ namespace GwentAccess.Ui
         // about while it leaves the menu for a match, "Deck, Back", "Blood Drops, unavailable") stay quiet.
         private static float _activatedAt = -10;
 
-        public override bool QuietLanding(GraphNode node) => _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f;
+        // The stops the menu had when Enter was pressed: a landing in one of them right after is the menu shifting
+        // under a choice (PLAY's stack opening, the shop button), not news; a stop that appeared (a cosmetics
+        // picker, the deck list) is what the press opened, and is read.
+        private static readonly HashSet<object> _stopsAtActivation = new HashSet<object>();
+
+        public override bool QuietLanding(GraphNode node) =>
+            _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f && _stopsAtActivation.Contains(node.StopKey);
+
+        private static void NoteActivation()
+        {
+            _activatedAt = UnityEngine.Time.realtimeSinceStartup;
+            _stopsAtActivation.Clear();
+            try { foreach (var n in GraphNavigator.Nodes()) if (n.StopKey != null) _stopsAtActivation.Add(n.StopKey); } catch { }
+        }
 
         private static NodeVtable Vtable(AControl c, ulong activeDeck)
         {
             var v = VtableCore(c, activeDeck);
             var act = v.OnActivate;
-            if (act != null) v.OnActivate = () => { _activatedAt = UnityEngine.Time.realtimeSinceStartup; act(); };
+            if (act != null) v.OnActivate = () => { NoteActivation(); act(); };
             return v;
         }
 
@@ -768,6 +800,106 @@ namespace GwentAccess.Ui
         /// choices are listed after the mode cards as a sighted player sees them: the chosen one "selected", a
         /// locked one "unavailable" with the game's reason ("Requires at least rank 25"). Enter clicks one.
         /// </summary>
+        private static bool _pickerWasShown;
+
+        // The picker's variation lists: a skin set's skins, and their own variants.
+        private static bool InVariations(AControl c)
+        {
+            try
+            {
+                var inv = c.GetComponentInParent<UIVanityInventory>();
+                if (inv == null) return false;
+                return inv.m_VariationList != null && c.transform.IsChildOf(inv.m_VariationList.transform)
+                    || inv.m_VariationSubList != null && c.transform.IsChildOf(inv.m_VariationSubList.transform);
+            }
+            catch { return false; }
+        }
+
+        private static bool Collapsed(GwentUnity.UICollapsibleVanityList l)
+        {
+            try { return l.m_IsCollapsedDelegate?.Invoke() ?? true; } catch { return true; }
+        }
+        // When the picker last opened: for a second the game's selection (left on whatever slot the picker had
+        // last time) isn't followed, while the cursor's start is written back to it.
+        private static float _pickerOpenedAt = -10;
+        private static ControlId _pickerStart;
+
+        /// <summary>
+        /// The cosmetics picker (UIVanityInventory) as three stops: its choices (the boards, coins… of the slot
+        /// being changed), read with the description panel; its slot list (board, music, leader skin, cardback,
+        /// coin, each named by its hover tooltip and showing what is equipped); then the rest (full preview).
+        /// Returns the equipped choice, where the cursor starts when the picker opens.
+        /// </summary>
+        private ControlId AddCosmetics(GraphBuilder b, List<AControl> controls, ulong activeDeck)
+        {
+            var choices = new List<AControl>();
+            var variations = new List<AControl>();
+            var slots = new List<AControl>();
+            var rest = new List<AControl>();
+            foreach (var c in controls)
+            {
+                if (c.GetComponentInParent<GwentUnity.UICollapsibleVanityList>() != null) choices.Add(c);
+                else if (InVariations(c)) variations.Add(c);
+                else if (CrimsonNodes.InSlotList(c)) slots.Add(c);
+                else rest.Add(c);
+            }
+            _pickerStart = null;
+            if (choices.Count > 0)
+            {
+                var list = choices[0].GetComponentInParent<GwentUnity.UICollapsibleVanityList>();
+                b.BeginStop("cosmetics");
+                b.PushContext(GameText.Get("cosmetics_title", "Cosmetics"));
+                AddControls(b, choices, activeDeck);
+                // The arrow beside the strip that shows every choice (or fewer again): a mouse-only icon, no words.
+                var open = list?.m_OpenWindowButton;
+                if (open != null && open.gameObject.activeInHierarchy)
+                {
+                    var l = list;
+                    b.AddItem(ControlId.Structural("cosmetics:expand"), new NodeVtable
+                    {
+                        Announcements = new[] { new NodeAnnouncement(() => Collapsed(l) ? "Show all" : "Show fewer", live: true, kind: AnnouncementKinds.Label) },
+                        // The game moves its selection as the lists swap; the cursor stays on the arrow.
+                        OnActivate = () =>
+                        {
+                            _pickerOpenedAt = UnityEngine.Time.realtimeSinceStartup;
+                            try { l.HandleCollapseButtonClick(); } catch (System.Exception e) { Plugin.LogInfo("[menu] expand: " + e.Message); }
+                        },
+                    });
+                }
+                b.PopContext();
+                string equipped = null;
+                try
+                {
+                    int at = list.m_EquippedPosition;
+                    if (list.m_Items != null && at >= 0 && at < list.m_Items.Count) equipped = list.m_Items[at]?.NameKey;
+                }
+                catch { }
+                foreach (var c in choices)
+                {
+                    var th = c.TryCast<VirtualSkinThumbnailButton>();
+                    if (equipped != null && th?.m_VanityItem?.NameKey == equipped) { _pickerStart = CrimsonNodes.Id(c); break; }
+                }
+                _pickerStart ??= CrimsonNodes.Id(choices[0]);
+            }
+            // A leader's skins (the set chosen above has several): their own stop, after the sets.
+            if (variations.Count > 0)
+            {
+                b.BeginStop("cosmetics:variations");
+                AddControls(b, variations, activeDeck);
+            }
+            if (slots.Count > 0)
+            {
+                b.BeginStop("cosmetics:slots");
+                AddControls(b, slots, activeDeck);
+            }
+            if (rest.Count > 0)
+            {
+                b.BeginStop("cosmetics:other");
+                AddControls(b, rest, activeDeck);
+            }
+            return _pickerStart;
+        }
+
         // The shown mode card's opponent toggles that have words.
         private static List<ToggleButtonControl> OpponentToggles(List<AControl> modes)
         {

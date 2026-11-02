@@ -106,9 +106,11 @@ namespace GwentAccess.Ui
                     ? GameText.Get("cosmetic_locked", "locked") : null, live: true, kind: AnnouncementKinds.Value));
                 anns.Add(new NodeAnnouncement(() => thumb.CanShowSelected && Shown(thumb.m_SelectedFrame) ? "selected" : null,
                     live: true, kind: AnnouncementKinds.Selected));
-                // The description panel beside the picker shows the item under the cursor (its group, "Basic",
-                // and what it is): read with it, as a sighted player reads the panel.
-                anns.Add(new NodeAnnouncement(() => VanityDescription(VanityLabel(thumb)), live: true, kind: AnnouncementKinds.Tooltip));
+                // The description panel beside the picker shows the choice under the cursor (its group, "Basic",
+                // and what it is): read with the picker's choices, as a sighted player reads the panel. The slot
+                // list's thumbnails don't change it.
+                if (thumb.GetComponentInParent<GwentUnity.UICollapsibleVanityList>() != null)
+                    anns.Add(new NodeAnnouncement(() => VanityDescription(VanityLabel(thumb)), live: true, kind: AnnouncementKinds.Tooltip));
             }
 #endif
             return new NodeVtable
@@ -134,9 +136,16 @@ namespace GwentAccess.Ui
             {
                 var panel = UnityEngine.Object.FindObjectOfType<GwentUnity.UIVanitySimpleDescription>();
                 if (panel == null || !panel.gameObject.activeInHierarchy) return null;
+                // The panel describes the previewed choice, which isn't always the one under the cursor: read it
+                // only on the choice whose name it shows.
+                var name = UiText.Clean(panel.m_NameLabel?.Text?.text ?? "");
+                // A choice's label starts with its name ("Hallowed Woods Cardback, 0 of 4"); a substring test would
+                // match the equipped "Cardback" inside every cardback's name.
+                if (string.IsNullOrEmpty(name) || label == null
+                    || !(label.Equals(name, StringComparison.OrdinalIgnoreCase) || label.StartsWith(name + ",", StringComparison.OrdinalIgnoreCase))) return null;
                 var parts = new List<string>();
                 foreach (var t in Texts(panel))
-                    if ((label == null || label.IndexOf(t, StringComparison.OrdinalIgnoreCase) < 0) && !parts.Contains(t)) parts.Add(t);
+                    if (label.IndexOf(t, StringComparison.OrdinalIgnoreCase) < 0 && !parts.Contains(t)) parts.Add(t);
                 return parts.Count > 0 ? string.Join(", ", parts) : null;
             }
             catch { return null; }
@@ -156,19 +165,34 @@ namespace GwentAccess.Ui
             return parts.Count > 0 ? string.Join(", ", parts) : UiText.DescribeSelection(t);
         }
 
-        // The hover tooltip of a main-menu customise button, from the stack panel's config for its type. The
-        // picker's own thumbnails share the panel but aren't its buttons, and have none.
+        // The hover tooltip of a customise button ("Change Game Board"), from the stack panel's config for its
+        // type: the main menu's own buttons, and the cosmetics picker's slot list, which shows the same tooltips on
+        // hover. The picker's choices share a type with their slot but have no tooltip.
         private static string VanityTooltip(VirtualSkinThumbnailButton t)
         {
             var panel = t.GetComponentInParent<GwentUnity.MainMenu.UIMainMenuCardStackPanel>();
             var buttons = panel?.m_VanityButtons;
-            if (buttons == null) return null;
             bool own = false;
-            for (int i = 0; i < buttons.Count && !own; i++) own = buttons[i]?.Pointer == t.Pointer;
-            if (!own) return null;
+            for (int i = 0; buttons != null && i < buttons.Count && !own; i++) own = buttons[i]?.Pointer == t.Pointer;
+            if (!own)
+            {
+                if (!InSlotList(t)) return null;
+                panel = null;
+                foreach (var o in UnityEngine.Resources.FindObjectsOfTypeAll<GwentUnity.MainMenu.UIMainMenuCardStackPanel>())
+                    if (o != null && o.m_ButtonConfigs != null) { panel = o; break; }
+                if (panel == null) return null;
+            }
             foreach (var cfg in panel.m_ButtonConfigs)
                 if (cfg.VanityType == t.VanityType) return GameText.Get(cfg.TooltipKey, null);
             return null;
+        }
+
+        /// <summary>A thumbnail of the cosmetics picker's slot list (board, music, leader skin, cardback, coin).</summary>
+        internal static bool InSlotList(AControl t)
+        {
+            var inv = t.GetComponentInParent<GwentUnity.UIVanityInventory>();
+            var list = inv?.m_CategoryList;
+            return list != null && t.transform.IsChildOf(list.transform);
         }
 #endif
 
@@ -300,6 +324,7 @@ namespace GwentAccess.Ui
         {
             { "vanity_selection_grid_open_icon", "Show all" },  // the cosmetics picker's grid window
             { "ui_icons_cards_hide", "Full preview" },          // the cosmetics picker hiding its panels
+            { "ui_icons_cards_show", "Exit full preview" },     // the same button while the panels are hidden
         };
 
         public static string Details(AControl c)
