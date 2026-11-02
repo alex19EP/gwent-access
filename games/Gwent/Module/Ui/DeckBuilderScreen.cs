@@ -8,25 +8,25 @@ using UnityEngine;
 namespace GwentAccess.Ui
 {
     /// <summary>
-    /// The deck builder's main panel (<see cref="UIDBPanel"/>): the deck list on the left, the collection grid on
-    /// the right, the provision filters and the reset / mill-spares buttons above the grid, the side filter
-    /// dropdowns, and the input bar ("Библиотека колод", "Выйти"). Stops, in the game's reading order:
+    /// The deck builder's main panel (<see cref="UIDBPanel"/>), laid out as Accessible Arena lays out MTG Arena's:
+    /// groups a Tab apart, cards moved through with Left/Right and read line by line with Up/Down (the model
+    /// every screen of cards here shares, <see cref="CardKeys"/>). Stops, in Tab order:
     ///
-    /// - Decks: "НОВАЯ КОЛОДА" and one item per deck (its name and leader ability). A deck's options list
-    ///   (edit, rename, duplicate, delete…) follows it while the game shows it open.
-    /// - Cards: the collection grid as a flat list in the grid's own order, built from the grid's content list,
-    ///   not its controls: the grid is virtual (only the rows on screen have controls) and draws its cards
-    ///   through a portal. Landing scrolls the grid to the card and selects it (<see
-    ///   AVirtualScrollRect.ScrollToElement"/>), as the gamepad does, then raises the grid's hover. Enter is
-    ///   the grid's left click, Backspace its right click — the mouse path, so the game's sounds play.
-    ///   PageUp/PageDown move a grid row.
-    /// - Filters: the provision toggles, reset, mill spares.
-    /// - Side filters: the dropdowns (faction, crafting cost, card type, ownership, premium, rarity, card set)
-    ///   and their options while shown.
-    /// - Buttons: the input bar's captioned buttons, clicked through their container's callback.
+    /// - Decks (the deck list, no deck open): "НОВАЯ КОЛОДА" and one item per deck (its name, leader ability, and
+    ///   what makes it invalid when it is). Right arrow shows the deck's options (rename, duplicate, delete…),
+    ///   which follow it; Left hides them.
+    /// - Collection: the grid as one row in its own order (stratagems, then provisions high to low), built from
+    ///   the grid's content list (the grid is virtual). Landing scrolls the grid to the card and raises its
+    ///   hover. Enter adds the card (the grid's left click); Shift+Enter opens the game's preview (its right
+    ///   click). Page Up/Down move a grid row; Ctrl+Page Up/Down jump to the next or previous provision cost.
+    /// - Your deck (a deck open): the leader ability, the stratagem, then the cards, one row. Enter takes a
+    ///   copy out; Ctrl+Enter adds another; Shift+Enter previews.
+    /// - Deck stats: cards, units and provisions against the game's limits, live.
+    /// - Filters: the search box (Ctrl+F from anywhere) and the provision toggles, reset, mill spares; then the
+    ///   side filter dropdowns; then the input bar's buttons.
     ///
-    /// Overlays the game opens on top (the mill-spares window, the card preview, popups) are screens of a
-    /// higher layer and take the keyboard while shown.
+    /// Backspace is Back: with a deck open, its Exit (which asks whether to save). Overlays the game opens on top
+    /// (the mill-spares window, the card preview, popups) are screens of a higher layer.
     /// </summary>
     internal sealed class DeckBuilderScreen : Screen
     {
@@ -88,9 +88,11 @@ namespace GwentAccess.Ui
             var used = new HashSet<IntPtr>();
             var collection = p.GetComponentInChildren<UIDBCollectionContainer>(false);
 
-            BuildDecks(b, p, used);
-            BuildDeck(b, p, used);
+            bool editing = DeckBuilder.Edit != null;
+            if (!editing) BuildDecks(b, p, used);
             if (collection != null) BuildCards(b, collection);
+            BuildDeck(b, p, used);
+            if (editing) BuildStats(b);
             if (collection != null) BuildFilters(b, collection.FilterContainer, used);
             BuildLeaves(b, "db:side-filters", p.GetComponentInChildren<UIDBFilters>(false), used);
             BuildBar(b, p, used);
@@ -111,19 +113,38 @@ namespace GwentAccess.Ui
                 // A deck reads all its words: its name and its leader ability ("Стартовая колода Чудовищ, Белый Хлад").
                 var control = c;
                 var v = CrimsonNodes.Button(c, () => AllTexts(control));
-                // A deck's options (rename, duplicate, delete...) unfold on a right click: Backspace.
+                // A deck's options (rename, duplicate, delete...) unfold on a right click: Right arrow (see keys).
                 if (dropdown != null && dropdown.MainButton?.Pointer == c.Pointer)
                 {
-                    var bc = c.TryCast<ButtonControl>();
                     var d = dropdown;
-                    v.OnSecondary = () => Navigator.MouseClick(bc, right: true);
+                    var deck = c.TryCast<UIDeckButtonControl>() ?? c.GetComponentInParent<UIDeckButtonControl>();
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
+                        new NodeAnnouncement(() => Invalid(deck), kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => ListShown(d) ? "options shown" : null, live: true, kind: AnnouncementKinds.Value),
                     };
                 }
                 b.AddItem(CrimsonNodes.Id(c), v);
             }
+        }
+
+        /// <summary>What makes a deck unplayable, as the game's validation finds it ("invalid: 20 cards, minimum
+        /// 25"). Null for a valid deck or a starter deck.</summary>
+        private static string Invalid(UIDeckButtonControl button)
+        {
+            try
+            {
+                var v = button?.Deck?.GetValidation();
+                if (v == null || v.IsStarterDeck || v.IsDeckValid) return null;
+                var why = new List<string>();
+                if (!v.IsTotalCardCountCorrect) why.Add(v.TotalCardCount + " cards, minimum 25");
+                if (!v.IsUnitCountCorrect) why.Add(v.UnitCardCount + " units, minimum 13");
+                if (!v.IsProvisionUsageCorrect) why.Add("provisions " + v.ProvisionUsed + " over the limit");
+                if (!v.IsDeckFactionsCorrect) why.Add("cards of another faction");
+                if (!v.IsBronzeHighestCopyCountCorrect || !v.IsGoldHighestCopyCountCorrect || !v.IsSilverHighestCopyCountCorrect) why.Add("too many copies");
+                return "invalid" + (why.Count > 0 ? ": " + string.Join(", ", why) : "");
+            }
+            catch { return null; }
         }
 
         // ---- the deck being edited ----
@@ -145,6 +166,9 @@ namespace GwentAccess.Ui
             foreach (var c in root.GetComponentsInChildren<AControl>(false))
             {
                 if (!c.IsCurrentlySelectable() || used.Contains(c.Pointer)) continue;
+                // The deck header's options (Rename, Change Ability) stay selectable while folded away.
+                var dd = c.GetComponentInParent<DropdownContainer>();
+                if (dd != null && dd.MainButton?.Pointer != c.Pointer && !ListShown(dd)) continue;
                 var texts = CrimsonNodes.Texts(c);
                 // The stat counters ("25", "20", "-") are numbers beside icons; the totals line says them in words.
                 if (texts.Count == 0 || texts.TrueForAll(t => t == "-" || int.TryParse(t, out _))) continue;
@@ -155,15 +179,30 @@ namespace GwentAccess.Ui
             string name = null;
             try { var d = DeckBuilder.Deck(); name = d == null ? null : UiText.Clean(d.LocalizedName ?? d.Name ?? ""); } catch { }
             b.PushContext(string.IsNullOrEmpty(name) ? "Deck" : name);
-            b.AddItem(ControlId.Structural("db:deck:totals"), new NodeVtable
-            {
-                Announcements = new[] { new NodeAnnouncement(() => DeckBuilder.Stats(), live: true, kind: AnnouncementKinds.Label) },
-            });
+            b.StartRow();
             foreach (var c in rows)
             {
                 used.Add(c.Pointer);
                 var control = c;
                 b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => DeckRow(control)));
+            }
+            b.EndRow();
+            b.PopContext();
+        }
+
+        /// <summary>The deck's totals against the game's limits, one item each, live: what a sighted player reads
+        /// on the counters above the deck.</summary>
+        private static void BuildStats(GraphBuilder b)
+        {
+            b.BeginStop("db:stats");
+            b.PushContext("Deck stats");
+            for (int i = 0; i < 3; i++)
+            {
+                int part = i;
+                b.AddItem(ControlId.Structural("db:stats:" + i), new NodeVtable
+                {
+                    Announcements = new[] { new NodeAnnouncement(() => DeckBuilder.StatPart(part), live: true, kind: AnnouncementKinds.Label) },
+                });
             }
             b.PopContext();
         }
@@ -209,6 +248,8 @@ namespace GwentAccess.Ui
             Refresh(grid);
             if (_cards.Count == 0) return;
             b.BeginStop("db:cards");
+            b.PushContext("Collection");
+            b.StartRow();
             foreach (var entry in _cards)
             {
                 var card = entry.Card;
@@ -220,13 +261,28 @@ namespace GwentAccess.Ui
                         new NodeAnnouncement(() => CardReader.Summary(card.Card), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => Premium(card) ? "premium" : null, kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => Owned(card), live: true, kind: AnnouncementKinds.Value),
+                        new NodeAnnouncement(() => InDeck(card), live: true, kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => New(data) ? "new" : null, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => Click(data, false),
-                    OnSecondary = () => Click(data, true),
                     OnTooltip = () => Speech.Say(CardReader.Whole(card.Card), true),
                 });
             }
+            b.EndRow();
+            b.PopContext();
+        }
+
+        // Copies of the card in the deck being edited ("1 in deck"), as the card's ribbon shows them.
+        private static string InDeck(CollectionCard cc)
+        {
+            try
+            {
+                var d = DeckBuilder.Deck();
+                if (d == null || DeckBuilder.Edit == null) return null;
+                int n = d.GetCardCount(cc);
+                return n > 0 ? n + " in deck" : null;
+            }
+            catch { return null; }
         }
 
         private static void Refresh(VirtualCardGrid grid)
@@ -439,14 +495,133 @@ namespace GwentAccess.Ui
 
         // ---- keys ----
 
-        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys;
+        private CardKeys _cardKeys;
+        private List<ScreenKey> _keyList;
 
-        private static readonly ScreenKey[] _keys =
+        public override IReadOnlyList<ScreenKey> ExtraKeys
         {
-            new ScreenKey { Key = KeyCode.PageDown, Run = () => MoveRow(1), Hint = "Page Down, next row of cards" },
-            new ScreenKey { Key = KeyCode.PageUp, Run = () => MoveRow(-1), Hint = "Page Up, previous row of cards" },
-            new ScreenKey { Key = KeyCode.F, Ctrl = true, Run = FocusSearch, Hint = "Control F, search cards" },
-        };
+            get
+            {
+                if (_keyList != null) return _keyList;
+                _cardKeys = new CardKeys(FocusedCard, () => null); // Up/Down read only while a card is focused
+                _keyList = new List<ScreenKey>(_cardKeys.Keys)
+                {
+                    // Always claimed: off a card it must not fall through to Enter (NEW DECK, a filter...).
+                    new ScreenKey { Key = KeyCode.Return, Shift = true, Run = () => { if (FocusedCard() != null) Preview(); else Speech.Say("No card.", true); }, Hint = "Shift Enter, the card's preview" },
+                    new ScreenKey { Key = KeyCode.Return, Ctrl = true, Run = AddCopy, When = OnDeckRow, Hint = "Control Enter on a card of your deck, add another copy" },
+                    new ScreenKey { Key = KeyCode.PageDown, Run = () => MoveRow(1), Hint = "Page Down, next row of cards" },
+                    new ScreenKey { Key = KeyCode.PageUp, Run = () => MoveRow(-1), Hint = "Page Up, previous row of cards" },
+                    new ScreenKey { Key = KeyCode.PageDown, Ctrl = true, Run = () => JumpSection(1), Hint = "Control Page Down, next provision cost" },
+                    new ScreenKey { Key = KeyCode.PageUp, Ctrl = true, Run = () => JumpSection(-1), Hint = "Control Page Up, previous provision cost" },
+                    new ScreenKey { Key = KeyCode.RightArrow, Run = () => DeckOptions(true), When = OnDeck, Hint = "Right arrow on a deck, its options" },
+                    new ScreenKey { Key = KeyCode.LeftArrow, Run = () => DeckOptions(false), When = OnDeck, Hint = null },
+                    new ScreenKey { Key = KeyCode.F, Ctrl = true, Run = FocusSearch, Hint = "Control F, search cards" },
+                };
+                return _keyList;
+            }
+        }
+
+        /// <summary>The card under the cursor: a collection card, or a row of the deck (leader, stratagem, card).</summary>
+        private static GwentGameplay.Card FocusedCard()
+        {
+            var node = GraphNavigator.CurrentNode;
+            if (node == null) return null;
+            try
+            {
+                if (node.Id.Reference is IVirtualContentData d) return d.TryCast<VirtualCardContentData>()?.CardReference?.Card;
+                if (node.Id.Reference is AControl c) return c.TryCast<UIDeckCardButtonControl>()?.Card?.Card;
+            }
+            catch { }
+            return null;
+        }
+
+        private static UIDeckCardButtonControl FocusedRow() =>
+            GraphNavigator.CurrentNode?.Id.Reference is AControl c ? c.TryCast<UIDeckCardButtonControl>() : null;
+
+        private static bool OnDeckRow() => FocusedRow() is UIDeckCardButtonControl r && r.Card?.Card != null;
+
+        // The deck list's main button (or one of its shown options) under the cursor, no deck open.
+        private static DropdownContainer FocusedDeck()
+        {
+            if (DeckBuilder.Edit != null || GraphNavigator.CurrentNode?.Id.Reference is not AControl c) return null;
+            var d = c.GetComponentInParent<DropdownContainer>();
+            if (d == null || c.GetComponentInParent<UIDeckListContainer>() == null) return null;
+            return d.MainButton?.Pointer == c.Pointer || ListShown(d) ? d : null;
+        }
+
+        private static bool OnDeck() => FocusedDeck() != null;
+
+        // Right shows a deck's options (the game's right click on it), Left hides them; the cursor goes to the deck.
+        private static void DeckOptions(bool show)
+        {
+            var d = FocusedDeck();
+            if (d == null) return;
+            if (ListShown(d) == show) { Speech.Say(show ? "options shown" : "options hidden", true); return; }
+            var main = d.MainButton;
+            // Back on the deck itself first (from one of its options), quietly: the change is what is said.
+            if (GraphNavigator.CurrentNode?.Id.Reference is not AControl cur || cur.Pointer != main.Pointer)
+                GraphNavigator.FocusNode(CrimsonNodes.Id(main));
+            Navigator.MouseClick(main, right: true);
+            if (!show) Speech.Say("options hidden", true); // showing is said by the deck's live "options shown"
+        }
+
+        // Shift+Enter: the game's card preview (a grid card's right click; a deck row's).
+        private static void Preview()
+        {
+            var node = GraphNavigator.CurrentNode;
+            if (node?.Id.Reference is IVirtualContentData d) { Click(d, true); return; }
+            var row = FocusedRow();
+            if (row != null) Navigator.MouseClick(row.TryCast<ButtonControl>(), right: true);
+        }
+
+        // Ctrl+Enter on a deck row: one more copy, through the collection grid's own add (the row's card there).
+        private static void AddCopy()
+        {
+            var card = FocusedRow()?.Card;
+            if (card == null) return;
+            foreach (var e in _cards)
+            {
+                bool same;
+                try { same = e.Card.Template.Id == card.Template.Id && e.Card.Definition.IsPremium == card.Definition.IsPremium; } catch { same = false; }
+                if (!same) continue;
+                int before = -1;
+                try { before = DeckBuilder.Deck()?.GetCardCount(e.Card) ?? -1; } catch { }
+                Click(e.Data, false);
+                // The game refuses a copy over the limit (one of a gold card, two of a bronze) without a word.
+                var cc = e.Card;
+                MainThread.Later(0.5f, () =>
+                {
+                    int after = -1;
+                    try { after = DeckBuilder.Deck()?.GetCardCount(cc) ?? -1; } catch { }
+                    if (after == before) Speech.Say("No more copies of this card can be added.", true);
+                });
+                return;
+            }
+            Speech.Say("Not in the collection as filtered.", true);
+        }
+
+        // Ctrl+Page Up/Down: the first card of the next or previous provision cost (the grid's own sections:
+        // stratagems, then provisions high to low), said with its cost.
+        private static void JumpSection(int dir)
+        {
+            var cur = GraphNavigator.CurrentNode;
+            int i = cur == null ? -1 : _cards.FindIndex(e => e.Id.Equals(cur.Id));
+            if (i < 0) { Speech.Say("Not on the collection.", true); return; }
+            int Cost(int k) { try { return _cards[k].Card.Template.Provision; } catch { return -1; } }
+            int here = Cost(i), j = i;
+            if (dir > 0) { while (j < _cards.Count && Cost(j) == here) j++; }
+            else
+            {
+                while (j >= 0 && Cost(j) == here) j--;      // into the previous section...
+                if (j < 0) { Speech.Say("First section", true); return; }
+                int prev = Cost(j);
+                while (j > 0 && Cost(j - 1) == prev) j--;     // ...to its first card
+            }
+            if (j >= _cards.Count) { Speech.Say("Last section", true); return; }
+            int cost = Cost(j);
+            Speech.Say(cost == 0 ? "Stratagems" : cost + " provisions", true);
+            GraphNavigator.FocusNode(_cards[j].Id);
+        }
 
         // Ctrl+F: the cursor to the search box, the caret in it, ready to type.
         private static void FocusSearch()

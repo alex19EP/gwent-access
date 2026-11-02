@@ -41,7 +41,7 @@ namespace GwentAccess.Ui
                 if (Titles.TryGetValue(p.gameObject.name, out var t)) return GameText.Get(t.Key, t.Fallback);
                 if (p.TryCast<UILoadingScreenBase>() != null) return "Loading"; // its tip is read as its content
                 if (p.TryCast<IntroPanel>() != null) return "Versus";            // the two players before the coin toss
-                return UiText.FriendlyName(p.gameObject.name.Replace("(Clone)", "").Replace("Prefab", "").Replace("UI", ""));
+                return UiText.FriendlyName(p.gameObject.name.Replace("(Clone)", "").Replace("Prefab", "").Replace("UIDB", "").Replace("UI", ""));
             }
         }
 

@@ -156,26 +156,36 @@ If you really want to forfeit, do it again within 15 seconds.
 
 
 DECK BUILDING
-Main menu: Tab to the game modes or menu bar, then DECK BUILDER, Enter.
+Laid out like Accessible Arena's deck builder. Main menu: DECK BUILDER, Enter.
+Tab / Shift+Tab move between the sections.
 
-Tab / Shift+Tab move between the sections: your decks (or, while editing, the deck you
-are editing), the card collection, the filters, the side filters and the buttons.
+Your deck list (no deck open):
+- Up/Down through your decks, Enter opens one. A deck that can't be played says why
+  ("invalid: 20 cards, minimum 25").
+- Right arrow shows a deck's options (Rename, Change Ability, Share, Duplicate,
+  Delete), which follow it; Left hides them. Starter decks can't be edited: duplicate
+  one and edit the copy.
 
-On your deck list: Enter opens a deck. Backspace shows its options (rename, change
-ability, share, duplicate, delete), which follow it in the list ("options shown").
-Starter decks can't be edited; duplicate one and edit the copy.
+Collection (every card the deck may use, owned or not; 815 for a faction deck):
+- Left/Right move through the cards, Up/Down read the focused card line by line
+  (ability, categories, rarity...), Space the whole card, I its keywords.
+- A card says its copies owned ("x1", "not owned") and, while editing, "1 in deck".
+- Enter adds the card to the deck you are editing ("Added Geralt of Rivia, 1 in
+  deck", then the totals). Shift+Enter opens the game's preview of the card.
+- Page Up / Page Down: a row of the grid. Control+Page Up / Page Down: the previous /
+  next provision cost (stratagems come first, then the most expensive cards).
 
-While editing a deck:
-- The deck section comes first: the totals the game checks ("25 cards, minimum 25;
-  22 units, minimum 13; provisions 130 of 165"), then the leader ability, the
-  stratagem and each card ("Geralt of Rivia, power 3, 10 provisions", "x2" for two
-  copies). Enter on a card takes it out ("Removed Geralt of Rivia", then the totals).
-- In the collection, Enter adds the card to the deck you are editing ("Added Geralt of
-  Rivia, 1 in deck", then the totals). Backspace opens the card's preview (the game's right click); Escape
-  closes it. Page Up / Page Down move a row of the grid.
-- Ctrl+F    Search cards. Type part of a card name.
-- The buttons section has the game's Exit (it asks whether to save) and Exit without
-  saving.
+Your deck (while editing): the leader ability, the stratagem, then the cards.
+- Left/Right move, Up/Down read the card, Enter takes a copy out ("Removed ...", then
+  the totals), Control+Enter adds another copy ("No more copies of this card can be
+  added" at the limit), Shift+Enter previews.
+
+Deck stats: cards (minimum 25), units (minimum 13), provisions used of the limit.
+Filters: the search box (Control+F from anywhere; Enter to type), the provision
+filters, then the faction, type, rarity and other dropdowns, then the buttons.
+
+Backspace is Back: in a deck, its Exit (it saves; a starter deck just leaves); on the
+list, it leaves the deck builder.
 
 Provisions are the deck-building budget: 150 plus your leader ability's bonus.
 Every card costs provisions; stronger cards cost more.

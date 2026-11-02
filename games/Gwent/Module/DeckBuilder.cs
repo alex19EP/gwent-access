@@ -59,6 +59,26 @@ namespace GwentAccess
             try { return UiText.Clean(Localization.LocalizationHelper.GetCardName(cc.Card)); } catch { return "Card"; }
         }
 
+        /// <summary>One of the deck's totals (0 cards, 1 units, 2 provisions), for the deck stats stop.</summary>
+        public static string StatPart(int part)
+        {
+            var d = Deck();
+            if (d == null) return part == 0 ? "No deck open" : null;
+            try
+            {
+                var v = d.GetValidation();
+                int maxProv = 150;
+                try { var l = d.LeaderAbilityCard; if (l != null) maxProv += l.Template.Provision; } catch { }
+                return part switch
+                {
+                    0 => v.TotalCardCount + " cards, minimum 25",
+                    1 => v.UnitCardCount + " units, minimum 13",
+                    _ => "provisions " + v.ProvisionUsed + " of " + maxProv,
+                };
+            }
+            catch { return null; }
+        }
+
         public static string Stats()
         {
             var d = Deck();
