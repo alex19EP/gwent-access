@@ -196,11 +196,12 @@ namespace GwentAccess.Ui
             return null;
         }
 
-        // When the menu last came up: for a moment the game's own selection isn't followed, so the cursor starts at
-        // the top (see GameSelection).
-        private float _focusedAt = -1;
+        // True from when the menu comes up until the player's first key: the game's own selection isn't followed
+        // meanwhile, so the cursor starts at the top even when the game moves its selection while the menu settles
+        // (onto VERSUS AI, seconds after a match ends). See GameSelection.
+        private bool _fresh;
 
-        public override void OnFocus() => _focusedAt = UnityEngine.Time.realtimeSinceStartup;
+        public override void OnFocus() => _fresh = true;
 
         public override void OnPop()
         {
@@ -261,7 +262,6 @@ namespace GwentAccess.Ui
                 foreach (var c in byStop[r]) ids.Add(CrimsonNodes.Id(c));
                 first ??= ids.Count > 0 ? ids[0] : null;
                 AddControls(b, byStop[r], activeDeck);
-                if (known && Regions[r].Stop == "modes") AddOpponentChoice(b, byStop[r]);
                 if (sideBySide)
                     for (int i = 1; i < ids.Count; i++)
                     {
@@ -269,6 +269,20 @@ namespace GwentAccess.Ui
                         b.Connect(ids[i], GraphDir.Left, ids[i - 1]);
                     }
                 if (context != null) b.PopContext();
+                // The opponent toggles on the shown mode card (VERSUS AI / VERSUS PLAYER): a choice of their own, a
+                // stop after the modes. Kept out of the modes' stop: the navigator lands on a stop's selected member,
+                // which would start the menu on VERSUS AI instead of the first mode.
+                if (known && Regions[r].Stop == "modes")
+                {
+                    var toggles = OpponentToggles(byStop[r]);
+                    if (toggles.Count > 0)
+                    {
+                        b.BeginStop("opponent");
+                        b.PushContext(GameText.Get("opponent_selection_title", "Opponent"));
+                        AddOpponentChoice(b, toggles);
+                        b.PopContext();
+                    }
+                }
             }
 
             b.BeginStop("notes");
@@ -449,7 +463,12 @@ namespace GwentAccess.Ui
         /// (to the guides button on open; to the shop, then the mode card, after a pick).</summary>
         public override AControl GameSelection()
         {
-            if (_steer == null && UnityEngine.Time.realtimeSinceStartup - _focusedAt < 1.5f) return null;
+            if (_steer == null && _fresh)
+            {
+                // The key's own frame still ignores it: the cursor's move is written back to the game first.
+                if (Keys.AnyDown()) _fresh = false;
+                return null;
+            }
             var real = base.GameSelection();
             if (_steer == null) return real;
             if (real == null || real.Pointer != _steer.Pointer) _steer.ParentLayer?.RequestControlSelection(_steer);
@@ -745,8 +764,10 @@ namespace GwentAccess.Ui
         /// choices are listed after the mode cards as a sighted player sees them: the chosen one "selected", a
         /// locked one "unavailable" with the game's reason ("Requires at least rank 25"). Enter clicks one.
         /// </summary>
-        private static void AddOpponentChoice(GraphBuilder b, List<AControl> modes)
+        // The shown mode card's opponent toggles that have words.
+        private static List<ToggleButtonControl> OpponentToggles(List<AControl> modes)
         {
+            var list = new List<ToggleButtonControl>();
             try
             {
                 foreach (var mode in modes)
@@ -757,26 +778,31 @@ namespace GwentAccess.Ui
                     {
                         if (tr.name != "OpponentSelection") continue;
                         foreach (var toggle in tr.GetComponentsInChildren<ToggleButtonControl>(false))
-                        {
-                            var t = toggle;
-                            var texts = CrimsonNodes.Texts(t);
-                            if (texts.Count == 0) continue;
-                            b.AddItem(CrimsonNodes.Id(t), new NodeVtable
-                            {
-                                Announcements = new[]
-                                {
-                                    new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(t)), kind: AnnouncementKinds.Label),
-                                    new NodeAnnouncement(() => t.IsToggled ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
-                                    new NodeAnnouncement(() => t.IsCurrentlySelectable() ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
-                                },
-                                OnActivate = () => { if (t.IsCurrentlySelectable()) Navigator.ClickControl(t); else Speech.Say("Not available right now.", true); },
-                            });
-                        }
-                        return;
+                            if (CrimsonNodes.Texts(toggle).Count > 0) list.Add(toggle);
+                        return list;
                     }
                 }
             }
             catch (System.Exception e) { Plugin.LogInfo("[menu] opponent choice: " + e.Message); }
+            return list;
+        }
+
+        private static void AddOpponentChoice(GraphBuilder b, List<ToggleButtonControl> toggles)
+        {
+            foreach (var toggle in toggles)
+            {
+                var t = toggle;
+                b.AddItem(CrimsonNodes.Id(t), new NodeVtable
+                {
+                    Announcements = new[]
+                    {
+                        new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(t)), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => t.IsToggled ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => t.IsCurrentlySelectable() ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+                    },
+                    OnActivate = () => { if (t.IsCurrentlySelectable()) Navigator.ClickControl(t); else Speech.Say("Not available right now.", true); },
+                });
+            }
         }
 
         private static bool UnderOpponentChoice(Transform t)

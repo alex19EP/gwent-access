@@ -39,6 +39,7 @@ namespace GwentAccess.Ui
                 if (p == null) return null;
                 if (Titles.TryGetValue(p.gameObject.name, out var t)) return GameText.Get(t.Key, t.Fallback);
                 if (p.TryCast<UILoadingScreenBase>() != null) return "Loading"; // its tip is read as its content
+                if (p.TryCast<IntroPanel>() != null) return "Versus";            // the two players before the coin toss
                 return UiText.FriendlyName(p.gameObject.name.Replace("(Clone)", "").Replace("Prefab", "").Replace("UI", ""));
             }
         }
@@ -73,6 +74,7 @@ namespace GwentAccess.Ui
         {
             "UIMainMenuContentPanel", "UINotificationsPanel", "UITooltipPanel", "UIPlayerInfoOverlay", "UIBattlePanel",
             "UIBattleDialoguePanel", "UIBattleCardPresentationPanel", "SocialPanel", "UIMainMenuBGPanel", "PopupPanel",
+            "UIResultBannerPanel", // the results screen that follows names itself by the same banner
         };
 
         // The first attached, shown panel on the active layer with something to read or press.
@@ -175,6 +177,36 @@ namespace GwentAccess.Ui
             sorted.Sort((x, y) => Math.Abs(Top(x) - Top(y)) > LineSlack ? Top(y).CompareTo(Top(x)) : Left(x).CompareTo(Left(y)));
             b.BeginStop("panel:content");
             int n = 0;
+            // A notice with nothing to press (the match intro, a loading tip): one message, read whole on landing;
+            // it is often up only for seconds. Keyed by its words, so a changed notice lands afresh.
+            if (controls.Count == 0 && bar.Count == 0)
+            {
+                var words = new List<string>();
+                foreach (var g in sorted)
+                {
+                    g.Sort((x, y) => Math.Abs(x.Pos.y - y.Pos.y) <= LineSlack ? x.Pos.x.CompareTo(y.Pos.x) : y.Pos.y.CompareTo(x.Pos.y));
+                    foreach (var e in g) words.Add(e.Text);
+                }
+                string message = string.Join(", ", words);
+                // A notice that grows on the same panel (the intro's coin toss result) says only what is new; Space
+                // reads it all.
+                string key = panel.gameObject.name;
+                if (key != _noticePanel) { _noticePanel = key; _noticeWords = new List<string>(); }
+                if (message != _noticeMessage)
+                {
+                    var fresh = words.FindAll(w => !_noticeWords.Contains(w));
+                    _noticeSaid = fresh.Count > 0 && fresh.Count < words.Count ? string.Join(", ", fresh) : message;
+                    _noticeMessage = message;
+                    _noticeWords = words;
+                }
+                string said = _noticeSaid;
+                b.AddItem(ControlId.Structural("panel:message:" + message), new NodeVtable
+                {
+                    Announcements = new[] { new NodeAnnouncement(() => said, kind: AnnouncementKinds.Label) },
+                    OnTooltip = () => Speech.Say(message, true),
+                });
+                return;
+            }
             foreach (var g in sorted)
             {
                 float lo = float.MaxValue, hi = float.MinValue;
@@ -193,6 +225,10 @@ namespace GwentAccess.Ui
         }
 
         private const float LineSlack = 6f, RowSlack = 24f;
+
+        // The notice last built: its panel, words and message, and what its landing says.
+        private static string _noticePanel, _noticeMessage, _noticeSaid;
+        private static List<string> _noticeWords = new List<string>();
 
         // The row object an item belongs to: its nearest ancestor below the panel that is a prefab instance
         // ("…(Clone)") or lays its children out side by side; the panel itself when there is none.

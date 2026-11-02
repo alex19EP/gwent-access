@@ -78,9 +78,9 @@ MENUS
 - Popups read their message first. Enter on the message presses the popup's default
   button (Accept, OK...); arrow to another button and Enter presses that one instead.
   Escape is the game's own cancel.
-- Main menu: Tab / Shift+Tab move between its sections: the game modes, your deck,
-  the menu bar (quests, options, quit...), your profile and currencies, and any
-  notifications. Up/Down move through the items of the section you are in. In the
+- Main menu: Tab / Shift+Tab move between its sections: the game modes, the opponent
+  (VERSUS AI or VERSUS PLAYER, once you are in PLAY), your deck, the menu bar (quests,
+  options, quit...), your profile and currencies, and any notifications. Up/Down move through the items of the section you are in. In the
   game modes and your deck, Left/Right also change the mode or the deck. A letter
   jumps to the next item starting with it, and opens it when it is the only one
   (Quit is only ever reached, never opened, this way). You start on PLAY.
@@ -131,6 +131,9 @@ O                   Battle log: everything said this match, newest first.
 Space               The whole card at once.
 I                   What the card's keywords mean. K: card kind and base power.
 F1                  Every key for the screen you're on.
+
+Before the match the mod reads the Versus screen (both players' names and titles),
+then who goes first.
 
 The mod announces: your turn and the opponent's turn, every card the opponent plays,
 passes, new rounds, what you played and where, when a card needs a target, turn timer
