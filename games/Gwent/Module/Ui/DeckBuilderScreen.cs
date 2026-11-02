@@ -70,6 +70,7 @@ namespace GwentAccess.Ui
             var collection = p.GetComponentInChildren<UIDBCollectionContainer>(false);
 
             BuildDecks(b, p, used);
+            BuildDeck(b, p, used);
             if (collection != null) BuildCards(b, collection);
             if (collection != null) BuildFilters(b, collection.FilterContainer, used);
             BuildLeaves(b, "db:side-filters", p.GetComponentInChildren<UIDBFilters>(false), used);
@@ -92,6 +93,66 @@ namespace GwentAccess.Ui
                 var control = c;
                 b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => AllTexts(control)));
             }
+        }
+
+        // ---- the deck being edited ----
+
+        /// <summary>
+        /// While a deck is open the left panel shows it (DeckPickerPrefab/DeckCards): its leader ability slot and
+        /// one row per card (name, provisions, copies), with the deck's totals the game checks it against. One
+        /// stop, first: the totals (cards of 25, units of 13, provisions of the limit, from the game's own
+        /// validation), then the rows as drawn. Enter on a row is its click, which takes the card out; on the
+        /// leader it opens the ability choice. This replaces the older Ctrl+D (totals) and Ctrl+H (list).
+        /// </summary>
+        private static void BuildDeck(GraphBuilder b, UIDBPanel p, HashSet<IntPtr> used)
+        {
+            Transform root = null;
+            foreach (var t in p.GetComponentsInChildren<Transform>(false))
+                if (t.name == "DeckCards") { root = t; break; }
+            if (root == null) return;
+            var rows = new List<AControl>();
+            foreach (var c in root.GetComponentsInChildren<AControl>(false))
+            {
+                if (!c.IsCurrentlySelectable() || used.Contains(c.Pointer)) continue;
+                var texts = CrimsonNodes.Texts(c);
+                // The stat counters ("25", "20", "-") are numbers beside icons; the totals line says them in words.
+                if (texts.Count == 0 || texts.TrueForAll(t => t == "-" || int.TryParse(t, out _))) continue;
+                rows.Add(c);
+            }
+            if (rows.Count == 0) return;
+            b.BeginStop("db:deck");
+            string name = null;
+            try { var d = DeckBuilder.Deck(); name = d == null ? null : UiText.Clean(d.LocalizedName ?? d.Name ?? ""); } catch { }
+            b.PushContext(string.IsNullOrEmpty(name) ? "Deck" : name);
+            b.AddItem(ControlId.Structural("db:deck:totals"), new NodeVtable
+            {
+                Announcements = new[] { new NodeAnnouncement(() => DeckBuilder.Stats(), live: true, kind: AnnouncementKinds.Label) },
+            });
+            foreach (var c in rows)
+            {
+                used.Add(c.Pointer);
+                var control = c;
+                b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => DeckRow(control)));
+            }
+            b.PopContext();
+        }
+
+        // A deck row as the collection reads cards ("Geralt of Rivia, power 3, 10 provisions"), with its copies
+        // ("x2"); rows that aren't cards (the leader slot) read their words.
+        private static string DeckRow(AControl c)
+        {
+            try
+            {
+                var row = c.TryCast<UIDeckCardButtonControl>() ?? c.GetComponentInParent<UIDeckCardButtonControl>();
+                var card = row?.Card?.Card;
+                if (card != null)
+                {
+                    string copies = CrimsonNodes.Texts(c).Find(t => t.Length > 1 && t[0] == 'x' && int.TryParse(t.Substring(1), out _));
+                    return CardReader.Summary(card) + (copies != null ? ", " + copies : "");
+                }
+            }
+            catch { }
+            return AllTexts(c);
         }
 
         private static bool ListShown(DropdownContainer d)

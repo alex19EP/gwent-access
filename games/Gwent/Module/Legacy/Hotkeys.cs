@@ -47,16 +47,8 @@ namespace GwentAccess
         private const int VK_CONTROL = 0x11;
         private static readonly Dictionary<int, Action> CtrlKeys = new Dictionary<int, Action>
         {
-            { 0x48, () => { if (DeckBuilder.Active) DeckBuilder.SayList(); } },  // Ctrl+H deck list
-            { 0x41, DeckBuilder.Add },                                    // Ctrl+A add card to deck
-            { 0x52, DeckBuilder.Remove },                                 // Ctrl+R remove card from deck
-            { 0x44, DeckBuilder.SayStats },                               // Ctrl+D deck stats
             { 0x51, Navigator.ClickExit },                                // Ctrl+Q press Exit/Back
-            { 0x4E, DeckBuilder.Rename },                                 // Ctrl+N rename deck
-            { 0x46, DeckBuilder.Search },                                 // Ctrl+F card search
-            { 0x55, DeckBuilder.Duplicate },                              // Ctrl+U duplicate deck
             { 0x42, Navigator.Buy },                                      // Ctrl+B buy with Ore (asks twice)
-            { 0x31, () => { if ((DeckBuilder.Edit != null || DeckBuilder.List != null) && Battle.Controller() == null) Navigator.ClickExit(); } },   // Ctrl+1 (in the deck builder: same as Ctrl+Q, the keys are next to each other)
         };
         private static readonly HashSet<int> CtrlDown = new HashSet<int>();
 
