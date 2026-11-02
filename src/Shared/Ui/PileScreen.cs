@@ -31,7 +31,9 @@ namespace GwentAccess.Ui
         public override bool IsActive()
         {
             _open = OpenPile();
-            if (_open == Pile.None) return false;
+            if (_open == Pile.None) { _closing = false; return false; }
+            // Closed with Backspace: the panel empties its list a moment before it hides, which read "Empty".
+            if (_closing) return false;
             _askedAt = -1;
             _gc = Battle.Controller();
             return _gc != null;
@@ -123,11 +125,18 @@ namespace GwentAccess.Ui
             try
             {
                 var who = mine ? Battle.Me(gc) : Battle.Them(gc);
+                // An empty graveyard opens nothing, for a sighted player too: say what they see.
+                if (!deck && Battle.Cards(gc, who, ELocation.Graveyard).Count == 0)
+                {
+                    Speech.Say(mine ? "Your graveyard is empty." : "Opponent's graveyard is empty.", true);
+                    return;
+                }
                 var h = TurnHandler();
                 if (h == null) { Speech.Say("Can't open that now.", true); return; }
                 if (deck) h.OpenDeck(who, false);
                 else h.OpenGraveyard(who, false);
                 _askedAt = Time.realtimeSinceStartup;
+                _askedDeck = deck; _askedWho = who; _forced = false;
                 Plugin.LogInfo("[pile] open " + (deck ? "deck" : "graveyard") + " of " + who + " via " + h.GetIl2CppType().Name);
             }
             catch (Exception e) { Plugin.LogInfo("[pile] open failed: " + e); Speech.Say("Couldn't open it.", true); }
@@ -143,9 +152,39 @@ namespace GwentAccess.Ui
         {
             if (_askedAt < 0) return;
             if (OpenPile() != Pile.None) { _askedAt = -1; return; }
-            if (Time.realtimeSinceStartup - _askedAt < 1.5f) return;
+            float waited = Time.realtimeSinceStartup - _askedAt;
+            // The keyboard request goes through the game's "enabled actions", which refuse it outside the moments a
+            // gamepad could ask, while the mouse's right click on the deck or a graveyard opens it any time. Outside a
+            // tutorial (whose flowchart locks input on purpose) a refusal is retried the way the right click does.
+            if (!_forced && waited > 0.4f && !TutorialRunning())
+            {
+                _forced = true;
+                try
+                {
+                    var h = TurnHandler();
+                    if (h != null) { if (_askedDeck) h.OpenDeck(_askedWho, true); else h.OpenGraveyard(_askedWho, true); }
+                    Plugin.LogInfo("[pile] reopened without the action gate");
+                }
+                catch (Exception e) { Plugin.LogInfo("[pile] reopen failed: " + e.Message); }
+                return;
+            }
+            if (waited < 1.5f) return;
             _askedAt = -1;
             Speech.Say("Not available right now.", true);
+        }
+
+        private static bool _askedDeck, _forced;
+        private static EPlayerId _askedWho;
+
+        // A tutorial battle's flowchart is steering the match (and may lock input on purpose).
+        private static bool TutorialRunning()
+        {
+            try
+            {
+                var m = UnityEngine.Object.FindObjectOfType<GwentVisuals.GwentApp>()?.FlowChartManager;
+                return m != null && m.RunningFlowcharts != null && m.RunningFlowcharts.Count > 0 && !m.AreAllRunningFlowchartsAlwaysOn();
+            }
+            catch { return false; }
         }
 
         // The player handler that has the input now: your turn's or the opponent's turn's (both can open piles).
@@ -159,8 +198,11 @@ namespace GwentAccess.Ui
             return local ?? opp;
         }
 
+        private static bool _closing;
+
         private void Close()
         {
+            _closing = true;
             try
             {
                 var h = TurnHandler();

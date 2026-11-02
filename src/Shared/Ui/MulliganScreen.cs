@@ -34,7 +34,8 @@ namespace GwentAccess.Ui
                 // The first mulligan comes before the game starts round 1 (its index is still -1 then), so the
                 // match opening is told by the match, not the round number.
                 string round = "", leaders = "";
-                try { round = ", round " + Math.Max(gc.RoundManager.CurrentRoundIndex + 1, 1); } catch { }
+                // Between rounds the index still names the round just played (round 2's mulligan reads index 0).
+                try { var rm = gc.RoundManager; round = ", round " + Math.Max(rm.CurrentRoundIndex + (rm.HasInitialMulliganFinished() ? 2 : 1), 1); } catch { }
                 if (gc.Pointer != _leadersSaidIn)
                 {
                     _leadersSaidIn = gc.Pointer;

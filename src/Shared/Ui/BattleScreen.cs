@@ -614,7 +614,8 @@ namespace GwentAccess.Ui
         {
             if (!_holdingCoin) return;
             _holdingCoin = false;
-            Plugin.LogInfo("[input] coin let go at hold " + BattleInput.CoinHold.ToString("0.00"));
+            Plugin.LogInfo("[input] coin let go at hold " + BattleInput.CoinHold.ToString("0.00") + " (front " + Keys.GameInFront()
+                + ", focused " + Application.isFocused + ", E held " + Keys.Held(KeyCode.E) + ", focused screen " + (ScreenManager.Current?.Key ?? "none") + ")");
             BattleInput.ReleaseCoin();
         }
 
@@ -622,6 +623,7 @@ namespace GwentAccess.Ui
         {
             PileScreen.CheckRefused();
             WatchEnter();
+            WatchCancel();
             if (_endTurnSince >= 0)
             {
                 if (!Keys.Held(KeyCode.E)) _endTurnSince = -1; // let go early: nothing, as with the pass
@@ -650,7 +652,21 @@ namespace GwentAccess.Ui
             bool can = true;
             try { if (req != null) can = req.CanCancel; } catch { }
             if (!can) { Speech.Say("This can't be cancelled.", true); return; }
-            if (BattleInput.Back()) Speech.Say("Cancelled.", true);
+            // Said once the game has left the play or targeting: some steps ignore its B (a multi-charge order
+            // asking for its next target), and "Cancelled." was said for those too.
+            if (BattleInput.Back()) { _cancelMode = BattleInput.Mode; _cancelAt = Time.realtimeSinceStartup; }
+        }
+
+        private EBattleNavigationMode _cancelMode;
+        private float _cancelAt = -1;
+
+        private void WatchCancel()
+        {
+            if (_cancelAt < 0) return;
+            if (BattleInput.Mode != _cancelMode) { _cancelAt = -1; Speech.Say("Cancelled.", true); return; }
+            if (Time.realtimeSinceStartup - _cancelAt < 0.8f) return;
+            _cancelAt = -1;
+            Speech.Say("This can't be cancelled now.", true);
         }
 
         // ---- Tab: the next valid play, target or row ----
