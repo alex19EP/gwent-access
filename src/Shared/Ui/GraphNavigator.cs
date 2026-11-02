@@ -152,6 +152,9 @@ namespace GwentAccess.Ui
             if (ptr == _observedGame) return;
             _observedGame = ptr;
             if (sel == null) return;
+            // The cursor is on a control the game won't select (VERSUS PLAYER while it is locked): the game puts
+            // its selection back where it was, which is a refusal, not a move to follow.
+            if (_graph.CurrentNode?.Id.Reference is CrimsonUI.AControl here && !Selectable(here)) return;
             // The nearest node at or above the selection: a node can stand for a composite control whose inner
             // parts the game selects (a settings row's switcher and its arrows).
             for (var t = sel.transform; t != null; t = t.parent)
@@ -165,6 +168,11 @@ namespace GwentAccess.Ui
                 _syncedKey = target.Id; // the game is already there; nothing to write back
                 return;
             }
+        }
+
+        private static bool Selectable(CrimsonUI.AControl c)
+        {
+            try { return c.IsCurrentlySelectable(); } catch { return true; }
         }
 
         // ---- return to the opener ----
