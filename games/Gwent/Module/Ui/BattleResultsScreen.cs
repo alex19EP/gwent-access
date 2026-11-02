@@ -106,13 +106,17 @@ namespace GwentAccess.Ui
                 var button = SafeVanity(info);
                 if (button == null) continue;
                 var widget = info;
+                // The second panel is the opponent's, as its place on screen shows; an AI opponent's panel draws
+                // no name, only its title, which alone didn't say whose it was.
+                bool opponent = info == panel.m_P2Info;
+                System.Func<string> text = () => opponent ? "Opponent, " + PlayerText(widget) : PlayerText(widget);
                 if (Selectable(button))
-                    b.AddItem(last = CrimsonNodes.Id(button), CrimsonNodes.Button(button, () => PlayerText(widget)));
+                    b.AddItem(last = CrimsonNodes.Id(button), CrimsonNodes.Button(button, text));
                 else
                     b.AddItem(last = CrimsonNodes.Id(button), new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => PlayerText(widget), kind: AnnouncementKinds.Label) },
-                        OnTooltip = () => Speech.Say(PlayerText(widget) ?? "", true),
+                        Announcements = new[] { new NodeAnnouncement(text, kind: AnnouncementKinds.Label) },
+                        OnTooltip = () => Speech.Say(text() ?? "", true),
                     });
             }
 
