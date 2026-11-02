@@ -96,7 +96,34 @@ namespace GwentAccess.Ui
             if (collection != null) BuildFilters(b, collection.FilterContainer, used);
             BuildLeaves(b, "db:side-filters", p.GetComponentInChildren<UIDBFilters>(false), used);
             BuildBar(b, p, used);
+
+            // Opening a deck lands on the collection's first card, ready to add (the game left its selection on a
+            // filter: "Milling settings"); for a moment the game's selection isn't followed.
+            IntPtr edit = IntPtr.Zero;
+            try { edit = DeckBuilder.Edit?.Pointer ?? IntPtr.Zero; } catch { }
+            if (edit != _seenEdit) { _seenEdit = edit; _seenEditAt = Time.realtimeSinceStartup; }
+            // Once the deck has loaded (the game's "Loading Deck" popup comes and goes in the first moments).
+            if (edit != _landedEdit && _cards.Count > 0 && Time.realtimeSinceStartup - _seenEditAt > 0.8f)
+            {
+                _landedEdit = edit;
+                if (edit != IntPtr.Zero)
+                {
+                    GraphNavigator.Suggest(_cards[0].Id);
+                    _openedAt = Time.realtimeSinceStartup;
+                }
+            }
         }
+
+        private static IntPtr _landedEdit, _seenEdit;
+        private static float _seenEditAt;
+        private static float _openedAt = -10;
+
+        // While a deck opens (its "Loading Deck" popup comes and goes) the cursor's passing landings aren't read.
+        public override bool QuietLanding(GraphNode node) =>
+            _seenEdit != IntPtr.Zero && Time.realtimeSinceStartup - _seenEditAt < 0.8f;
+
+        public override AControl GameSelection() =>
+            Time.realtimeSinceStartup - _openedAt < 1.5f ? null : base.GameSelection();
 
         // ---- decks ----
 
@@ -169,9 +196,9 @@ namespace GwentAccess.Ui
                 // The deck header's options (Rename, Change Ability) stay selectable while folded away.
                 var dd = c.GetComponentInParent<DropdownContainer>();
                 if (dd != null && dd.MainButton?.Pointer != c.Pointer && !ListShown(dd)) continue;
-                var texts = CrimsonNodes.Texts(c);
-                // The stat counters ("25", "20", "-") are numbers beside icons; the totals line says them in words.
-                if (texts.Count == 0 || texts.TrueForAll(t => t == "-" || int.TryParse(t, out _))) continue;
+                // Card rows only (leader, stratagem, cards): the counters beside them ("25", "-", an empty deck's
+                // "MIN 25") are the deck stats stop's, in words.
+                if (c.TryCast<UIDeckCardButtonControl>() == null) continue;
                 rows.Add(c);
             }
             if (rows.Count == 0) return;

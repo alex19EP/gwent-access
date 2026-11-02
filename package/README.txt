@@ -166,6 +166,12 @@ Your deck list (no deck open):
   Delete), which follow it; Left hides them. Starter decks can't be edited: duplicate
   one and edit the copy.
 
+NEW DECK: first the factions (Monsters, Northern Realms, Scoia'tael, Skellige,
+Nilfgaard, Syndicate); moving onto one chooses it and reads its description. Tab goes
+to that faction's leader abilities, under Basic and Advanced, each with the provisions
+it adds and what it does. Enter on an ability creates the deck with it and opens it,
+on the collection. Backspace goes back to the factions, then closes the window.
+
 Collection (every card the deck may use, owned or not; 815 for a faction deck):
 - Left/Right move through the cards, Up/Down read the focused card line by line
   (ability, categories, rarity...), Space the whole card, I its keywords.
