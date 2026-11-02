@@ -130,19 +130,7 @@ namespace GwentAccess.Ui
         // the container's own callback. Glyph labels are key hints.
         private static List<AControl> BarButtons(UICardPreview p)
         {
-            var list = new List<AControl>();
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    list.Add(c);
-                }
-            }
-            return list;
+            return CrimsonNodes.BarButtons(p);
         }
 
         private static string Caption(AControl c)

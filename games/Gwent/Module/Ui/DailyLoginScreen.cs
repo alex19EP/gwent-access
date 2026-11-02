@@ -72,6 +72,7 @@ namespace GwentAccess.Ui
             if (slots != null && slots.Count > 0)
             {
                 b.BeginStop("days");
+                b.StartRow("days"); // the days side by side as drawn: Left/Right move, Up/Down read a card reward
                 ControlId start = null;
                 for (int i = 0; i < slots.Count; i++)
                 {
@@ -84,6 +85,7 @@ namespace GwentAccess.Ui
                     if (start == null || Shown(slot.m_ClaimBox) || Shown(slot.m_TimerCountdownRenderer)) start = id;
                     b.AddItem(id, Day(p, slot));
                 }
+                b.EndRow();
                 if (start != null) b.SetStart(start);
             }
 
@@ -99,15 +101,7 @@ namespace GwentAccess.Ui
         // The bar's glyph-key buttons are never selectable, so the walk above misses them.
         private static void AddBar(InputButtonContainer bar, List<AControl> buttons, HashSet<IntPtr> used)
         {
-            if (!Shown(bar)) return;
-            var children = bar.GetChildren();
-            for (int i = 0; children != null && i < children.Count; i++)
-            {
-                var c = children[i];
-                if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                if (CrimsonNodes.Texts(c).Count == 0) continue;  // an empty spare slot in the bar
-                if (used.Add(c.Pointer)) buttons.Add(c);
-            }
+            if (Shown(bar)) buttons.AddRange(CrimsonNodes.BarButtons(new[] { bar }, used));
         }
 
         // ---- a day ----

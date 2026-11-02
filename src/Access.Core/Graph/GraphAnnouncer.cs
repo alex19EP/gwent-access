@@ -172,11 +172,14 @@ namespace Access.Core.Graph
 
             // The auto-stamped sibling position, unless the node carries its own (an explicit
             // position-kind part, or the adapter's composed message). Honors the user's per-kind setting.
-            if (node != null && node.PositionCount > 1 && PositionText != null
+            // A lone item is never stamped (PositionCount 0); a host that wants "1 of 1" lowers MinPositionCount.
+            int posCount = node == null ? 0 : node.PositionCount, posIndex = node == null ? 0 : node.PositionIndex;
+            if (node != null && posCount == 0 && MinPositionCount <= 1 && node.Focusable && !node.Expandable) { posCount = 1; posIndex = 1; }
+            if (node != null && posCount >= MinPositionCount && posCount >= 1 && PositionText != null
                 && !node.Vtable.SpeaksOwnPosition && !HasKind(node.Vtable.Announcements, AnnouncementKinds.Position)
                 && (PartFilter == null || PartFilter(node.Vtable.ControlType, AutoPositionProbe)))
             {
-                var pos = PositionText(node.PositionIndex, node.PositionCount);
+                var pos = PositionText(posIndex, posCount);
                 if (!string.IsNullOrEmpty(pos))
                 {
                     if (sb.Length > 0) sb.Append(", ");
@@ -188,6 +191,10 @@ namespace Access.Core.Graph
 
         /// <summary>Pluggable "n of m" wording (localized by the host); null = no auto positions.</summary>
         public static Func<int, int, string> PositionText;
+
+        /// <summary>The smallest sibling count that gets an auto position. 2 (default): a lone item says no "1 of
+        /// 1". A host can lower it to 1 where a list's size is itself news (a menu that holds one entry for now).</summary>
+        public static int MinPositionCount = 2;
 
         // A stand-in part handed to the PartFilter so the user's position-kind toggle governs the
         // auto-stamped position too.

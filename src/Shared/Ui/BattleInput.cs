@@ -120,6 +120,63 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>Whether a picked-up special waits for A to confirm its play.</summary>
+        /// <summary>
+        /// Use a card's order (a "tap": the leader's ability, a unit's Order) through your turn's handler, as
+        /// the game's click and A on a board card both end up doing (<c>InteractWithCard</c>): it starts the
+        /// order's own flow (targeting, sounds, confirmation). False when the game refuses (the tutorial's input
+        /// lock, the order not usable now). The tap handler component isn't attached in every battle (the
+        /// tutorial's), so it is not the way in.
+        /// </summary>
+        public static bool Tap(Card card)
+        {
+            try
+            {
+                var local = Handler()?.m_LocalPlayerTurnHandlerComponent;
+                if (local == null || card == null) return false;
+                bool ok = local.InteractWithCard(card, true);
+                Plugin.LogInfo("[input] tap " + card.Id + ": " + ok);
+                if (ok) { MouseFlow = true; MouseFlowAt = UnityEngine.Time.realtimeSinceStartup; }
+                return ok;
+            }
+            catch (Exception e) { Plugin.LogInfo("[input] tap failed: " + e.Message); return false; }
+        }
+
+        /// <summary>The play under way was started the mouse's way (<see cref="Tap"/>): its targets and rows
+        /// then answer the mouse's calls, not the game's A, so the battle screen picks them with
+        /// <see cref="PickTarget"/> / <see cref="PickRow"/>. Cleared when the play ends.</summary>
+        public static bool MouseFlow;
+        public static float MouseFlowAt;
+
+        /// <summary>Choose a target the way a click on it does (the target handler's SelectTarget).</summary>
+        public static bool PickTarget(Card card)
+        {
+            try
+            {
+                var view = ViewOf(card);
+                var t = Handler()?.m_SelectTargetsHandlerComponent;
+                if (view == null || t == null) return false;
+                t.SelectTarget(view);
+                Plugin.LogInfo("[input] target " + card.Id);
+                return true;
+            }
+            catch (Exception e) { Plugin.LogInfo("[input] target failed: " + e.Message); return false; }
+        }
+
+        /// <summary>Choose a row the way a click on it does (the location handler's SelectTarget).</summary>
+        public static bool PickRow(Location row)
+        {
+            try
+            {
+                var view = RowView(row);
+                var t = Handler()?.m_SelectLocationsHandlerComponent;
+                if (view == null || t == null) return false;
+                t.SelectTarget(view);
+                Plugin.LogInfo("[input] row target");
+                return true;
+            }
+            catch (Exception e) { Plugin.LogInfo("[input] row target failed: " + e.Message); return false; }
+        }
+
         public static bool CanConfirmSpecial()
         {
             try

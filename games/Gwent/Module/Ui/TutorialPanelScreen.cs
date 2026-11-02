@@ -85,12 +85,16 @@ namespace GwentAccess.Ui
                 foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
                 return;
             }
-            string text = Text(panel, _captions);
+            // The image popup's loc key, when it has one: it keys the text node, and tells the glyph names which
+            // sentence they are in.
+            string key = panel.TryCast<UITutorialImagePopup>()?.CurrentString;
+            string text = KeyGlyphs.InContext(key, () => Text(panel, _captions));
+            var note = KeyGlyphs.KeyNote(key);
+            if (note != null && text.Length > 0) text += " " + note;
             if (text.Length > 0)
             {
                 // Keyed by the shown string (the image popup's loc key when it has one), not the panel, so a new
                 // text lands afresh and is spoken.
-                string key = panel.TryCast<UITutorialImagePopup>()?.CurrentString;
                 string textKey = string.IsNullOrEmpty(key) ? text : key;
                 var id = ControlId.Structural("tutorial:text:" + textKey);
                 b.AddItem(id, new NodeVtable
@@ -232,18 +236,9 @@ namespace GwentAccess.Ui
         private static List<AControl> Buttons(AGwentPanel panel)
         {
             var buttons = CrimsonNodes.Leaves(panel);
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    // The bar keeps an icon-only variant (a checkmark) whose graphics are off: nothing shows.
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
-                }
-            }
+            var seen = new HashSet<System.IntPtr>();
+            foreach (var c in buttons) seen.Add(c.Pointer);
+            buttons.AddRange(CrimsonNodes.BarButtons(panel, seen));
             // A glyph label or a bar's icon-only variant can be selectable too (the UX flow's gating decides) but
             // shows no words, only the key or icon for the same action: it is no stop of its own. An icon button
             // outside a bar, like the panel's settings, stays; it is named by its icon.

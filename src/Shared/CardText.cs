@@ -10,7 +10,6 @@ namespace GwentAccess
     /// <summary>Turns a Gwent card into speech: name, power, armor, provisions, and what it does.</summary>
     internal static class CardText
     {
-        public static Card LastCard;
 
         /// <summary>Find the card behind a UI control, if it shows one.</summary>
         public static Card CardOf(Component c)
@@ -42,7 +41,6 @@ namespace GwentAccess
         public static string Describe(Card card, bool full = false)
         {
             if (card == null) return "";
-            LastCard = card;
             var parts = new List<string>();
             string name = Safe(() => LocalizationHelper.GetCardName(card));
             int templateId = -1;
@@ -93,19 +91,5 @@ namespace GwentAccess
             return text;
         }
 
-        /// <summary>F1: full details of the last card you landed on.</summary>
-        public static void ReadDetails()
-        {
-            var c = LastCard;
-            if (c == null)
-            {
-                var sel = SelectedControlPatch.Current;
-                if (sel != null) c = CardOf(sel);
-            }
-            if (c == null) { Speech.Say("No card selected.", true); return; }
-            string t = Describe(c, true);
-            Plugin.LogInfo("Card details: " + t);
-            Speech.Say(t, true);
-        }
     }
 }

@@ -6,8 +6,11 @@ using GwentUnity;
 namespace GwentAccess.Ui
 {
     /// <summary>
-    /// The settings window: the category list, the open category's options, then the window's buttons (save,
-    /// back, reset…) — one Tab stop each.
+    /// The settings window: the category list, then the open category's options followed by the window's buttons
+    /// (apply, restore defaults, exit, back), as a sighted player sees them below the options — two Tab stops.
+    /// Enter on a category opens it and moves into its options; Escape or Backspace in the options goes back up
+    /// to the open category (a gamepad's B), and Escape on the categories is the game's own Back, closing the
+    /// window.
     ///
     /// Options come straight from the open category's entry list, so rows scrolled out of view are reachable.
     /// Each option is one item: its title and current value, Left/Right step the value through the game's own
@@ -52,38 +55,88 @@ namespace GwentAccess.Ui
             }
             // The window's buttons (apply, reset, exit) are never selectable: the game reaches them by glyph
             // keys. Offer them anyway; the click goes through the container's own callback.
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
-                }
-            }
+            var seen = new HashSet<System.IntPtr>();
+            foreach (var c in buttons) seen.Add(c.Pointer);
+            buttons.AddRange(CrimsonNodes.BarButtons(panel, seen));
 
             if (categories.Count > 0)
             {
                 b.BeginStop("categories");
                 b.PushContext("Categories");
-                foreach (var c in categories) b.AddItem(CrimsonNodes.Id(c), Category(c));
+                foreach (var c in categories) b.AddItem(CrimsonNodes.Id(c), Category(c, categories));
                 b.PopContext();
             }
 
+            _categoryIds.Clear();
+            foreach (var c in categories) _categoryIds[CrimsonNodes.PathKey(c.transform, null)] = c;
+            _optionKeys.Clear();
             var rows = Rows(panel);
-            if (rows.Count > 0)
+            if (rows.Count > 0 || buttons.Count > 0)
             {
                 b.BeginStop("options");
-                b.PushContext("Options");
-                foreach (var e in rows) b.AddItem(RowId(e), Row(e));
-                b.PopContext();
+                if (rows.Count > 0)
+                {
+                    b.PushContext("Options");
+                    foreach (var e in rows) { var id = RowId(e); _optionKeys.Add((string)id.StructuralKey); b.AddItem(id, Row(e)); }
+                    b.PopContext();
+                }
+                foreach (var c in buttons) { var id = CrimsonNodes.Id(c); _optionKeys.Add((string)id.StructuralKey); b.AddItem(id, CrimsonNodes.Button(c)); }
             }
 
-            if (buttons.Count > 0)
+            // Enter on a category moved into it: land on its first option once the new rows are drawn (a
+            // different first row than before, or after a short wait when the same category was reopened).
+            if (_enterOptionsAt > 0 && rows.Count > 0)
             {
-                b.BeginStop("buttons");
-                foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+                var first = RowId(rows[0]);
+                string firstKey = (string)first.StructuralKey;
+                if (firstKey != _firstBefore || UnityEngine.Time.realtimeSinceStartup - _enterOptionsAt > 0.4f)
+                {
+                    _enterOptionsAt = -1;
+                    GraphNavigator.Suggest(first);
+                }
+                else if (UnityEngine.Time.realtimeSinceStartup - _enterOptionsAt > 2f) _enterOptionsAt = -1;
+            }
+            _lastFirstRow = rows.Count > 0 ? (string)RowId(rows[0]).StructuralKey : null;
+        }
+
+        // This render's category controls (by path) and the keys of the options stop (rows and buttons).
+        private readonly Dictionary<string, AControl> _categoryIds = new Dictionary<string, AControl>();
+        private readonly HashSet<string> _optionKeys = new HashSet<string>();
+
+        // A pending move into a category's options: when Enter asked for it (-1: none) and the first row then.
+        private static float _enterOptionsAt = -1;
+        private static string _firstBefore, _lastFirstRow;
+
+        private bool InOptions()
+        {
+            var key = GraphNavigator.CurrentNode?.Id.StructuralKey as string;
+            return key != null && _optionKeys.Contains(key);
+        }
+
+        // Escape / Backspace in the options: back up to the open category.
+        private void BackToCategories()
+        {
+            AControl target = null;
+            foreach (var kv in _categoryIds)
+                if (kv.Key == _opened || kv.Value.TryCast<ToggleButtonControl>()?.IsToggled == true) { target = kv.Value; if (kv.Key == _opened) break; }
+            if (target == null) foreach (var kv in _categoryIds) { target = kv.Value; break; }
+            if (target == null || !GraphNavigator.FocusNode(CrimsonNodes.Id(target))) Speech.Say("Categories", true);
+        }
+
+        private List<ScreenKey> _optionKeysList;
+
+        /// <summary>In the options, Escape and Backspace go back to the categories (claimed from the game); on the
+        /// categories Escape stays the game's Back. Read each frame, so the claim follows the cursor.</summary>
+        public override IReadOnlyList<ScreenKey> ExtraKeys
+        {
+            get
+            {
+                if (!InOptions()) return System.Array.Empty<ScreenKey>();
+                return _optionKeysList ??= new List<ScreenKey>
+                {
+                    new ScreenKey { Key = UnityEngine.KeyCode.Escape, Run = BackToCategories, Hint = "Escape or Backspace, back to the categories" },
+                    new ScreenKey { Key = UnityEngine.KeyCode.Backspace, Run = BackToCategories, Hint = null },
+                };
             }
         }
 
@@ -101,18 +154,42 @@ namespace GwentAccess.Ui
             return rows;
         }
 
+        // The category last opened with Enter, by path: the cursor click opens a category without setting its
+        // toggle (the toggles then all read off), so the open one is known from the click instead.
+        private static string _opened;
+
         // A category button: its name, and "selected" on the open one.
-        private static NodeVtable Category(AControl c)
+        private static NodeVtable Category(AControl c, List<AControl> all)
         {
             var v = CrimsonNodes.Button(c);
             var toggle = c.TryCast<ToggleButtonControl>();
             if (toggle == null) return v;
+            string key = CrimsonNodes.PathKey(c.transform, null);
+            var click = v.OnActivate;
+            v.OnActivate = () =>
+            {
+                _opened = key;
+                _firstBefore = _lastFirstRow;
+                _enterOptionsAt = UnityEngine.Time.realtimeSinceStartup;
+                click?.Invoke();
+            };
             v.Announcements = new[]
             {
                 v.Announcements[0],
-                new NodeAnnouncement(() => toggle.IsToggled ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                new NodeAnnouncement(() => Selected(toggle, key, all) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
             };
             return v;
+        }
+
+        private static bool Selected(ToggleButtonControl toggle, string key, List<AControl> all)
+        {
+            try
+            {
+                if (toggle.IsToggled) return true;
+                foreach (var c in all) if (c.TryCast<ToggleButtonControl>()?.IsToggled == true) return false;
+            }
+            catch { }
+            return key == _opened;
         }
 
         // A row is keyed by its switcher's path (the game selects the switcher's main button or an arrow inside

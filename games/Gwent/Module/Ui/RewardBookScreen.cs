@@ -146,16 +146,7 @@ namespace GwentAccess.Ui
 
             // Whatever else the window offers (zoom, the glyph-key buttons), in the game's order.
             foreach (var c in CrimsonNodes.Leaves(p)) if (used.Add(c.Pointer)) rest.Add(c);
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (used.Add(c.Pointer)) rest.Add(c);
-                }
-            }
+            rest.AddRange(CrimsonNodes.BarButtons(p, used));
             if (rest.Count > 0)
             {
                 b.BeginStop("buttons");
@@ -420,7 +411,17 @@ namespace GwentAccess.Ui
 
         // A tab is an icon; the tab model's entry at the same index names the icon. The game has names for the
         // seasons and the toad year; the other themes are named in English.
+        // Two tabs can carry the same icon (the base set's, on a base and an event background): the later one
+        // says it is the second, as a sighted player tells them apart by place.
         private static string TabName(UIRewardSystemPanel p, int index)
+        {
+            string name = IconName(p, index);
+            int same = 1;
+            for (int i = 0; i < index; i++) if (IconName(p, i) == name) same++;
+            return same > 1 ? name + ", " + same : name;
+        }
+
+        private static string IconName(UIRewardSystemPanel p, int index)
         {
             string icon = null;
             try
