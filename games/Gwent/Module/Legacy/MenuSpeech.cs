@@ -43,7 +43,7 @@ namespace GwentAccess
                 }
                 _lastControl = value.Pointer;
                 Current = value;
-                if (Ui.GraphNavigator.Owns || Ui.ScreenManager.AnyActive()) return; // a graph screen speaks this UI
+                if (Ui.GraphNavigator.Owns || Ui.ScreenManager.AnyActive() || Ui.MainMenuScreen.Quiet) return; // a graph screen speaks this UI (or the menu is only passed through)
                 if (value.Pointer == _suppress) { _suppress = IntPtr.Zero; return; }
 
                 if (value.gameObject.name.StartsWith("ShutterView")) { _newView = true; return; }

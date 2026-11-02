@@ -70,8 +70,8 @@ Shift+F7         Repeat the last popup, tutorial or screen message. Press again
                  (within 5 seconds) to hear older ones, up to 15 back.
 F9               Read the current screen.
 F6               The game's own key hints for this screen.
-F8               Accessibility on/off ("Accessibility off" / "on"), so a sighted
-                 helper can play: off, the mod is silent and gives the game every key.
+F8               Accessibility on/off ("Accessibility off" / "on"): off, the mod is
+                 silent and gives the game every key.
 F5               Switch controller mode by hand. The mod already switches it on
                  when a controller is connected and off when there is none.
 Shift+F1         Full card details on the screens that still use the older keys.
@@ -83,7 +83,8 @@ MENUS
 - Popups are read with their choices and keys. In popups, Enter is always Accept and
   Escape is always Cancel, no matter which choice is highlighted.
 - Main menu: one list. Up/Down go through the game modes, your deck, the menu bar
-  (quests, options, quit) and your profile. Left/Right change the game mode, or the
+  (quests, options, quit) and your profile; Tab / Shift+Tab jump to the next / previous
+  part. Left/Right change the game mode, or the
   deck when you are on it. A letter jumps to the next item starting with it, and opens
   it when it is the only one (Quit is only ever reached, never opened, this way).
 - Settings: Up/Down go through the categories. Enter opens one and takes you to its

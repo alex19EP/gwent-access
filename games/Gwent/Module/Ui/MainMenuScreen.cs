@@ -10,9 +10,9 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// The main menu: the play-mode cards, the deck chosen for them, the menu bar (rewards, settings, quit…),
-    /// the profile and currency bar, notifications and the social panel — one list in that order, each part
-    /// spoken as context on entry (Hearthstone Access's single menu list). The modes are one row (Left/Right
-    /// change the mode), Left/Right on the deck button change the deck, Tab moves like Down, and a letter jumps
+    /// the profile and currency bar, notifications and the social panel — one Tab stop each, Up/Down within
+    /// a part. The modes are one row (Left/Right
+    /// change the mode), Left/Right on the deck button change the deck, Tab moves between the parts, and a letter jumps
     /// to an item (opening it when it is the only one with that letter).
     ///
     /// Built from the controls the Base input layer has attached, so whatever the game shows (the top-level
@@ -90,8 +90,6 @@ namespace GwentAccess.Ui
                 if (_keys != null) return _keys;
                 _keys = new List<ScreenKey>
                 {
-                    new ScreenKey { Key = KeyCode.Tab, Run = () => GraphNavigator.Step(GraphDir.Down), Hint = "Tab, next item, as Down" },
-                    new ScreenKey { Key = KeyCode.Tab, Shift = true, Run = () => GraphNavigator.Step(GraphDir.Up), Hint = "Shift Tab, previous item, as Up" },
                 };
                 bool first = true;
                 for (var k = KeyCode.A; k <= KeyCode.Z; k++)
@@ -145,11 +143,17 @@ namespace GwentAccess.Ui
             if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base || ContentPanel(layer) == null)
             {
                 _shownSince = -1;
+                Quiet = false;
                 return false;
             }
             if (_shownSince < 0) _shownSince = UnityEngine.Time.realtimeSinceStartup;
-            return !PassingThrough();
+            Quiet = PassingThrough();
+            return !Quiet;
         }
+
+        /// <summary>The menu is up but only being passed through (see <see cref="PassingThrough"/>): the older
+        /// selection narrator stays quiet too, or it reads the menu as it loads ("Top bar. blindndanger…").</summary>
+        public static bool Quiet { get; private set; }
 
         // When the menu first showed this time; -1 while it isn't up.
         private float _shownSince = -1;
@@ -198,6 +202,12 @@ namespace GwentAccess.Ui
             return null;
         }
 
+        // When the menu last came up: for a moment the game's own selection isn't followed, so the cursor starts at
+        // the top (see GameSelection).
+        private float _focusedAt = -1;
+
+        public override void OnFocus() => _focusedAt = UnityEngine.Time.realtimeSinceStartup;
+
         public override void OnPop()
         {
             _listOpen = null;
@@ -237,33 +247,41 @@ namespace GwentAccess.Ui
             // silently instead of falling to a neighbour (spec §9: no content yet).
             if (!TrackSelector(selector, byStop, active)) return;
 
-            // One list, top to bottom (Hearthstone Access's main menu, Accessible Arena's): Up/Down walk every
-            // part of the menu; the parts are spoken as context on entering them, not separate Tab stops.
-            b.BeginStop("main-menu");
+            // One Tab stop per part of the menu (the player's choice): Tab / Shift+Tab move between the parts, Up/Down
+            // between the items of the part you are in. The game modes and the play stack's mode cards also move
+            // with Left/Right, as they lie side by side.
+            ControlId first = null;
             for (int r = 0; r < byStop.Length; r++)
             {
                 if (byStop[r] == null) continue;
                 bool known = r < Regions.Length;
+                b.BeginStop(known ? Regions[r].Stop : "other");
                 string context = r == DeckListRegion
                     ? GameText.Get(DeckSelector.SELECT_DECK_TEXT_LOCALIZATION_KEY, "Change deck")
                     : r == FriendRegion ? GameText.Get("friend_match_setup_title", "Friend match setup")
                     : known ? Regions[r].Context : null;
                 if (context != null) b.PushContext(context);
                 if (r == ProfileRegion && overlay != null) AddProfile(b, overlay);
-                if (known && Regions[r].Stop == "modes" && byStop[r].Count > 1)
-                {
-                    // The game modes lie side by side, as the game draws them: Left/Right change the mode (the
-                    // game's selection follows the cursor), Up/Down leave the row.
-                    b.StartRow("modes");
-                    foreach (var c in byStop[r]) b.AddItem(CrimsonNodes.Id(c), Vtable(c, activeDeck));
-                    b.EndRow();
-                }
-                else AddControls(b, byStop[r], activeDeck);
+                bool sideBySide = known && (Regions[r].Stop == "modes" || Regions[r].Stop == "cards");
+                var ids = new List<ControlId>();
+                foreach (var c in byStop[r]) ids.Add(CrimsonNodes.Id(c));
+                first ??= ids.Count > 0 ? ids[0] : null;
+                AddControls(b, byStop[r], activeDeck);
+                if (sideBySide)
+                    for (int i = 1; i < ids.Count; i++)
+                    {
+                        b.Connect(ids[i - 1], GraphDir.Right, ids[i]);
+                        b.Connect(ids[i], GraphDir.Left, ids[i - 1]);
+                    }
                 if (context != null) b.PopContext();
             }
 
+            b.BeginStop("notes");
             AddNotes(b, byStop[System.Array.FindIndex(Regions, x => x.Stop == "notifications")]);
 
+            // Opening the menu starts at the top (the first game mode), not wherever the game's selection was left
+            // (the shop button, at the bottom).
+            if (first != null) b.SetStart(first);
             if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
         }
 
@@ -436,6 +454,7 @@ namespace GwentAccess.Ui
         /// (to the guides button on open; to the shop, then the mode card, after a pick).</summary>
         public override AControl GameSelection()
         {
+            if (_steer == null && UnityEngine.Time.realtimeSinceStartup - _focusedAt < 1.5f) return null;
             var real = base.GameSelection();
             if (_steer == null) return real;
             if (real == null || real.Pointer != _steer.Pointer) _steer.ParentLayer?.RequestControlSelection(_steer);
@@ -538,6 +557,10 @@ namespace GwentAccess.Ui
         {
             if (c.TryCast<SocialButton>() is SocialButton social) return SocialToggle(c, social);
             if (CardOf(c) is UIMainMenuCardItem card) return CardVtable(c, card);
+            // The carousel's PLAY slot is a stack of mode cards whose clickable "Root" holds them all; it reads as
+            // the slot's own title ("PLAY", from its loc key), not the first nested card's ("Draft").
+            if (c.gameObject.name == "Root" && c.transform.parent != null && KeyTitleOf(c.transform.parent.name) is string slot)
+                return CrimsonNodes.Button(c, () => slot);
             if (!IsDeckButton(c)) return CrimsonNodes.Button(c);
             var v = CrimsonNodes.Button(c, () => DeckLabel(c));
             bool inList = RegionOf(c) == DeckListRegion;
@@ -637,11 +660,13 @@ namespace GwentAccess.Ui
         // A card whose title isn't drawn yet (the menu still building, or a locked card's stand-in up) is named
         // from its object, "Item(mainmenu_practice_title)": the game's own string for that key. The stand-in's
         // own name ("Look Disabled Highlight Control") was spoken otherwise.
-        private static string KeyTitle(UIMainMenuCardItem card)
+        private static string KeyTitle(UIMainMenuCardItem card) => KeyTitleOf(card.gameObject.name);
+
+        // "Item(mainmenu_multiplayer_window)" → the game's string for that key, or null.
+        private static string KeyTitleOf(string n)
         {
             try
             {
-                string n = card.gameObject.name;
                 int open = n.IndexOf('('), close = n.LastIndexOf(')');
                 if (open < 0 || close <= open + 1) return null;
                 string key = n.Substring(open + 1, close - open - 1);
@@ -659,6 +684,7 @@ namespace GwentAccess.Ui
             {
                 var parts = new List<string>();
                 foreach (var d in card.GetComponentsInChildren<UIPlayMenuCardDescription>(false))
+                    if (!InNestedCard(d.transform, card))
                     foreach (var t in CrimsonNodes.Texts(d)) { var line = Narrator.Sentence(t); if (!parts.Contains(line)) parts.Add(line); }
                 return parts.Count > 0 ? string.Join(" ", parts) : null;
             }
@@ -682,11 +708,20 @@ namespace GwentAccess.Ui
             foreach (var t in card.GetComponentsInChildren<TMPro.TMP_Text>(false))
             {
                 if (t.GetComponentInParent<UIPlayMenuCardDescription>() != null) continue;
+                if (InNestedCard(t.transform, card)) continue; // the play stack's own cards ("Draft", "Training")
                 string s = UiText.Clean(t.text);
                 if (s.Length == 0 || UiText.IsPlaceholder(s)) continue;
                 if (t.GetComponentInParent<TimerCountdownRenderer>() != null) timer.Add(s);
                 else title ??= s;
             }
+        }
+
+        // A text belonging to a card nested inside this one (the PLAY card's stack of mode cards).
+        private static bool InNestedCard(Transform t, UIMainMenuCardItem card)
+        {
+            for (var p = t.parent; p != null && p.Pointer != card.transform.Pointer; p = p.parent)
+                if (p.GetComponent<UIMainMenuCardItem>() != null) return true;
+            return false;
         }
 
         // Why a disabled card is locked, or null: the game has no reason for some kinds of card.

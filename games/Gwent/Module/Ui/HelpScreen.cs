@@ -100,7 +100,7 @@ namespace GwentAccess.Ui
             Line(b, ref n, "F6, the game's own key hints for this screen");
             Line(b, ref n, "F5, switch controller mode by hand. It follows your controller on its own");
             Line(b, ref n, "Shift F1, card details on the older screens");
-            Line(b, ref n, "F8, accessibility on or off, so a sighted helper can play. Off, Gwent Access is silent and gives the game every key back");
+            Line(b, ref n, "F8, accessibility on or off. Off, Gwent Access is silent and gives the game every key back");
 #if DEBUG
             Line(b, ref n, "F11, development builds: load a newer build of the mod without restarting");
 #endif
