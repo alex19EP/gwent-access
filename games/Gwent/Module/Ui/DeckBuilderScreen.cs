@@ -91,7 +91,19 @@ namespace GwentAccess.Ui
                 if (dropdown != null && dropdown.MainButton?.Pointer != c.Pointer && !ListShown(dropdown)) continue;
                 // A deck reads all its words: its name and its leader ability ("Стартовая колода Чудовищ, Белый Хлад").
                 var control = c;
-                b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => AllTexts(control)));
+                var v = CrimsonNodes.Button(c, () => AllTexts(control));
+                // A deck's options (rename, duplicate, delete...) unfold on a right click: Backspace.
+                if (dropdown != null && dropdown.MainButton?.Pointer == c.Pointer)
+                {
+                    var bc = c.TryCast<ButtonControl>();
+                    var d = dropdown;
+                    v.OnSecondary = () => Navigator.MouseClick(bc, right: true);
+                    v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+                    {
+                        new NodeAnnouncement(() => ListShown(d) ? "options shown" : null, live: true, kind: AnnouncementKinds.Value),
+                    };
+                }
+                b.AddItem(CrimsonNodes.Id(c), v);
             }
         }
 

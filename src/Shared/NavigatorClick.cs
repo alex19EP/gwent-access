@@ -83,13 +83,17 @@ namespace GwentAccess
         /// <summary>A left click the way the mouse makes one: ButtonDown, ButtonUp, then the Click the layer sends
         /// for a release over the pressed control. Press sounds, click handlers, a bar button's callback and the
         /// UX interaction event all run. False when the button is gone or the game threw.</summary>
-        public static bool MouseClick(ButtonControl c)
+        public static bool MouseClick(ButtonControl c) => MouseClick(c, false);
+
+        /// <summary>The cursor path with either mouse button: the right one opens a deck's options.</summary>
+        public static bool MouseClick(ButtonControl c, bool right)
         {
             if (c == null || !c.gameObject.activeInHierarchy) return false;
             try
             {
+                var button = right ? CursorInputEventArgs.EMouseButton.Right : CursorInputEventArgs.EMouseButton.Left;
                 foreach (var state in new[] { CursorButtonEventArgs.EState.ButtonDown, CursorButtonEventArgs.EState.ButtonUp, CursorButtonEventArgs.EState.Click })
-                    c.HandleCursorButtonEvent(new CursorButtonEventArgs(c.ParentLayer, CursorInputEventArgs.EMouseButton.Left, UnityEngine.Camera.main,
+                    c.HandleCursorButtonEvent(new CursorButtonEventArgs(c.ParentLayer, button, UnityEngine.Camera.main,
                         state, c, c, new Il2CppSystem.Collections.Generic.List<CrimsonUI.EventSystems.RaycastResult>()));
                 return true;
             }

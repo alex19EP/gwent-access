@@ -152,20 +152,21 @@ Main menu: Tab to the game modes or menu bar, then DECK BUILDER, Enter.
 Tab / Shift+Tab move between the sections: your decks (or, while editing, the deck you
 are editing), the card collection, the filters, the side filters and the buttons.
 
-On your deck list: Enter opens a deck. A deck's options (edit, rename, duplicate,
-delete...) follow it while the game shows them. Starter decks can't be edited;
-duplicate one and edit the copy.
+On your deck list: Enter opens a deck. Backspace shows its options (rename, change
+ability, share, duplicate, delete), which follow it in the list ("options shown").
+Starter decks can't be edited; duplicate one and edit the copy.
 
 While editing a deck:
-- The deck section comes first: the totals the game checks (cards of 25, units of 13,
-  provisions used of the limit), then the leader ability, the stratagem and each card
-  ("Geralt of Rivia, power 3, 10 provisions", "x2" for two copies). Enter is the
-  game's own click on the row.
-- In the collection, Enter is the game's click on the card (it adds it to the deck you
-  are editing). Backspace opens the card's preview (the game's right click); Escape
+- The deck section comes first: the totals the game checks ("25 cards, minimum 25;
+  22 units, minimum 13; provisions 130 of 165"), then the leader ability, the
+  stratagem and each card ("Geralt of Rivia, power 3, 10 provisions", "x2" for two
+  copies). Enter on a card takes it out ("Removed Geralt of Rivia", then the totals).
+- In the collection, Enter adds the card to the deck you are editing ("Added Geralt of
+  Rivia, 1 in deck", then the totals). Backspace opens the card's preview (the game's right click); Escape
   closes it. Page Up / Page Down move a row of the grid.
 - Ctrl+F    Search cards. Type part of a card name.
-- Exit (in the buttons section) leaves the editor; the game asks whether to save.
+- The buttons section has the game's Exit (it asks whether to save) and Exit without
+  saving.
 
 Provisions are the deck-building budget: 150 plus your leader ability's bonus.
 Every card costs provisions; stronger cards cost more.

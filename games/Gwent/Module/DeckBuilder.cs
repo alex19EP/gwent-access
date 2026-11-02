@@ -68,7 +68,8 @@ namespace GwentAccess
                 var v = d.GetValidation();
                 int maxProv = 150;
                 try { var l = d.LeaderAbilityCard; if (l != null) maxProv += l.Template.Provision; } catch { }
-                return v.TotalCardCount + " of 25 cards, " + v.UnitCardCount + " of 13 units, provisions " + v.ProvisionUsed + " of " + maxProv + " used";
+                // 25 and 13 are minimums, not totals: "22 of 13 units" read as an error.
+                return v.TotalCardCount + " cards, minimum 25; " + v.UnitCardCount + " units, minimum 13; provisions " + v.ProvisionUsed + " of " + maxProv;
             }
             catch (Exception e) { Plugin.LogInfo("Deck stats failed: " + e.Message); }
             try { return d.GetTotalCardCount(false, false) + " cards"; } catch { return ""; }
