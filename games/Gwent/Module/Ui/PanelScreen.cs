@@ -26,7 +26,7 @@ namespace GwentAccess.Ui
         private static readonly Dictionary<string, (string Key, string Fallback)> Titles = new Dictionary<string, (string, string)>
         {
             ["UIEP_5_2_Prefab(Clone)"] = ("EP_5_2_title", "Journey"),
-            ["UIWelcomeScreenPanel(Clone)"] = ("welcome_screen_title", "What's new!"),
+            ["UIWelcomeScreenPanel(Clone)"] = ("mainmenu_welcomescreen_button_tooltip", "What's new!"),
             ["UIMainMenuLeaderboardPrefab(Clone)"] = ("leaderboards_title", "Leaderboards"),
             ["UIDraftPanel(Clone)"] = ("arenav2_mainmenu_title", "Draft"),
         };

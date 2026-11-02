@@ -101,6 +101,36 @@ namespace GwentAccess.Ui
 #endif
         }
 
+#if GWENT
+        /// <summary>
+        /// Scroll a virtual list (<see cref="AVirtualScrollRect"/>, <see cref="AInfiniteVirtualScrollRect"/>) so
+        /// its item at <paramref name="index"/> is drawn, as a gamepad player's selection scrolls it: a long
+        /// list (Journey's 100 steps, the cycle's levels) only draws the items in view. ScrollToIndex takes the
+        /// tween's easing, a DOTween type the mod has no reference to, and the game throws on a missing one, so
+        /// the call is made by reflection.
+        /// </summary>
+        public static void ScrollTo(Il2CppInterop.Runtime.InteropTypes.Il2CppObjectBase list, int index)
+        {
+            if (list == null) return;
+            try
+            {
+                var type = list.GetType();
+                if (!_scrolls.TryGetValue(type, out var call))
+                {
+                    var m = type.GetMethod("ScrollToIndex");
+                    var nullable = m.GetParameters()[3].ParameterType; // Il2CppSystem.Nullable<Ease>
+                    var ease = Activator.CreateInstance(nullable, Enum.Parse(nullable.GetGenericArguments()[0], "OutQuad"));
+                    _scrolls[type] = call = (m, ease);
+                }
+                call.Method.Invoke(list, new object[] { index, true, false, call.Ease });
+            }
+            catch (Exception e) { Plugin.LogInfo("[scroll] " + (e.InnerException ?? e).Message); }
+        }
+
+        private static readonly Dictionary<Type, (System.Reflection.MethodInfo Method, object Ease)> _scrolls =
+            new Dictionary<Type, (System.Reflection.MethodInfo, object)>();
+#endif
+
         /// <summary>The node id for a control: its full scene path (<see cref="PathKey"/>), backed by the control.</summary>
         public static ControlId Id(AControl c) => ControlId.Referenced(c, PathKey(c.transform, null));
 

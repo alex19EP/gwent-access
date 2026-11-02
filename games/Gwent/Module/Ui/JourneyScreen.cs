@@ -220,7 +220,7 @@ namespace GwentAccess.Ui
                 var list = Content()?.m_Steps?.StepList;
                 var data = list?.StepsData;
                 for (int i = 0; data?.Steps != null && i < data.Steps.Count; i++)
-                    if (data.Steps[i]?.StepNumber == number) { list.ScrollList.ScrollToElement(data.Steps[i].Cast<IVirtualContentData>(), true, false); break; }
+                    if (data.Steps[i]?.StepNumber == number) { CrimsonNodes.ScrollTo(list.ScrollList, i); break; }
             }
             catch (Exception e) { Plugin.LogInfo("[journey] scroll failed: " + e.Message); }
         }

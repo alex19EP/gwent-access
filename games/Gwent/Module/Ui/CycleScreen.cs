@@ -154,29 +154,7 @@ namespace GwentAccess.Ui
         {
             if (node?.Id.Reference is AControl) { base.OnCursorMoved(node); return; }
             if (!LevelIndex(node, out int index)) return;
-            var list = Panel()?.m_LevelList?.m_InfiniteScrollList;
-            if (list != null) ScrollTo(list, index);
-        }
-
-        // ScrollToIndex takes the tween's easing, a DOTween type the mod has no reference to (and the game
-        // throws on a missing one): made by reflection once.
-        private static System.Reflection.MethodInfo _scroll;
-        private static object _ease;
-
-        private static void ScrollTo(AInfiniteVirtualScrollRect list, int index)
-        {
-            try
-            {
-                if (_scroll == null)
-                {
-                    _scroll = typeof(AInfiniteVirtualScrollRect).GetMethod("ScrollToIndex");
-                    var nullable = _scroll.GetParameters()[3].ParameterType; // Il2CppSystem.Nullable<Ease>
-                    var ease = nullable.GetGenericArguments()[0];
-                    _ease = Activator.CreateInstance(nullable, Enum.Parse(ease, "OutQuad"));
-                }
-                _scroll.Invoke(list, new object[] { index, true, false, _ease });
-            }
-            catch (Exception e) { Plugin.LogInfo("[cycle] scroll failed: " + (e.InnerException ?? e).Message); }
+            CrimsonNodes.ScrollTo(Panel()?.m_LevelList?.m_InfiniteScrollList, index);
         }
 
         private static bool LevelIndex(GraphNode node, out int index)
@@ -194,7 +172,13 @@ namespace GwentAccess.Ui
                 var d = view.GetContent()?.TryCast<UIOuroborosLevelListItemViewData>();
                 if (d == null || d.Level != index + 1) continue;
                 var button = view.m_StandardReward?.m_ButtonControl;
-                if (button != null && Navigator.MouseClick(button)) return;
+                if (button != null && Navigator.MouseClick(button))
+                {
+                    // Clicking a locked or claimed level changes nothing on screen: say what it is.
+                    if (LevelState(p.m_ViewData?.LevelListData?.Value, index) is string state)
+                        Speech.Say(char.ToUpperInvariant(state[0]) + state.Substring(1) + ".", true);
+                    return;
+                }
             }
             Speech.Say("Not available right now.", true);
         }

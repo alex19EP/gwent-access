@@ -61,10 +61,11 @@ namespace GwentAccess.Ui
         private static bool _friendSetup;
         private static readonly int ProfileRegion = System.Array.FindIndex(Regions, r => r.Stop == "profile");
 
-        // Skipped subtree: a play card's scrollable description, selectable only so a gamepad can scroll it —
-        // Space on the card reads that text. (The friend-match staging is skipped too, unless a friend match is
-        // being set up: see RegionOf.)
-        private static readonly HashSet<string> Hidden = new HashSet<string> { "DescriptionPanelRoot" };
+        // Skipped subtrees: a play card's scrollable description, selectable only so a gamepad can scroll it
+        // (Space on the card reads that text), and the social window (Friends, Quests), which has screens of
+        // its own: while it opens, the menu read its search box as "Social, textsearch". The friend-match
+        // staging is skipped too, unless a friend match is being set up: see RegionOf.
+        private static readonly HashSet<string> Hidden = new HashSet<string> { "DescriptionPanelRoot", "SocialWindow" };
 
         // How long a landing the screen chose holds the game's selection against the game's own moves.
         private const float SteerSeconds = 1.5f;
@@ -601,7 +602,13 @@ namespace GwentAccess.Ui
 
         public override bool QuietLanding(GraphNode node) =>
             _backAt > 0
-            || _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f && _stopsAtActivation.Contains(node.StopKey);
+            || _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f && _stopsAtActivation.Contains(node.StopKey)
+            // PLAY opens the mode stack and the deck together, and the game's selection passes through the deck
+            // ("Deck, NEW DECK", then its name) before settling on the modes: only the modes are news.
+            || _activatedFrom == "cards" && Equals(node.StopKey, "deck") && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 1.5f;
+
+        // The stop of the item Enter was pressed on.
+        private static object _activatedFrom;
 
         // Backspace out of PLAY: the menu rebuilds in two steps (the play stack's cards, then the top cards), and
         // the cursor's landing on the first was read ("Autumn Cycle, 1 of 4"). Landings are held until it settles,
@@ -628,6 +635,7 @@ namespace GwentAccess.Ui
         private static void NoteActivation()
         {
             _activatedAt = UnityEngine.Time.realtimeSinceStartup;
+            _activatedFrom = GraphNavigator.CurrentNode?.StopKey;
             _stopsAtActivation.Clear();
             try { foreach (var n in GraphNavigator.Nodes()) if (n.StopKey != null) _stopsAtActivation.Add(n.StopKey); } catch { }
         }
