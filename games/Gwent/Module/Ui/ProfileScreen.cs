@@ -165,12 +165,35 @@ namespace GwentAccess.Ui
             foreach (var g in groups)
             {
                 b.BeginStop("group:" + CrimsonNodes.PathKey(g.Group, view.transform));
+                string heading = GroupHeading(g.Group, view.transform);
+                if (heading != null) b.PushContext(heading);
                 foreach (var c in g.Controls) b.AddItem(CrimsonNodes.Id(c), Toggle(c));
+                if (heading != null) b.PopContext();
             }
 
             AddOverview(b, view, groups.Count == 0);
 
             foreach (var list in view.GetComponentsInChildren<UINewAchievementList>(false)) AddContracts(b, list, view);
+        }
+
+        /// <summary>The heading drawn over a group ("Showcase Contracts" over the showcased contracts): the nearest
+        /// ancestor below the view with a shown text child named Label, Title or Header that is no control's
+        /// caption. Null when there is none.</summary>
+        private static string GroupHeading(Transform group, Transform view)
+        {
+            for (var t = group; t != null && t.Pointer != view.Pointer; t = t.parent)
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    var child = t.GetChild(i);
+                    if (child.name != "Label" && child.name != "Title" && child.name != "Header") continue;
+                    var text = child.GetComponent<TMPro.TMP_Text>();
+                    if (!Shown(text)) continue;
+                    var owner = child.GetComponentInParent<AControl>(); // a caption belongs to a control below t
+                    if (owner != null && owner.transform.Pointer != t.Pointer && owner.transform.IsChildOf(t)) continue;
+                    string s = UiText.Clean(text.text);
+                    if (s.Length > 0) return s;
+                }
+            return null;
         }
 
         /// <summary>The nearest row or column (a layout container) a control sits in below the view.</summary>
@@ -524,7 +547,13 @@ namespace GwentAccess.Ui
         private static string Describe(AControl c)
         {
             var own = CrimsonNodes.Texts(c);
-            if (own.Count > 0) return Joined(own);
+            if (own.Count > 0)
+            {
+                // Only a number (the cycle level's "1"): named as the tooltip names it, as for an icon.
+                if (own.TrueForAll(IsCount) && (CrimsonNodes.TooltipText(c) ?? StatName(c)) is string name)
+                    own.Insert(0, name);
+                return Joined(own);
+            }
             if (FactionRow(c) is string row) return row;
             string tip = CrimsonNodes.TooltipText(c) ?? StatName(c);
             var around = new List<string>();
@@ -551,8 +580,9 @@ namespace GwentAccess.Ui
         // the season's cycle ("Уровень осеннего цикла"), drawn by its shield picture.
         private static string StatName(AControl c)
         {
-            var stat = c.GetComponentInParent<UIPlayerStat>();
-            if (stat == null || stat.gameObject.name != "Ouroboros") return null;
+            Transform stat = c.transform;
+            while (stat != null && stat.name != "Ouroboros") stat = stat.parent;
+            if (stat == null) return null;
             string season = MainMenuScreen.CycleSeason(stat);
             if (season == null)
                 try
@@ -561,7 +591,9 @@ namespace GwentAccess.Ui
                     if (badge != null) season = MainMenuScreen.CycleSeason(badge);
                 }
                 catch { }
-            return season == null ? null : GameText.Get("interface_profile_ouroboros_level_" + season, null);
+            season ??= MainMenuScreen.LastCycleSeason;
+            return season == null ? GameText.Get("interface_profile_ouroboros_level", "Season cycle level")
+                : GameText.Get("interface_profile_ouroboros_level_" + season, "Season cycle level");
         }
 
         /// <summary>A faction row of the summary's stats: the faction (its icon's tooltip), then each number

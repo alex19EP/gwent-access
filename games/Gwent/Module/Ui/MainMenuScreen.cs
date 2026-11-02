@@ -393,10 +393,14 @@ namespace GwentAccess.Ui
             {
                 string sprite = img.sprite?.name ?? "";
                 foreach (var season in new[] { "winter", "spring", "summer", "autumn" })
-                    if (sprite.Contains(season)) return season;
+                    if (sprite.Contains(season)) return LastCycleSeason = season;
             }
             return null;
         }
+
+        /// <summary>The season the menu's cycle badge last showed, for screens whose own badge has no season
+        /// picture while the menu's is hidden (the profile banner).</summary>
+        internal static string LastCycleSeason;
 
         // ---- the deck selector ----
 
