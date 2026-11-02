@@ -605,7 +605,7 @@ namespace GwentAccess.Ui
             || _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f && _stopsAtActivation.Contains(node.StopKey)
             // PLAY opens the mode stack and the deck together, and the game's selection passes through the deck
             // ("Deck, NEW DECK", then its name) before settling on the modes: only the modes are news.
-            || _activatedFrom == "cards" && Equals(node.StopKey, "deck") && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 1.5f;
+            || Equals(_activatedFrom, "cards") && Equals(node.StopKey, "deck") && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 1.5f;
 
         // The stop of the item Enter was pressed on.
         private static object _activatedFrom;
