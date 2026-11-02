@@ -52,6 +52,55 @@ namespace GwentAccess.Ui
             catch { return false; }
         }
 
+        /// <summary>
+        /// The buttons of the shown button bars (<see cref="InputButtonContainer"/>) under <paramref name="root"/>,
+        /// in bar order. The game never makes them selectable (it reaches them by glyph key), so
+        /// <see cref="Leaves"/> misses them; clicking goes through the bar's own callback. A bar also draws an icon
+        /// twin of a captioned button (the shop's Exit beside a "Back" arrow, each Journey toggle twice) and spare
+        /// empty slots: only the buttons the bar registers are its own, or where it registers none, the captioned
+        /// ones. <paramref name="used"/> keeps a button already offered elsewhere out; <paramref name="skip"/>
+        /// leaves out a bar another part of the screen reads.
+        /// </summary>
+        public static List<AControl> BarButtons(Component root, HashSet<IntPtr> used = null, Func<InputButtonContainer, bool> skip = null)
+            => root == null ? new List<AControl>() : BarButtons(root.GetComponentsInChildren<InputButtonContainer>(false), used, skip);
+
+        public static List<AControl> BarButtons(IEnumerable<InputButtonContainer> bars, HashSet<IntPtr> used = null, Func<InputButtonContainer, bool> skip = null)
+        {
+            var list = new List<AControl>();
+            used ??= new HashSet<IntPtr>();
+            foreach (var bar in bars)
+            {
+                if (bar == null || !bar.gameObject.activeInHierarchy || (skip != null && skip(bar))) continue;
+                var registered = Registered(bar);
+                var children = bar.GetChildren();
+                for (int i = 0; children != null && i < children.Count; i++)
+                {
+                    var c = children[i];
+                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
+                    if (registered != null ? !registered.Contains(c.Pointer) : Texts(c).Count == 0) continue;
+                    if (used.Add(c.Pointer)) list.Add(c);
+                }
+            }
+            return list;
+        }
+
+        private static HashSet<IntPtr> Registered(InputButtonContainer bar)
+        {
+#if GWENT
+            try
+            {
+                var map = bar.m_Buttons;
+                if (map == null || map.Count == 0) return null;
+                var set = new HashSet<IntPtr>();
+                foreach (var kv in map) if (kv.Key != null) set.Add(kv.Key.Pointer);
+                return set;
+            }
+            catch { return null; }
+#else
+            return null; // Thronebreaker's older bar: no registry to read
+#endif
+        }
+
         /// <summary>The node id for a control: its full scene path (<see cref="PathKey"/>), backed by the control.</summary>
         public static ControlId Id(AControl c) => ControlId.Referenced(c, PathKey(c.transform, null));
 

@@ -116,18 +116,7 @@ namespace GwentAccess.Ui
             // The panel's glyph buttons (finish swapping, hide cards): never selectable in the game, offered
             // here and clicked through their own callbacks, as in the settings window. The icon-only twins
             // (a checkmark, an eye) repeat the labelled ones and are left out.
-            var buttons = new List<AControl>();
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
-                }
-            }
+            var buttons = CrimsonNodes.BarButtons(panel);
             if (buttons.Count > 0)
             {
                 b.BeginStop("buttons");

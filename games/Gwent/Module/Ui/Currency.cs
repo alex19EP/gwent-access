@@ -16,6 +16,7 @@ namespace GwentAccess.Ui
         public static string Powder() => Name(o => o.m_PowderButton);
         public static string Ore() => Name(o => o.m_GoldButton);
         public static string RewardPoints() => Name(o => o.m_RewardButton);
+        public static string Kegs() => Name(o => o.m_KegsButton);
 
         /// <summary>The running event's currency ("Капли крови"): each event has its own translation key, but
         /// the counter's tooltip already carries the current one's name.</summary>

@@ -116,17 +116,7 @@ namespace GwentAccess.Ui
             // A bare key-glyph label (Label_BasicGlyph) can be selectable with nothing to say: it read as its
             // object name, "Label Basic Glyph".
             var buttons = CrimsonNodes.Leaves(p, used).Where(c => c.TryCast<GlyphLabelControl>() == null || CrimsonNodes.Texts(c).Count > 0).ToList();
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;  // an empty spare slot in the bar
-                    if (used.Add(c.Pointer)) buttons.Add(c);
-                }
-            }
+            buttons.AddRange(CrimsonNodes.BarButtons(p, used));
             // The popup's main action (Next, in ButtonsPanelMainParent) first, so Tab lands on it, not on the
             // side panel's Skip training (ButtonsPanelLeftParent) a stray Enter would take.
             return buttons.OrderBy(c => InMainPanel(c) ? 0 : 1).ToList();

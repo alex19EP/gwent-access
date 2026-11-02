@@ -9,7 +9,7 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// Gwent's fallback screen: any panel on the input layer that has the input which no dedicated screen reads
-    /// (the journey track, the leaderboards, "What's new!", the season cycle…). It replaces the older F2/F3
+    /// (the leaderboards, "What's new!", the journey's story…). It replaces the older F2/F3
     /// object navigator and selection narrator. What the panel draws is listed in reading order, top to bottom:
     /// every visible text that isn't a control's caption is a read-only item, every selectable control and
     /// captioned bar button is a button (Enter clicks it, the mouse's way). Items that share a line on screen
@@ -27,7 +27,6 @@ namespace GwentAccess.Ui
         {
             ["UIEP_5_2_Prefab(Clone)"] = ("EP_5_2_title", "Journey"),
             ["UIWelcomeScreenPanel(Clone)"] = ("welcome_screen_title", "What's new!"),
-            ["UIOuroborosProgressionPanelPrefab(Clone)"] = ("ouroboros_main_menu_card_title_autumn", "Season cycle"),
             ["UIMainMenuLeaderboardPrefab(Clone)"] = ("leaderboards_title", "Leaderboards"),
             ["UIDraftPanel(Clone)"] = ("arenav2_mainmenu_title", "Draft"),
         };
@@ -97,6 +96,15 @@ namespace GwentAccess.Ui
             "UIResultBannerPanel", // the results screen that follows names itself by the same banner
         };
 
+        // Panels a dedicated screen reads once they finish opening: the fallback would read their placeholders
+        // meanwhile. The journey's story is still the fallback's.
+        private static bool Dedicated(AGwentPanel p)
+        {
+            if (p.TryCast<GwentVisuals.UIOuroborosProgressionPanel>() != null) return true;
+            var journey = p.TryCast<GwentVisuals.UIJourneyPanel>();
+            try { return journey != null && journey.m_CurrentState == GwentVisuals.JourneyViewState.Main; } catch { return false; }
+        }
+
         // The first attached, shown panel on the active layer with something to read or press.
         private static AGwentPanel Panel()
         {
@@ -107,7 +115,7 @@ namespace GwentAccess.Ui
             {
                 var p = attached[i]?.TryCast<AGwentPanel>();
                 if (p == null || !p.gameObject.activeInHierarchy) continue;
-                if (Array.IndexOf(Skip, p.GetIl2CppType().Name) >= 0) continue;
+                if (Array.IndexOf(Skip, p.GetIl2CppType().Name) >= 0 || Dedicated(p)) continue;
                 var v = p.Visibility;
                 if (v != CrimsonUIBehaviour.EVisibility.Shown && v != CrimsonUIBehaviour.EVisibility.Showing) continue;
                 return p;
@@ -131,18 +139,9 @@ namespace GwentAccess.Ui
             var controls = new List<AControl>();
             var captions = new HashSet<IntPtr>();
             foreach (var c in CrimsonNodes.Leaves(panel)) controls.Add(c);
-            var bar = new List<AControl>();
-            foreach (var container in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = container.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    if (!controls.Exists(x => x.Pointer == c.Pointer) && !bar.Exists(x => x.Pointer == c.Pointer)) bar.Add(c);
-                }
-            }
+            var seen = new HashSet<IntPtr>();
+            foreach (var c in controls) seen.Add(c.Pointer);
+            var bar = CrimsonNodes.BarButtons(panel, seen);
             foreach (var c in controls) foreach (var t in c.GetComponentsInChildren<TMPro.TMP_Text>(false)) captions.Add(t.Pointer);
             foreach (var c in bar) foreach (var t in c.GetComponentsInChildren<TMPro.TMP_Text>(false)) captions.Add(t.Pointer);
 
@@ -292,8 +291,7 @@ namespace GwentAccess.Ui
             if (e.Control != null)
             {
                 var c = e.Control;
-                var step = c.GetComponentInParent<GwentVisuals.UIJourneyStepReward>();
-                var v = step != null ? CrimsonNodes.Button(c, () => JourneyStep(step)) : CrimsonNodes.Button(c);
+                var v = CrimsonNodes.Button(c);
                 v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                 {
                     new NodeAnnouncement(() => HoverTooltip(c), live: true, kind: AnnouncementKinds.Tooltip),
@@ -307,28 +305,6 @@ namespace GwentAccess.Ui
                 Announcements = new[] { new NodeAnnouncement(() => text, kind: AnnouncementKinds.Label) },
                 OnTooltip = () => Speech.Say(text, true),
             });
-        }
-
-        // A journey step's reward, which the game draws as pictures only: "Step 3, 100 Ore, claimed" (the
-        // premium track's slot says so). Named the way the reward popup names rewards.
-        private static string JourneyStep(GwentVisuals.UIJourneyStepReward step)
-        {
-            var parts = new List<string>();
-            try
-            {
-                int n = step.m_StepData?.StepNumber ?? 0;
-                if (n > 0) parts.Add("Step " + n + (step.m_IsExtendedSlot ? ", premium" : ""));
-                var data = step.RewardData;
-                var rewards = data?.Rewards;
-                for (int i = 0; rewards != null && i < rewards.Count; i++)
-                {
-                    string r = UiText.Clean(GwentUnity.UI.PlayerProfile.RewardTextHelper.GetText(rewards[i]));
-                    if (r.Length > 0) parts.Add(r);
-                }
-                if (data != null) parts.Add(data.RewardState.ToString().ToLowerInvariant());
-            }
-            catch (Exception e) { Plugin.LogInfo("[panel] journey step: " + e.Message); }
-            return parts.Count > 0 ? string.Join(", ", parts) : "Reward";
         }
 
         // Drawn invisibly: text alpha 0, or a fully transparent CanvasGroup above it (faded, not disabled).

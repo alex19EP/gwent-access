@@ -502,19 +502,7 @@ namespace GwentAccess.Ui
         // the container's own callback. Glyph labels ("Создать колоду") are key hints, not buttons.
         private static void BuildBar(GraphBuilder b, UIDBPanel p, HashSet<IntPtr> used)
         {
-            var list = new List<AControl>();
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                if (bar.GetComponentInParent<UIDeckListContainer>() != null) continue;
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0 || !used.Add(c.Pointer)) continue;
-                    list.Add(c);
-                }
-            }
+            var list = CrimsonNodes.BarButtons(p, used, bar => bar.GetComponentInParent<UIDeckListContainer>() != null);
             if (list.Count == 0) return;
             b.BeginStop("db:bar");
             foreach (var c in list) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));

@@ -55,16 +55,9 @@ namespace GwentAccess.Ui
             }
             // The window's buttons (apply, reset, exit) are never selectable: the game reaches them by glyph
             // keys. Offer them anyway; the click goes through the container's own callback.
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
-                }
-            }
+            var seen = new HashSet<System.IntPtr>();
+            foreach (var c in buttons) seen.Add(c.Pointer);
+            buttons.AddRange(CrimsonNodes.BarButtons(panel, seen));
 
             if (categories.Count > 0)
             {

@@ -471,18 +471,7 @@ namespace GwentAccess.Ui
         // button, in the game's order.
         private static void AddWindowButtons(GraphBuilder b, UIShopMenuPanel p, HashSet<IntPtr> used)
         {
-            var rest = new List<AControl>();
-            foreach (var bar in new[] { p.Buttons, p.ButtonsLeft, p.ButtonsRight })
-            {
-                if (bar == null || !bar.gameObject.activeInHierarchy) continue;
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (used.Add(c.Pointer)) rest.Add(c);
-                }
-            }
+            var rest = CrimsonNodes.BarButtons(new[] { p.Buttons, p.ButtonsLeft, p.ButtonsRight }, used);
             var eula = p.m_EulaLink;
             if (eula != null && eula.gameObject.activeInHierarchy && Selectable(eula) && used.Add(eula.Pointer)) rest.Add(eula);
             if (rest.Count == 0) return;

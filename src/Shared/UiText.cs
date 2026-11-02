@@ -45,13 +45,7 @@ namespace GwentAccess
             {
                 string t = Describe(c);
                 if (t.Contains("$") || t.Contains("€") || t.Contains("£") || t.ToLowerInvariant().Contains("steam")) return t + ". Real money";
-                return t + " Ore. Control B buys";
-            }
-            if (objName == "ProductTile")
-            {
-                string t = Describe(c);
-                if (!t.Contains("$")) t = t.Replace(", ", " for ") + " Ore";
-                return t + ". Then Control B to buy";
+                return t;
             }
             if ((objName == "ButtonControlLeft" || objName == "ButtonControlRight") && UiText.DebugPath(c).Contains("QuantityControl"))
                 return objName == "ButtonControlLeft" ? "Fewer" : "More";
@@ -72,7 +66,7 @@ namespace GwentAccess
             {
                 var deckBtn = c.TryCast<GwentVisuals.UIDeckButtonControl>();
                 if (deckBtn != null && DeckBuilder.List != null)
-                    return Describe(c) + ". Enter opens it, Control U duplicates, Control N renames";
+                    return Describe(c);
             }
             catch { }
             var card = CardText.CardOf(c);

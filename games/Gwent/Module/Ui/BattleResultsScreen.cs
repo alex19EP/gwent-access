@@ -223,19 +223,7 @@ namespace GwentAccess.Ui
         // container's own callback.
         private static List<AControl> BarButtons(UIBattleResultsPanel panel)
         {
-            var list = new List<AControl>();
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    list.Add(c);
-                }
-            }
-            return list;
+            return CrimsonNodes.BarButtons(panel);
         }
 
         private static bool GoodGameOn(UIBattleResultsPanel panel)

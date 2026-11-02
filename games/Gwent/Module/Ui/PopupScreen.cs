@@ -120,16 +120,10 @@ namespace GwentAccess.Ui
                     if (c.GetComponentInParent<InputButtonContainer>() == null && CrimsonNodes.Texts(c).Count > 0 && !list.Exists(x => x.Pointer == c.Pointer))
                         list.Add(c);
             }
-            foreach (var bar in popup.GetComponentsInChildren<InputButtonContainer>(false))
             {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    if (!list.Exists(x => x.Pointer == c.Pointer)) list.Add(c);
-                }
+                var seen = new HashSet<System.IntPtr>();
+                foreach (var c in list) seen.Add(c.Pointer);
+                list.AddRange(CrimsonNodes.BarButtons(popup, seen));
             }
             return list;
         }

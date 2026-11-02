@@ -236,18 +236,9 @@ namespace GwentAccess.Ui
         private static List<AControl> Buttons(AGwentPanel panel)
         {
             var buttons = CrimsonNodes.Leaves(panel);
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    // The bar keeps an icon-only variant (a checkmark) whose graphics are off: nothing shows.
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
-                }
-            }
+            var seen = new HashSet<System.IntPtr>();
+            foreach (var c in buttons) seen.Add(c.Pointer);
+            buttons.AddRange(CrimsonNodes.BarButtons(panel, seen));
             // A glyph label or a bar's icon-only variant can be selectable too (the UX flow's gating decides) but
             // shows no words, only the key or icon for the same action: it is no stop of its own. An icon button
             // outside a bar, like the panel's settings, stays; it is named by its icon.

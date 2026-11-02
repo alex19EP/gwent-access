@@ -78,7 +78,7 @@ namespace GwentAccess.Ui
                 Line(b, ref n, "Home and End, first or last item");
                 Line(b, ref n, "Enter, use the item");
                 Line(b, ref n, "Space, details, or read it again");
-                Line(b, ref n, "Backspace, cancel or go back where the screen allows it");
+                Line(b, ref n, "Backspace, back: out of a list, a window or a screen");
                 Line(b, ref n, "Escape, the game's own Back or menu");
                 b.PopContext();
             }
@@ -107,9 +107,12 @@ namespace GwentAccess.Ui
             });
         }
 
-        // "battle" → "Battle", "main-menu" → "Main menu".
+        // The screen's spoken name ("Autumn Cycle"), else its key: "main-menu" → "Main menu".
         private static string Title(Screen s)
         {
+            string name = null;
+            try { name = s.ScreenName; } catch { }
+            if (!string.IsNullOrEmpty(name)) return name;
             string k = (s.Key ?? "screen").Replace('-', ' ');
             return k.Length == 0 ? "Screen" : char.ToUpperInvariant(k[0]) + k.Substring(1);
         }

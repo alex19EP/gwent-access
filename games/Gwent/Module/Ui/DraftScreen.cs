@@ -114,17 +114,9 @@ namespace GwentAccess.Ui
             // ---- the panel's buttons ----
             var rest = new List<AControl>();
             foreach (var c in CrimsonNodes.Leaves(panel, used)) if (CrimsonNodes.Texts(c).Count > 0 || CrimsonNodes.Label(c) != null) rest.Add(c);
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0 || used.Contains(c.Pointer)) continue;
-                    if (!rest.Exists(x => x.Pointer == c.Pointer)) rest.Add(c);
-                }
-            }
+            var seen = new HashSet<IntPtr>(used);
+            foreach (var c in rest) seen.Add(c.Pointer);
+            rest.AddRange(CrimsonNodes.BarButtons(panel, seen));
             if (rest.Count > 0)
             {
                 b.BeginStop("draft:buttons");

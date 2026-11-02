@@ -33,7 +33,7 @@ namespace GwentAccess.Ui
         public override int Layer => 1;
         public override string ScreenName => "Profile";
 
-        // Active once the tab bar is drawn (or after a second, for a window without one): the window's first
+        // Active once the tabs are drawn (or after three seconds, for a window without them): the window's first
         // frames hold only its Exit/Back bar, and a cursor placed then stayed on Exit instead of the open tab.
         public override bool IsActive()
         {
@@ -42,8 +42,13 @@ namespace GwentAccess.Ui
             float now = UnityEngine.Time.realtimeSinceStartup;
             if (_shownAt < 0) _shownAt = now;
             bool tabs = false;
-            try { tabs = p.m_ProfileTabContainer?.m_Menu != null && p.m_ProfileTabContainer.m_Menu.gameObject.activeInHierarchy; } catch { }
-            return tabs || now - _shownAt > 1f;
+            try
+            {
+                var menu = p.m_ProfileTabContainer?.m_Menu;
+                tabs = menu != null && menu.gameObject.activeInHierarchy && menu.GetComponentsInChildren<UIProfileMenuItem>(false).Length > 0;
+            }
+            catch { }
+            return tabs || now - _shownAt > 3f;
         }
 
         private static float _shownAt = -1;
@@ -561,18 +566,7 @@ namespace GwentAccess.Ui
         // The bottom bar (Exit).
         private static void AddWindowButtons(GraphBuilder b, UIPlayerProfilePanel p, HashSet<IntPtr> used)
         {
-            var rest = new List<AControl>();
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                if (bar.GetComponentInParent<UINewAchievementList>() != null) continue;
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (used.Add(c.Pointer)) rest.Add(c);
-                }
-            }
+            var rest = CrimsonNodes.BarButtons(p, used, bar => bar.GetComponentInParent<UINewAchievementList>() != null);
             if (rest.Count == 0) return;
             b.BeginStop("buttons");
             foreach (var c in rest) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
