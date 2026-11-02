@@ -31,19 +31,8 @@ namespace GwentAccess.Ui
         /// <summary>The keg being opened: the shop's opening page shows its keg view with a keg's data.</summary>
         public static UIKegOpeningView Keg()
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIShopMenuPanel>();
-                if (p == null || !p.gameObject.activeInHierarchy) continue;
-                var view = p.GetComponentInChildren<UIProductOpeningView>(false);
-                var keg = view?.m_KegOpening;
-                if (keg == null || !keg.gameObject.activeInHierarchy || keg.m_Data == null) return null;
-                return keg;
-            }
-            return null;
+            var keg = CrimsonNodes.ActivePanel<UIShopMenuPanel>()?.GetComponentInChildren<UIProductOpeningView>(false)?.m_KegOpening;
+            return keg != null && keg.gameObject.activeInHierarchy && keg.m_Data != null ? keg : null;
         }
 
         private readonly Dictionary<string, Card> _cards = new Dictionary<string, Card>();
@@ -95,7 +84,7 @@ namespace GwentAccess.Ui
             for (int i = 0; i < controls.Count; i++)
             {
                 var c = controls[i];
-                if (c == null || !c.gameObject.activeInHierarchy || !Selectable(c)) continue;
+                if (c == null || !c.gameObject.activeInHierarchy || !CrimsonNodes.Selectable(c)) continue;
                 // During the pick the four revealed cards are greyed out and leave the game's navigation; while
                 // the pick's cards slide in they still answer as selectable for a moment.
                 if (Outer(keg, i) && Picking(keg)) continue;
@@ -167,10 +156,6 @@ namespace GwentAccess.Ui
             return null;
         }
 
-        private static bool Selectable(AControl c)
-        {
-            try { return c.IsCurrentlySelectable(); } catch { return false; }
-        }
 
         // The opening page's bar: buttons run their stored callbacks (Navigator.ClickControl); glyph labels
         // are key prompts the game never makes selectable, offered (when their text shows) and run through their

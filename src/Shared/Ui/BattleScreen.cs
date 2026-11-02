@@ -99,16 +99,7 @@ namespace GwentAccess.Ui
             catch { return false; }
         }
 
-        private static bool HasBattlePanel(CrimsonInputLayer layer)
-        {
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIBattlePanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return true;
-            }
-            return false;
-        }
+        private static bool HasBattlePanel(CrimsonInputLayer layer) => CrimsonNodes.ActivePanel<UIBattlePanel>(layer) != null;
 
         // ---- the board ----
 

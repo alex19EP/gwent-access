@@ -9,8 +9,8 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// Gwent's fallback screen: any panel on the input layer that has the input which no dedicated screen reads
-    /// (the leaderboards, "What's new!", the journey's story…). It replaces the older F2/F3
-    /// object navigator and selection narrator. What the panel draws is listed in reading order, top to bottom:
+    /// (the leaderboards, "What's new!", the journey's story…). What the panel draws is listed in reading order,
+    /// top to bottom:
     /// every visible text that isn't a control's caption is a read-only item, every selectable control and
     /// captioned bar button is a button (Enter clicks it, the mouse's way). Items that share a line on screen
     /// form a row (a leaderboard entry's rank, rating, level and name): Left/Right move along it, Up/Down

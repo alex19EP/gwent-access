@@ -38,28 +38,19 @@ namespace GwentAccess.Ui
 
         private static UIJourneyMainContent Content()
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
+            var p = CrimsonNodes.ActivePanel<UIJourneyPanel>();
+            if (p == null) return null;
+            try
             {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIJourneyPanel>();
-                if (p == null) continue;
-                try
-                {
-                    if (p.m_CurrentState != JourneyViewState.Main) return null;
-                    var mc = p.m_MainContent;
-                    // Not until its layout is ready: the first frames show the prefab's placeholders ("Journey
-                    // level 22, 22 Left").
-                    if (mc == null || !mc.gameObject.activeInHierarchy || !mc.IsLayoutReady()) return null;
-                    var selection = mc.m_JourneySelectionPanel;
-                    return selection != null && selection.gameObject.activeInHierarchy ? null : mc;
-                }
-                catch { return null; }
+                if (p.m_CurrentState != JourneyViewState.Main) return null;
+                var mc = p.m_MainContent;
+                // Not until its layout is ready: the first frames show the prefab's placeholders ("Journey
+                // level 22, 22 Left").
+                if (mc == null || !mc.gameObject.activeInHierarchy || !mc.IsLayoutReady()) return null;
+                var selection = mc.m_JourneySelectionPanel;
+                return selection != null && selection.gameObject.activeInHierarchy ? null : mc;
             }
-            return null;
+            catch { return null; }
         }
 
         // The game parks its selection on EXIT; the cursor starts on the current step.
@@ -81,13 +72,13 @@ namespace GwentAccess.Ui
         private static void AddProgress(GraphBuilder b, UIJourneyMainContent mc)
         {
             var pr = mc.m_Progress;
-            if (!Shown(pr)) return;
+            if (!CrimsonNodes.Shown(pr)) return;
             b.BeginStop("journey:progress");
-            b.AddLabel(ControlId.Structural("journey:level"), () => Join("Journey level " + Clean(pr.m_JourneyLevel?.m_Level), Crowns(pr)));
+            b.AddLabel(ControlId.Structural("journey:level"), () => UiText.Join("Journey level " + CrimsonNodes.Text(pr.m_JourneyLevel?.m_Level), Crowns(pr)));
             foreach (var r in mc.m_ResourceInfoBar?.GetComponentsInChildren<UIResourceInfo>(false) ?? new UIResourceInfo[0])
             {
                 var info = r;
-                b.AddLabel(ControlId.Structural("journey:resource:" + r.RewardType), () => Join(ResourceName(info.RewardType), Clean(info.m_CountLabel)));
+                b.AddLabel(ControlId.Structural("journey:resource:" + r.RewardType), () => UiText.Join(ResourceName(info.RewardType), CrimsonNodes.Text(info.m_CountLabel)));
             }
         }
 
@@ -95,10 +86,10 @@ namespace GwentAccess.Ui
         private static string Crowns(UIJourneyProgress pr)
         {
             var parts = new List<string>();
-            if (Shown(pr.m_JourneyProgressBar)) parts.AddRange(CrimsonNodes.Texts(pr.m_JourneyProgressBar));
+            if (CrimsonNodes.Shown(pr.m_JourneyProgressBar)) parts.AddRange(CrimsonNodes.Texts(pr.m_JourneyProgressBar));
             var counter = pr.m_JourneyCrownCounter;
-            if (Shown(counter)) parts.Add(Join(Clean(counter.m_CrownCount), Clean(counter.m_Text)).Replace(", ", " "));
-            return Join(parts.ToArray());
+            if (CrimsonNodes.Shown(counter)) parts.Add(UiText.Join(CrimsonNodes.Text(counter.m_CrownCount), CrimsonNodes.Text(counter.m_Text)).Replace(", ", " "));
+            return UiText.Join(parts.ToArray());
         }
 
         private static string ResourceName(EIRewardSubType type) => type switch
@@ -121,8 +112,8 @@ namespace GwentAccess.Ui
             if (data?.Steps == null || data.Steps.Count == 0) return;
             foreach (var c in list.GetComponentsInChildren<ButtonControl>(true)) used.Add(c.Pointer);
             var live = LiveItems(list);
-            string standard = Clean(mc.m_Steps.m_Header?.m_StandardItem?.m_TitleLabel);
-            string premium = Clean(mc.m_Steps.m_Header?.m_ExtendedItem?.m_TitleLabel);
+            string standard = CrimsonNodes.Text(mc.m_Steps.m_Header?.m_StandardItem?.m_TitleLabel);
+            string premium = CrimsonNodes.Text(mc.m_Steps.m_Header?.m_ExtendedItem?.m_TitleLabel);
 
             b.BeginStop("journey:steps");
             int count = data.Steps.Count;
@@ -161,7 +152,7 @@ namespace GwentAccess.Ui
                 },
                 SpeaksOwnPosition = true,
                 OnActivate = () => Click(step.StepNumber, premium),
-                OnTooltip = () => Speech.Say(Join(text(), State(premium ? step.ExtendedRewardData : step.StandardRewardData)), true),
+                OnTooltip = () => Speech.Say(UiText.Join(text(), State(premium ? step.ExtendedRewardData : step.StandardRewardData)), true),
             };
         }
 
@@ -169,7 +160,7 @@ namespace GwentAccess.Ui
         {
             var data = premium ? step.ExtendedRewardData : step.StandardRewardData;
             string reward = RewardText.Of(data?.Rewards) ?? "Reward";
-            return premium ? Join(header.Length > 0 ? header : "Premium", reward) : Join("Step " + step.StepNumber, reward);
+            return premium ? UiText.Join(header.Length > 0 ? header : "Premium", reward) : UiText.Join("Step " + step.StepNumber, reward);
         }
 
         private static string State(UIJourneyRewardData data)
@@ -181,12 +172,12 @@ namespace GwentAccess.Ui
         // negative number beside the scraps icon ("-10000").
         private static void AddBuy(GraphBuilder b, UICommonBuyButton button, UIJourneyStepListItem view, string currency)
         {
-            if (!Shown(button)) return;
-            string title = Clean(view.m_FastTravelTitle);
+            if (!CrimsonNodes.Shown(button)) return;
+            string title = CrimsonNodes.Text(view.m_FastTravelTitle);
             Func<string> label = () =>
             {
                 string price = string.Join(" ", CrimsonNodes.Texts(button)).TrimStart('-');
-                return Join(title, currency != null ? price + " " + currency : price);
+                return UiText.Join(title, currency != null ? price + " " + currency : price);
             };
             var v = CrimsonNodes.Button(button, label);
             v.SpeaksOwnPosition = true;
@@ -266,8 +257,8 @@ namespace GwentAccess.Ui
         private static string Preview(UIJourneyMainContent mc)
         {
             var d = mc.m_VanitySimpleDescription;
-            if (!Shown(d)) return null;
-            return Join(Clean(d.m_GroupNameLabel), Clean(d.m_NameLabel), Clean(d.m_DescriptionLabel));
+            if (!CrimsonNodes.Shown(d)) return null;
+            return UiText.Join(CrimsonNodes.Text(d.m_GroupNameLabel), CrimsonNodes.Text(d.m_NameLabel), CrimsonNodes.Text(d.m_DescriptionLabel));
         }
 
         private static void AddPreview(GraphBuilder b, UIJourneyMainContent mc, HashSet<IntPtr> used)
@@ -277,7 +268,7 @@ namespace GwentAccess.Ui
             AddButton(b, mc.m_FullPreviewButton, used);
             AddButton(b, mc.m_JourneyPaymentContainer?.m_BuyButton, used);
             var eula = mc.m_EulaLink;
-            if (Shown(eula))
+            if (CrimsonNodes.Shown(eula))
                 foreach (var c in CrimsonNodes.Leaves(eula, used)) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
         }
 
@@ -295,24 +286,7 @@ namespace GwentAccess.Ui
 
         private static void AddButton(GraphBuilder b, AControl c, HashSet<IntPtr> used)
         {
-            if (Shown(c) && used.Add(c.Pointer)) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
-        }
-
-        private static string Clean(Label l)
-        {
-            try { return l != null && l.gameObject.activeInHierarchy ? UiText.Clean(l.Text?.text ?? "") : ""; } catch { return ""; }
-        }
-
-        private static string Join(params string[] parts)
-        {
-            var list = new List<string>();
-            foreach (var s in parts) if (!string.IsNullOrEmpty(s)) list.Add(s);
-            return string.Join(", ", list);
-        }
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
+            if (CrimsonNodes.Shown(c) && used.Add(c.Pointer)) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
         }
     }
 }

@@ -32,20 +32,7 @@ namespace GwentAccess.Ui
         public override void OnPush() => _bannerCount = 0;
 
         // The results panel, when the input layer that has the input holds it.
-        private static UIBattleResultsPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIBattleResultsPanel>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIBattleResultsPanel Panel() => CrimsonNodes.ActivePanel<UIBattleResultsPanel>();
 
         // The shown result banner's label: the win, loss or draw banner, whichever the game turned on.
         private static string Banner(UIBattleResultsPanel panel)
@@ -110,7 +97,7 @@ namespace GwentAccess.Ui
                 // no name, only its title, which alone didn't say whose it was.
                 bool opponent = info == panel.m_P2Info;
                 System.Func<string> text = () => opponent ? "Opponent, " + PlayerText(widget) : PlayerText(widget);
-                if (Selectable(button))
+                if (CrimsonNodes.Selectable(button))
                     b.AddItem(last = CrimsonNodes.Id(button), CrimsonNodes.Button(button, text));
                 else
                     b.AddItem(last = CrimsonNodes.Id(button), new NodeVtable
@@ -124,7 +111,7 @@ namespace GwentAccess.Ui
             // a person after the server closes the game, or in the new-player flow's mock; in Practice it stays
             // off. After a send the game disables it, which the button's live "unavailable" reads.
             var gg = panel.m_GoodGameButtonControl;
-            if (gg != null && Shown(gg) && GoodGameOn(panel))
+            if (gg != null && CrimsonNodes.Shown(gg) && GoodGameOn(panel))
                 b.AddItem(last = CrimsonNodes.Id(gg), CrimsonNodes.Button(gg,
                     () => GameText.Get("input_send_good_game", "Good game")));
 
@@ -214,7 +201,7 @@ namespace GwentAccess.Ui
             try
             {
                 var button = info?.m_VanityButton;
-                return button != null && Shown(button) ? button : null;
+                return button != null && CrimsonNodes.Shown(button) ? button : null;
             }
             catch { return null; }
         }
@@ -233,15 +220,7 @@ namespace GwentAccess.Ui
         }
 
         // The local player's card opens their profile; an AI opponent's card is disabled, a picture only.
-        private static bool Selectable(AControl c)
-        {
-            try { return c.IsCurrentlySelectable(); } catch { return false; }
-        }
 
-        private static bool Shown(UnityEngine.Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
-        }
 
         /// <summary>The cursor starts on the rounds, not on the player card the game selects.</summary>
         public override AControl GameSelection() => null;

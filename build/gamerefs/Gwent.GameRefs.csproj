@@ -3,7 +3,7 @@
      scripts/build-gamerefs.ps1 (git-ignored) and carried verbatim into the package.
 
      The package mirrors the game folder (BepInEx\core, BepInEx\interop), so CI builds with
-     -p:GwentDir=<package folder> and GameReferences.props needs no CI-specific paths. -->
+     -p:GameDir=<package folder> and GameReferences.props needs no CI-specific paths. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -13,7 +13,7 @@
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <!-- NU5128: no lib/ or dependencies, intentional: this is a bag of reference DLLs.
          NU5100: DLLs live outside lib/ so NuGet won't auto-reference them, which is what we want;
-         GameReferences.props references them by path through GwentDir. -->
+         GameReferences.props references them by path through GameDir. -->
     <NoWarn>$(NoWarn);NU5128;NU5100</NoWarn>
 
     <PackageId>Gwent.GameRefs</PackageId>

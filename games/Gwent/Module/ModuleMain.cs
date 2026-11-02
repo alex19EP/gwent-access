@@ -3,7 +3,7 @@ using System;
 namespace GwentAccess
 {
     /// <summary>
-    /// The module entry: what Plugin.Load used to do before the host/module split. <see cref="Load"/> boots speech,
+    /// The module entry. <see cref="Load"/> boots speech,
     /// the hotkey thread and the Harmony patches; <see cref="Tick"/> is the per-frame work; <see cref="Dispose"/>
     /// undoes every hook so the next generation can take over (see <see cref="IModModule"/>).
     /// </summary>

@@ -98,18 +98,7 @@ namespace GwentAccess.Ui
 
         public override void OnUnfocus() => Release();
 
-        private static UIRewardSystemPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIRewardSystemPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIRewardSystemPanel Panel() => CrimsonNodes.ActivePanel<UIRewardSystemPanel>();
 
         // An open tree: the tree canvas is shown and has drawn its nodes.
         private static List<RewardSystemTreeElement> OpenTree(UIRewardSystemPanel p)
@@ -271,7 +260,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => TreeName(tree), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => NullIfEmpty(UiText.Clean(tree.m_NodeProgressText?.text)), live: true, kind: AnnouncementKinds.Value),
+                        new NodeAnnouncement(() => UiText.NullIfEmpty(UiText.Clean(tree.m_NodeProgressText?.text)), live: true, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => Navigator.ClickControl(btn),
                     OnTooltip = () => Speech.Say(string.Join(". ", CrimsonNodes.Texts(tree)), true),
@@ -762,7 +751,7 @@ namespace GwentAccess.Ui
                     var rewards = infos[i]?.Rewards;
                     for (int j = 0; rewards != null && j < rewards.Count; j++)
                     {
-                        string s = UiText.Clean(RewardTextHelper.GetText(rewards[j]));
+                        string s = RewardText.Of(rewards[j]) ?? "";
                         if (s.Length > 0 && !parts.Contains(s)) parts.Add(s);
                     }
                 }
@@ -780,7 +769,5 @@ namespace GwentAccess.Ui
             catch { }
             return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
-
-        private static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
     }
 }

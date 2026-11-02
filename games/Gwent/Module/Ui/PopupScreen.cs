@@ -23,20 +23,7 @@ namespace GwentAccess.Ui
 
         public override bool IsActive() => Container() != null;
 
-        private static UIPopupContainer Container()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIPopupContainer>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIPopupContainer Container() => CrimsonNodes.ActivePanel<UIPopupContainer>();
 
         // The shown popup: the container's active PopupControl child, else its active child of another kind
         // (the event announcement, UIImagePopupWithText: a picture, a title, its text and buttons).

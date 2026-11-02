@@ -56,20 +56,7 @@ namespace GwentAccess.Ui
         }
 
         // The panel, when the input layer that has the input holds it.
-        private static UIDBPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIDBPanel>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIDBPanel Panel() => CrimsonNodes.ActivePanel<UIDBPanel>();
 
         // The title banner ("КОНСТРУКТОР КОЛОДЫ").
         private static string Title()
@@ -482,7 +469,7 @@ namespace GwentAccess.Ui
             if (toggle == null) return v;
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
-                new NodeAnnouncement(() => Toggled(toggle) ? "checked" : "not checked", live: true, kind: AnnouncementKinds.Value),
+                new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "checked" : "not checked", live: true, kind: AnnouncementKinds.Value),
             };
             return v;
         }
@@ -659,11 +646,6 @@ namespace GwentAccess.Ui
             try { if (_grid != null && _grid.m_CurrentColumns > 0) cols = _grid.m_CurrentColumns; } catch { }
             int j = Math.Clamp(i + dir * cols, 0, _cards.Count - 1);
             if (j != i) GraphNavigator.FocusNode(_cards[j].Id);
-        }
-
-        private static bool Toggled(ToggleButtonControl t)
-        {
-            try { return t.IsToggled; } catch { return false; }
         }
     }
 }

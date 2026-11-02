@@ -58,8 +58,6 @@ namespace GwentAccess.Ui
         /// <summary>A list with a single item still says "1 of 1" (a menu whose size is news: Gwent's game modes
         /// and deck while a new player has only one of each).</summary>
         public virtual bool PositionOfOne => false;
-        /// <summary>Tab past the last stop returns to the first.</summary>
-        public virtual bool Wrap => true;
 
         /// <summary>When a control the player activated leaves the graph (a picker or list took its place) and
         /// later comes back, the cursor returns to it instead of following the game's selection (see

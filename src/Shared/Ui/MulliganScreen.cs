@@ -66,18 +66,10 @@ namespace GwentAccess.Ui
 
         private static AControl Panel()
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<GwentUnity.UI.UIMulliganPanel>();
-                // Not while it is hiding: after the confirm popup's YES the panel plays its closing animation, and
-                // taking the cursor back for those frames re-announced "Mulligan, 1 swap left".
-                if (p != null && p.gameObject.activeInHierarchy
-                    && p.Visibility != CrimsonUIBehaviour.EVisibility.Hiding && p.Visibility != CrimsonUIBehaviour.EVisibility.Hidden) return p;
-            }
-            return null;
+            var p = CrimsonNodes.ActivePanel<GwentUnity.UI.UIMulliganPanel>();
+            // Not while it is hiding: after the confirm popup's YES the panel plays its closing animation, and
+            // taking the cursor back for those frames re-announced "Mulligan, 1 swap left".
+            return p != null && p.Visibility != CrimsonUIBehaviour.EVisibility.Hiding && p.Visibility != CrimsonUIBehaviour.EVisibility.Hidden ? p : null;
         }
 
         private readonly Dictionary<string, Card> _cards = new Dictionary<string, Card>();

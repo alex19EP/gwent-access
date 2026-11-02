@@ -123,13 +123,13 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => CrimsonNodes.Label(toggle), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
-                        new NodeAnnouncement(() => Toggled(toggle) ? PageText(desc, toggle) : null, live: true, kind: AnnouncementKinds.Tooltip),
+                        new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? PageText(desc, toggle) : null, live: true, kind: AnnouncementKinds.Tooltip),
                     },
                     OnActivate = () => Navigator.ClickControl(toggle),
                     OnTooltip = () => Speech.Say(PageText(desc, toggle) ?? "", true),
                 });
-                if (Toggled(toggle)) b.SetStart(id);
+                if (CrimsonNodes.Toggled(toggle)) b.SetStart(id);
             }
             b.EndRow();
             b.PopContext();
@@ -209,7 +209,7 @@ namespace GwentAccess.Ui
         {
             if (Panels(out _, out var desc) && desc != null)
                 foreach (var page in Pages(desc))
-                    if (Toggled(page)) return page;
+                    if (CrimsonNodes.Toggled(page)) return page;
             return base.GameSelection();
         }
 
@@ -220,7 +220,7 @@ namespace GwentAccess.Ui
         {
             base.OnCursorMoved(node);
             // Only a description page: other toggles (the settings icon) open things when clicked.
-            if (node?.Id.Reference is AControl c && c.TryCast<ToggleButtonControl>() is ToggleButtonControl page && !Toggled(page)
+            if (node?.Id.Reference is AControl c && c.TryCast<ToggleButtonControl>() is ToggleButtonControl page && !CrimsonNodes.Toggled(page)
                 && page.GetComponentInParent<FactionDescriptionElement>() != null)
                 Navigator.ClickControl(page);
         }
@@ -233,11 +233,6 @@ namespace GwentAccess.Ui
             if (key != UnityEngine.KeyCode.Return && key != UnityEngine.KeyCode.KeypadEnter) return false;
             try { return GraphNavigator.CurrentNode?.Id.Reference is AControl c && c.IsCurrentlySelectable(); }
             catch { return false; }
-        }
-
-        private static bool Toggled(ToggleButtonControl t)
-        {
-            try { return t.IsToggled; } catch { return false; }
         }
     }
 }

@@ -37,18 +37,7 @@ namespace GwentAccess.Ui
         public override bool IsActive() => Panel() != null;
 
         // The reward popup attached to the input layer that has the input.
-        private static UIRewardPopupPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIRewardPopupPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIRewardPopupPanel Panel() => CrimsonNodes.ActivePanel<UIRewardPopupPanel>();
 
         public override void Build(GraphBuilder b)
         {
@@ -132,12 +121,8 @@ namespace GwentAccess.Ui
         // The reward in the game's own words ("Гребаная пехтура (аватар)"), else what the slot prints.
         private static string RewardName(UIPopupRewardSlot slot)
         {
-            try
-            {
-                string s = UiText.Clean(RewardTextHelper.GetText(slot.m_Reward));
-                if (s.Length > 0) return s;
-            }
-            catch (Exception e) { Plugin.LogInfo("[reward-popup] reward text failed: " + e.Message); }
+            string s = RewardText.Of(slot.m_Reward);
+            if (s != null) return s;
             var texts = CrimsonNodes.Texts(slot);
             return texts.Count > 0 ? string.Join(", ", texts) : "Reward";
         }

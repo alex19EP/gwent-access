@@ -27,20 +27,7 @@ namespace GwentAccess.Ui
 
         public override bool IsActive() => Panel() != null;
 
-        private static UIDBCreateDeckWithAbilityPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIDBCreateDeckWithAbilityPanel>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIDBCreateDeckWithAbilityPanel Panel() => CrimsonNodes.ActivePanel<UIDBCreateDeckWithAbilityPanel>();
 
         public override void Build(GraphBuilder b)
         {
@@ -63,8 +50,8 @@ namespace GwentAccess.Ui
                         Announcements = new[]
                         {
                             new NodeAnnouncement(name, kind: AnnouncementKinds.Label),
-                            new NodeAnnouncement(() => Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
-                            new NodeAnnouncement(() => Toggled(toggle) ? FactionDescription(p, name()) : null, kind: AnnouncementKinds.Tooltip),
+                            new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                            new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? FactionDescription(p, name()) : null, kind: AnnouncementKinds.Tooltip),
                         },
                         OnActivate = () => Navigator.ClickControl(item),
                         OnTooltip = () => Speech.Say(FactionDescription(p, name()) ?? name(), true),
@@ -116,10 +103,6 @@ namespace GwentAccess.Ui
             }
         }
 
-        private static bool Toggled(ToggleButtonControl t)
-        {
-            try { return t != null && t.IsToggled; } catch { return false; }
-        }
 
         // The details panel's description of the chosen faction.
         // Only while the panel shows a faction (its name first): hovering an ability turns it to the ability.

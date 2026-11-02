@@ -98,7 +98,7 @@ namespace GwentAccess.Ui
                 var id = CrimsonNodes.Id(it);
                 b.AddItem(id, Toggle(it, () => UiText.Clean(it.m_Label?.Text?.text)));
                 // The window opens on the open tab.
-                if (SafeToggled(it)) b.SetStart(id);
+                if (CrimsonNodes.Toggled(it)) b.SetStart(id);
             }
             b.PopContext();
         }
@@ -123,7 +123,7 @@ namespace GwentAccess.Ui
             if (t != null)
                 v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                 {
-                    new NodeAnnouncement(() => SafeToggled(t) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                    new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
                 };
             return v;
         }
@@ -159,14 +159,14 @@ namespace GwentAccess.Ui
             if (info != null && info.gameObject.activeInHierarchy)
             {
                 var name = info.m_PlayerNameText;
-                if (Shown(name))
+                if (CrimsonNodes.Shown(name))
                     b.AddItem(ControlId.Structural("profile:name"), new NodeVtable
                     {
                         Announcements = new[] { new NodeAnnouncement(() => UiText.Clean(name.text), kind: AnnouncementKinds.Label) },
                     });
                 // The title under the name opens the title picker when clicked.
                 var title = info.m_PlayerTitleButton;
-                if (Shown(title) && used.Add(title.Pointer))
+                if (CrimsonNodes.Shown(title) && used.Add(title.Pointer))
                 {
                     var titleText = info.m_PlayerTitleText;
                     var v = CrimsonNodes.Button(title, () => UiText.Clean(titleText?.text));
@@ -233,7 +233,7 @@ namespace GwentAccess.Ui
                     var child = t.GetChild(i);
                     if (child.name != "Label" && child.name != "Title" && child.name != "Header") continue;
                     var text = child.GetComponent<TMPro.TMP_Text>();
-                    if (!Shown(text)) continue;
+                    if (!CrimsonNodes.Shown(text)) continue;
                     var owner = child.GetComponentInParent<AControl>(); // a caption belongs to a control below t
                     if (owner != null && owner.transform.Pointer != t.Pointer && owner.transform.IsChildOf(t)) continue;
                     string s = UiText.Clean(text.text);
@@ -284,7 +284,7 @@ namespace GwentAccess.Ui
                 foreach (var t in view.GetComponentsInChildren<TMPro.TMP_Text>(false))
                 {
                     var text = t;
-                    lines.Add((CrimsonNodes.PathKey(t.transform, view.transform), () => NullIfEmpty(UiText.Clean(text.text))));
+                    lines.Add((CrimsonNodes.PathKey(t.transform, view.transform), () => UiText.NullIfEmpty(UiText.Clean(text.text))));
                 }
             lines.RemoveAll(l => l.Text() == null);
             if (lines.Count == 0) return;
@@ -364,27 +364,27 @@ namespace GwentAccess.Ui
         private static string ListHeading(UINewAchievementList list)
         {
             var recent = list.GetComponentInParent<UIRecentAchievements>();
-            if (recent != null) return NullIfEmpty(UiText.Clean(recent.m_Label?.Text?.text))
-                ?? NullIfEmpty(Joined(CrimsonNodes.Texts(recent.GetComponentInParent<UIAchievementsSummary>()?.transform.Find("HeaderLabel"))));
+            if (recent != null) return UiText.NullIfEmpty(UiText.Clean(recent.m_Label?.Text?.text))
+                ?? UiText.NullIfEmpty(Joined(CrimsonNodes.Texts(recent.GetComponentInParent<UIAchievementsSummary>()?.transform.Find("HeaderLabel"))));
             return null;
         }
 
         /// <summary>The achievement a card shows for the entry: a sequence shows its step in progress.</summary>
-        private static IAchievement Shown(Contract e)
+        private static IAchievement Achievement(Contract e)
         {
             try { return e.Data.GetAchievementToShow() ?? e.Data.Achievement; } catch { return null; }
         }
 
-        private static IPublicAchievement Public(Contract e) => Shown(e)?.Cast<IPublicAchievement>();
+        private static IPublicAchievement Public(Contract e) => Achievement(e)?.Cast<IPublicAchievement>();
 
         private static string Name(Contract e)
         {
-            try { return NullIfEmpty(UiText.Clean(Public(e)?.Name)) ?? "Contract"; } catch { return "Contract"; }
+            try { return UiText.NullIfEmpty(UiText.Clean(Public(e)?.Name)) ?? "Contract"; } catch { return "Contract"; }
         }
 
         private static string Description(Contract e)
         {
-            try { return NullIfEmpty(UiText.Clean(Public(e)?.Description)); } catch { return null; }
+            try { return UiText.NullIfEmpty(UiText.Clean(Public(e)?.Description)); } catch { return null; }
         }
 
         /// <summary>
@@ -396,12 +396,12 @@ namespace GwentAccess.Ui
         {
             try
             {
-                var a = Shown(e);
+                var a = Achievement(e);
                 var pa = a?.Cast<IPublicAchievement>();
                 if (a == null || pa == null) return null;
                 var parts = new List<string>();
                 if (a.IsClaimable)
-                    parts.Add(Joined(new List<string> { GameText.Get(UIAchievement.ACHIEVEMENTS_CLAIM_LOC_KEY, "Claim:"), RewardText(pa) }, " "));
+                    parts.Add(Joined(new List<string> { GameText.Get(UIAchievement.ACHIEVEMENTS_CLAIM_LOC_KEY, "Claim:"), Rewards(pa) }, " "));
                 else if (pa.IsUnlocked)
                 {
                     parts.Add(GameText.Get("daily_quest_completed", "Completed"));
@@ -424,19 +424,19 @@ namespace GwentAccess.Ui
             try
             {
                 var pa = Public(e);
-                string r = pa == null ? null : RewardText(pa);
+                string r = pa == null ? null : Rewards(pa);
                 return r == null ? null : GameText.Get(UIAchievement.ACHIEVEMENTS_REWARD_LOC_KEY, "Reward:") + " " + r;
             }
             catch { return null; }
         }
 
-        private static string RewardText(IPublicAchievement pa)
+        private static string Rewards(IPublicAchievement pa)
         {
             var rewards = pa.Rewards;
             var parts = new List<string>();
             for (int i = 0; rewards != null && i < rewards.Count; i++)
             {
-                string s = UiText.Clean(RewardTextHelper.GetText(rewards[i]));
+                string s = RewardText.Of(rewards[i]) ?? "";
                 if (s.Length > 0 && !parts.Contains(s)) parts.Add(s);
             }
             return Joined(parts);
@@ -483,7 +483,7 @@ namespace GwentAccess.Ui
                 _landingFrames = 0;
                 return;
             }
-            if (node?.Id.Reference is AControl c && !Selectable(c))
+            if (node?.Id.Reference is AControl c && !CrimsonNodes.Selectable(c))
             {
                 // A tab or a banner title: never the layer's selection; the hover still plays.
                 try { c.OnHover?.Invoke(c); } catch { }
@@ -524,8 +524,8 @@ namespace GwentAccess.Ui
             var card = Card(e);
             if (card == null) return;
             var claim = card.m_ClaimButton;
-            if (Shown(claim) && Shown(e) is IAchievement a && a.IsClaimable) MouseClick(claim);
-            else MouseClick(card.m_MainButtonControl);
+            if (CrimsonNodes.Shown(claim) && Achievement(e) is IAchievement a && a.IsClaimable) Navigator.MouseClick(claim);
+            else Navigator.MouseClick(card.m_MainButtonControl);
         }
 
         public override IReadOnlyList<ScreenKey> ExtraKeys => _keys;
@@ -541,24 +541,8 @@ namespace GwentAccess.Ui
             if (!(GraphNavigator.CurrentNode?.Id.Reference is Contract e)) return;
             var card = Card(e);
             var track = card?.m_TrackButton;
-            if (!Shown(track)) return;
-            MouseClick(track);
-        }
-
-        /// <summary>A left click the way the mouse makes one: the press, the release, then the click the layer
-        /// sends for a release over the pressed control, so the control's press sounds and click handlers both
-        /// run. The release alone only resets the button's look; only <c>Click</c> raises <c>OnLeftClick</c>
-        /// (the claim button's <c>HandleClaim</c>).</summary>
-        internal static void MouseClick(ButtonControl c)
-        {
-            if (c == null || !c.gameObject.activeInHierarchy) return;
-            try
-            {
-                foreach (var state in new[] { CursorButtonEventArgs.EState.ButtonDown, CursorButtonEventArgs.EState.ButtonUp, CursorButtonEventArgs.EState.Click })
-                    c.HandleCursorButtonEvent(new CursorButtonEventArgs(c.ParentLayer, CursorInputEventArgs.EMouseButton.Left, Camera.main,
-                        state, c, c, new Il2CppSystem.Collections.Generic.List<CrimsonUI.EventSystems.RaycastResult>()));
-            }
-            catch (Exception ex) { Plugin.LogInfo("[profile] click failed: " + ex.Message); }
+            if (!CrimsonNodes.Shown(track)) return;
+            Navigator.MouseClick(track);
         }
 
         // ---- the window ----
@@ -694,22 +678,5 @@ namespace GwentAccess.Ui
             all.AddRange(b);
             return Joined(all);
         }
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
-        }
-
-        private static bool Selectable(AControl c)
-        {
-            try { return c.IsCurrentlySelectable(); } catch { return false; }
-        }
-
-        private static bool SafeToggled(ToggleButtonControl t)
-        {
-            try { return t.IsToggled; } catch { return false; }
-        }
-
-        private static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
     }
 }

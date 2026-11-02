@@ -52,6 +52,23 @@ namespace GwentAccess.Ui
             catch { return false; }
         }
 
+        /// <summary>The first shown control of type <typeparamref name="T"/> attached to the input layer that has
+        /// the input (a screen's panel), or to <paramref name="layer"/>.</summary>
+        public static T ActivePanel<T>(CrimsonInputLayer layer = null) where T : Il2CppInterop.Runtime.InteropTypes.Il2CppObjectBase
+        {
+            layer ??= CrimsonInputManager.Instance?.ActiveLayer;
+            if (layer == null) return null;
+            var attached = layer.GetAttachedControls();
+            for (int i = 0; i < attached.Count; i++)
+            {
+                var c = attached[i];
+                if (c == null || !c.gameObject.activeInHierarchy) continue;
+                var p = c.TryCast<T>();
+                if (p != null) return p;
+            }
+            return null;
+        }
+
         /// <summary>
         /// The buttons of the shown button bars (<see cref="InputButtonContainer"/>) under <paramref name="root"/>,
         /// in bar order. The game never makes them selectable (it reaches them by glyph key), so
@@ -290,9 +307,32 @@ namespace GwentAccess.Ui
         }
 #endif
 
-        private static bool Shown(Component c)
+        /// <summary>Drawn now: the object is active in the scene. False for a destroyed one.</summary>
+        public static bool Shown(Component c)
         {
             try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
+        }
+
+        public static bool Shown(GameObject g)
+        {
+            try { return g != null && g.activeInHierarchy; } catch { return false; }
+        }
+
+        /// <summary>The control's layer can select it now. False for a destroyed one.</summary>
+        public static bool Selectable(AControl c)
+        {
+            try { return c != null && c.IsCurrentlySelectable(); } catch { return false; }
+        }
+
+        public static bool Toggled(ToggleButtonControl t)
+        {
+            try { return t != null && t.IsToggled; } catch { return false; }
+        }
+
+        /// <summary>A label's words, cleaned; "" while it is hidden or gone.</summary>
+        public static string Text(Label l)
+        {
+            try { return l != null && l.gameObject.activeInHierarchy ? UiText.Clean(l.Text?.text ?? "") : ""; } catch { return ""; }
         }
 
         public static string Label(AControl c)

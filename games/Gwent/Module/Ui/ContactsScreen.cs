@@ -55,22 +55,13 @@ namespace GwentAccess.Ui
         /// panel has the given section open.</summary>
         internal static T OpenWindow<T>(SocialPanel.SocialPanelSection section) where T : Component
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
+            var panel = CrimsonNodes.ActivePanel<SocialPanel>();
+            try
             {
-                var panel = attached[i]?.TryCast<SocialPanel>();
-                if (panel == null || !panel.gameObject.activeInHierarchy) continue;
-                try
-                {
-                    if (!panel.IsWindowOpen || panel.CurrentSection != section) continue;
-                }
-                catch { continue; }
-                var w = panel.GetComponentInChildren<T>(false);
-                if (w != null) return w;
+                if (panel == null || !panel.IsWindowOpen || panel.CurrentSection != section) return null;
             }
-            return null;
+            catch { return null; }
+            return panel.GetComponentInChildren<T>(false);
         }
 
         public override void OnPop()

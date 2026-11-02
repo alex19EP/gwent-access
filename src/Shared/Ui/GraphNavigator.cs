@@ -13,8 +13,9 @@ namespace GwentAccess.Ui
     /// a rebuild that removed the focused control, or the screen appearing.
     ///
     /// Keys (while a screen is focused): arrows move (Left/Right adjust a slider first), Tab/Shift+Tab cycle
-    /// stops, Home/End jump to the ends, Enter activates, Backspace is the secondary action, Space reads the
-    /// details. Escape stays the game's own Back. Ctrl/Alt chords are left to the legacy hotkeys.
+    /// stops, Home/End jump to the ends, Enter activates, Backspace is the item's secondary action or else the
+    /// screen's Back, Space reads the details. Escape stays the game's own Back. Ctrl and Alt chords are left
+    /// to the screens' own keys.
     ///
     /// Return to the opener: a control Enter activated that then leaves the graph opened something in its
     /// place (a picker, a list, the next menu page). When it comes back (that thing closed), the cursor
@@ -387,7 +388,7 @@ namespace GwentAccess.Ui
 
         private static void Tab(int dir)
         {
-            var move = _graph.MoveStop(dir, _screen.Wrap);
+            var move = _graph.MoveStop(dir, true); // Tab past the last stop returns to the first
             if (move.Moved) Announce(move);
         }
 

@@ -36,20 +36,7 @@ namespace GwentAccess.Ui
         // Not while it opens: its first frames show the prefab's placeholder labels.
         public override bool IsActive() => Panel() is UIOuroborosProgressionPanel p && p.Visibility == CrimsonUIBehaviour.EVisibility.Shown;
 
-        private static UIOuroborosProgressionPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIOuroborosProgressionPanel>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIOuroborosProgressionPanel Panel() => CrimsonNodes.ActivePanel<UIOuroborosProgressionPanel>();
 
         // The game parks its selection on the Deck builder button; the cursor starts on the next reward.
         public override AControl GameSelection() => null;
@@ -62,8 +49,8 @@ namespace GwentAccess.Ui
 
             // ---- the cycle ----
             b.BeginStop("cycle:summary");
-            b.AddLabel(ControlId.Structural("cycle:level"), () => Join(Clean(p.m_TitleLabel), Level(p)));
-            b.AddLabel(ControlId.Structural("cycle:dates"), () => Clean(p.m_DateLabel));
+            b.AddLabel(ControlId.Structural("cycle:level"), () => UiText.Join(CrimsonNodes.Text(p.m_TitleLabel), Level(p)));
+            b.AddLabel(ControlId.Structural("cycle:dates"), () => CrimsonNodes.Text(p.m_DateLabel));
             AddButton(b, p.m_DeckbuilderButton, () => GameText.Get("mainmenu_deckbuilder_title", "Deck builder"), used);
             AddButton(b, p.m_InfoButton, () => GameText.Capitalized(GameText.Get("ouroboros_info_title", "Information")), used);
 
@@ -72,7 +59,7 @@ namespace GwentAccess.Ui
 
             // ---- the contract ----
             var contract = p.m_Achievement;
-            if (Shown(contract))
+            if (CrimsonNodes.Shown(contract))
             {
                 b.BeginStop("cycle:contract");
                 b.PushContext(GameText.Get("ouroboros_social_contract", "Contract"));
@@ -114,7 +101,7 @@ namespace GwentAccess.Ui
                         new NodeAnnouncement(() => LevelState(data, index), live: true, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => ClickLevel(p, index),
-                    OnTooltip = () => Speech.Say(Join(LevelText(data, index), LevelState(data, index)), true),
+                    OnTooltip = () => Speech.Say(UiText.Join(LevelText(data, index), LevelState(data, index)), true),
                 });
             }
             b.PopContext();
@@ -133,7 +120,7 @@ namespace GwentAccess.Ui
             var reward = item.StandardRewardData;
             string text = RewardText.Of(reward?.Rewards);
             if (text == null && reward?.GetReward()?.Type == Modules.Rewards.Entities.ERewardType.ItemTemplateReward) text = "Chest";
-            return Join("Level " + item.Level, text);
+            return UiText.Join("Level " + item.Level, text);
         }
 
         private static string LevelState(UIOuroborosLevelListViewData data, int index)
@@ -193,7 +180,7 @@ namespace GwentAccess.Ui
             AddTier(b, p.m_HardQuestLabel, p.m_HardQuestsContainer, p.m_HardQuestUnlockRoot, p.m_HardQuestUnlockLabel, used);
             // When the next quests come ("New Quest(s) added in: 06h: 59m"), read when landed on, not ticking.
             var timer = p.m_TimerRenderer;
-            if (Shown(timer))
+            if (CrimsonNodes.Shown(timer))
                 b.AddLabel(ControlId.Structural("cycle:quests:timer"), () => string.Join(" ", Caption(timer.transform, p.transform)));
         }
 
@@ -211,7 +198,7 @@ namespace GwentAccess.Ui
         private static void AddTier(GraphBuilder b, Label title, UIQuestOuroborosList list, GameObject lockRoot, Label lockLabel,
             HashSet<IntPtr> used)
         {
-            string name = Clean(title);
+            string name = CrimsonNodes.Text(title);
             if (name.Length == 0) return;
             b.PushContext(name);
             if (lockRoot != null && lockRoot.activeInHierarchy)
@@ -219,7 +206,7 @@ namespace GwentAccess.Ui
                 // "Unlock Medium Quests at level", "5": one line.
                 b.AddLabel(ControlId.Structural("cycle:lock:" + name), () => string.Join(" ", CrimsonNodes.Texts(lockRoot.transform)));
             }
-            else if (Shown(list))
+            else if (CrimsonNodes.Shown(list))
             {
                 var quests = list.GetComponentsInChildren<UIQuestOuroborosListItem>(false);
                 int n = 0;
@@ -244,14 +231,14 @@ namespace GwentAccess.Ui
                     // Change Quest: the button the game shows now (an unavailable one is drawn in its place).
                     var reroll = buttons.Find(c => c.IsEnabled && CrimsonNodes.Texts(c).Count == 0 && c.Pointer != quest.m_SkipTimeButtonControl?.Pointer)
                                  ?? quest.m_MouseButtonControl;
-                    if (Shown(reroll) && Shown(quest.m_RerollButtonContainer))
+                    if (CrimsonNodes.Shown(reroll) && CrimsonNodes.Shown(quest.m_RerollButtonContainer))
                     {
                         var v = CrimsonNodes.Button(reroll, () => CrimsonNodes.TooltipText(reroll) ?? GameText.Get("ouroboros_reroll_title", "Change Quest"));
                         v.SpeaksOwnPosition = true;
                         b.AddItem(ControlId.Referenced(reroll, "cycle:reroll:" + name + ":" + slot), v);
                     }
                     var skip = quest.m_SkipTimeButtonControl;
-                    if (Shown(skip)) b.AddItem(CrimsonNodes.Id(skip), CrimsonNodes.Button(skip));
+                    if (CrimsonNodes.Shown(skip)) b.AddItem(CrimsonNodes.Id(skip), CrimsonNodes.Button(skip));
                     b.EndRow();
                 }
             }
@@ -264,12 +251,12 @@ namespace GwentAccess.Ui
             var parts = new List<string>();
             try
             {
-                if (q.m_QuestItem == null && Shown(q.m_InactiveLabel)) return Clean(q.m_InactiveLabel);
-                parts.Add(Clean(q.m_DescriptionLabel));
+                if (q.m_QuestItem == null && CrimsonNodes.Shown(q.m_InactiveLabel)) return CrimsonNodes.Text(q.m_InactiveLabel);
+                parts.Add(CrimsonNodes.Text(q.m_DescriptionLabel));
                 var bar = q.m_ProgressBar;
-                if (Shown(bar)) foreach (var t in CrimsonNodes.Texts(bar)) parts.Add("progress " + t); // drawn "0/5"
+                if (CrimsonNodes.Shown(bar)) foreach (var t in CrimsonNodes.Texts(bar)) parts.Add("progress " + t); // drawn "0/5"
                 var icon = q.m_RewardIcon;
-                if (Shown(icon) && Clean(icon.m_Number) is string n && n.Length > 0) parts.Add(GameText.Get("achievements_reward", "Reward:") + " " + n);
+                if (CrimsonNodes.Shown(icon) && CrimsonNodes.Text(icon.m_Number) is string n && n.Length > 0) parts.Add(GameText.Get("achievements_reward", "Reward:") + " " + n);
             }
             catch (Exception e) { Plugin.LogInfo("[cycle] quest read failed: " + e.Message); }
             parts.RemoveAll(string.IsNullOrEmpty);
@@ -280,31 +267,14 @@ namespace GwentAccess.Ui
 
         private static string Level(UIOuroborosProgressionPanel p)
         {
-            string n = Clean(p.m_LevelLabel);
+            string n = CrimsonNodes.Text(p.m_LevelLabel);
             return n.Length > 0 ? "level " + n : null;
         }
 
         private static void AddButton(GraphBuilder b, ButtonControl c, Func<string> label, HashSet<IntPtr> used)
         {
-            if (!Shown(c) || !used.Add(c.Pointer)) return;
+            if (!CrimsonNodes.Shown(c) || !used.Add(c.Pointer)) return;
             b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => CrimsonNodes.TooltipText(c) ?? label()));
-        }
-
-        private static string Clean(Label l)
-        {
-            try { return l != null && l.gameObject.activeInHierarchy ? UiText.Clean(l.Text?.text ?? "") : ""; } catch { return ""; }
-        }
-
-        private static string Join(params string[] parts)
-        {
-            var list = new List<string>();
-            foreach (var s in parts) if (!string.IsNullOrEmpty(s)) list.Add(s);
-            return string.Join(", ", list);
-        }
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
         }
     }
 }

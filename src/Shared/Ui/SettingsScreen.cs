@@ -26,18 +26,7 @@ namespace GwentAccess.Ui
 
         public override bool IsActive() => Panel() != null;
 
-        private static UISettingsPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UISettingsPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UISettingsPanel Panel() => CrimsonNodes.ActivePanel<UISettingsPanel>();
 
         public override void Build(GraphBuilder b)
         {

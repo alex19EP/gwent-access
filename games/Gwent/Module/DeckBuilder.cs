@@ -11,20 +11,14 @@ using GwentVisuals;
 namespace GwentAccess
 {
     /// <summary>
-    /// Deck building: Ctrl+A adds the selected card, Ctrl+R removes it, Ctrl+D reads deck stats,
-    /// Ctrl+H reads the whole deck list. Adds and removes are announced however they happen.
+    /// The deck builder's state for its screen: the deck being edited (<see cref="Edit"/>), the deck list
+    /// (<see cref="List"/>), the open deck's totals, and the announcement of each card added or removed,
+    /// however it happens.
     /// </summary>
     internal static class DeckBuilder
     {
         public static DBEditDeckState Edit;
-        public static DBCollectionState Home;
         public static DBEditCollectionState List;
-
-
-
-
-
-
 
         public static float EnteredAt = -100;
 
@@ -62,44 +56,35 @@ namespace GwentAccess
         /// <summary>One of the deck's totals (0 cards, 1 units, 2 provisions), for the deck stats stop.</summary>
         public static string StatPart(int part)
         {
-            var d = Deck();
-            if (d == null) return part == 0 ? "No deck open" : null;
-            try
-            {
-                var v = d.GetValidation();
-                int maxProv = 150;
-                try { var l = d.LeaderAbilityCard; if (l != null) maxProv += l.Template.Provision; } catch { }
-                return part switch
-                {
-                    0 => v.TotalCardCount + " cards, minimum 25",
-                    1 => v.UnitCardCount + " units, minimum 13",
-                    _ => "provisions " + v.ProvisionUsed + " of " + maxProv,
-                };
-            }
-            catch { return null; }
+            var parts = StatParts(Deck());
+            if (parts == null) return part == 0 && Deck() == null ? "No deck open" : null;
+            return parts[part];
         }
 
+        /// <summary>All three totals, as said after a card is added or removed.</summary>
         public static string Stats()
         {
             var d = Deck();
             if (d == null) return "";
+            var parts = StatParts(d);
+            if (parts != null) return string.Join("; ", parts);
+            try { return d.GetTotalCardCount(false, false) + " cards"; } catch { return ""; }
+        }
+
+        // 25 and 13 are minimums, not totals: "22 of 13 units" read as an error. The provision limit is 150 plus
+        // the leader ability's bonus.
+        private static string[] StatParts(CollectionDeck d)
+        {
+            if (d == null) return null;
             try
             {
                 var v = d.GetValidation();
                 int maxProv = 150;
                 try { var l = d.LeaderAbilityCard; if (l != null) maxProv += l.Template.Provision; } catch { }
-                // 25 and 13 are minimums, not totals: "22 of 13 units" read as an error.
-                return v.TotalCardCount + " cards, minimum 25; " + v.UnitCardCount + " units, minimum 13; provisions " + v.ProvisionUsed + " of " + maxProv;
+                return new[] { v.TotalCardCount + " cards, minimum 25", v.UnitCardCount + " units, minimum 13", "provisions " + v.ProvisionUsed + " of " + maxProv };
             }
-            catch (Exception e) { Plugin.LogInfo("Deck stats failed: " + e.Message); }
-            try { return d.GetTotalCardCount(false, false) + " cards"; } catch { return ""; }
+            catch (Exception e) { Plugin.LogInfo("Deck stats failed: " + e.Message); return null; }
         }
-
-
-
-
-
-
 
         public static void Announce(string verb, CollectionCard cc)
         {
@@ -127,15 +112,6 @@ namespace GwentAccess
 
     [HarmonyPatch(typeof(ADBEditState), "OnLeaveState")]
     internal static class DBListLeavePatch { static void Postfix(ADBEditState __instance) { if (DeckBuilder.List != null && DeckBuilder.List.Pointer == __instance.Pointer) { DeckBuilder.List = null; Plugin.LogInfo("Deck list (edit collection) left"); } } }
-
-    [HarmonyPatch(typeof(DBCollectionState), "OnEnterState")]
-    internal static class DBHomeEnterPatch { static void Postfix(DBCollectionState __instance) { DeckBuilder.Home = __instance; Plugin.LogInfo("Deck list entered"); } }
-
-    [HarmonyPatch(typeof(DBCollectionState), "OnLeaveState")]
-    internal static class DBHomeLeavePatch { static void Postfix(DBCollectionState __instance) { if (DeckBuilder.Home != null && DeckBuilder.Home.Pointer == __instance.Pointer) DeckBuilder.Home = null; Plugin.LogInfo("Deck list left"); } }
-
-    [HarmonyPatch(typeof(DBEditDeckState), "HandleCloseEditingPopup")]
-    internal static class DBSavePopupLog { static void Prefix(PopupData.EResult result) { Plugin.LogInfo("Save popup result: " + result); } }
 
     [HarmonyPatch(typeof(DBEditDeckState), "OnLeaveState")]
     internal static class DBEditLeavePatch

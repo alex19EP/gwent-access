@@ -41,18 +41,7 @@ namespace GwentAccess.Ui
         // the page was reached (a promotion opens the packs page too).
         private static readonly Dictionary<ShopTileType, string> TileTitles = new Dictionary<ShopTileType, string>();
 
-        private static UIShopMenuPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIShopMenuPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIShopMenuPanel Panel() => CrimsonNodes.ActivePanel<UIShopMenuPanel>();
 
         /// <summary>The view the panel shows: the one active child of its views root.</summary>
         private static AControl ShownView(UIShopMenuPanel p)
@@ -74,14 +63,10 @@ namespace GwentAccess.Ui
         // game's selection on the product they belong to.
         public override void OnCursorMoved(GraphNode node)
         {
-            if (node?.Id.Reference is AControl c && !Selectable(c)) return;
+            if (node?.Id.Reference is AControl c && !CrimsonNodes.Selectable(c)) return;
             base.OnCursorMoved(node);
         }
 
-        private static bool Selectable(AControl c)
-        {
-            try { return c.IsCurrentlySelectable(); } catch { return false; }
-        }
 
         public override void Build(GraphBuilder b)
         {
@@ -183,7 +168,7 @@ namespace GwentAccess.Ui
             {
                 try
                 {
-                    string title = NullIfEmpty(UiText.Clean(t.m_TileTitle?.Text?.text));
+                    string title = UiText.NullIfEmpty(UiText.Clean(t.m_TileTitle?.Text?.text));
                     if (title != null) TileTitles[t.m_Type] = title;
                 }
                 catch { }
@@ -226,9 +211,9 @@ namespace GwentAccess.Ui
                 if (data == null) return null;
                 var parts = new List<string>();
                 foreach (var s in new[] { data.Title, data.Description })
-                    if (NullIfEmpty(UiText.Clean(s)) is string text && !parts.Contains(text)) parts.Add(text);
+                    if (UiText.NullIfEmpty(UiText.Clean(s)) is string text && !parts.Contains(text)) parts.Add(text);
                 foreach (var t in tile.GetComponentsInChildren<TMPro.TMP_Text>(false))
-                    if (t.gameObject.name == "TimerText" && NullIfEmpty(UiText.Clean(t.text)) is string timer) parts.Add(timer);
+                    if (t.gameObject.name == "TimerText" && UiText.NullIfEmpty(UiText.Clean(t.text)) is string timer) parts.Add(timer);
                 return parts.Count > 0 ? string.Join(", ", parts) : null;
             }
             catch { return null; }
@@ -253,7 +238,7 @@ namespace GwentAccess.Ui
             }
             foreach (var s in view.GetComponentsInChildren<UIProductSection>(false))
             {
-                string heading = NullIfEmpty(string.Join(", ", CrimsonNodes.Texts(s)));
+                string heading = UiText.NullIfEmpty(string.Join(", ", CrimsonNodes.Texts(s)));
                 if (heading == null) continue;
                 var pos = s.transform.position;
                 entries.Add((pos.y, pos.x, null, heading));
@@ -293,7 +278,7 @@ namespace GwentAccess.Ui
             try
             {
                 var own = c.GetComponentInParent<UIKegAndPackTile>()?.GetProductData();
-                if (own != null && NullIfEmpty(UiText.Clean(own.Title)) is string name) parts.Add(name);
+                if (own != null && UiText.NullIfEmpty(UiText.Clean(own.Title)) is string name) parts.Add(name);
             }
             catch { }
             foreach (var s in CrimsonNodes.Texts(c)) if (!parts.Contains(s)) parts.Add(s);
@@ -357,14 +342,14 @@ namespace GwentAccess.Ui
             try
             {
                 if (d.m_Badge != null && d.m_Badge.activeInHierarchy) Add(d.m_BadgeValue?.text);
-                if (Shown(d.m_TitleText)) Add(d.m_TitleText.text);
+                if (CrimsonNodes.Shown(d.m_TitleText)) Add(d.m_TitleText.text);
                 if (d.m_ProductTimerObject != null && d.m_ProductTimerObject.activeInHierarchy)
                 {
                     string timer = string.Join(" ", CrimsonNodes.Texts(d.m_ProductTimerObject.transform));
                     Add(timer);
                 }
-                if (Shown(d.m_DescriptionText)) Add(d.m_DescriptionText.text);
-                if (Shown(d.m_AdditionalText)) Add(d.m_AdditionalText.text);
+                if (CrimsonNodes.Shown(d.m_DescriptionText)) Add(d.m_DescriptionText.text);
+                if (CrimsonNodes.Shown(d.m_AdditionalText)) Add(d.m_AdditionalText.text);
             }
             catch (Exception e) { Plugin.LogInfo("[shop] details failed: " + e.Message); }
             return lines;
@@ -374,8 +359,8 @@ namespace GwentAccess.Ui
         /// clicked as the mouse clicks them, so the price and the buy button follow.</summary>
         private static NodeVtable Quantity(UIQuantityControl q)
         {
-            string Title() => NullIfEmpty(string.Join(" ", CrimsonNodes.Texts(q.m_QuantityTitle))) ?? "Quantity";
-            string Value() => NullIfEmpty(UiText.Clean(q.m_QuantityText?.text));
+            string Title() => UiText.NullIfEmpty(string.Join(" ", CrimsonNodes.Texts(q.m_QuantityTitle))) ?? "Quantity";
+            string Value() => UiText.NullIfEmpty(UiText.Clean(q.m_QuantityText?.text));
             return new NodeVtable
             {
                 Announcements = new[]
@@ -473,7 +458,7 @@ namespace GwentAccess.Ui
         {
             var rest = CrimsonNodes.BarButtons(new[] { p.Buttons, p.ButtonsLeft, p.ButtonsRight }, used);
             var eula = p.m_EulaLink;
-            if (eula != null && eula.gameObject.activeInHierarchy && Selectable(eula) && used.Add(eula.Pointer)) rest.Add(eula);
+            if (eula != null && eula.gameObject.activeInHierarchy && CrimsonNodes.Selectable(eula) && used.Add(eula.Pointer)) rest.Add(eula);
             if (rest.Count == 0) return;
             b.BeginStop("buttons");
             foreach (var c in rest) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
@@ -486,12 +471,5 @@ namespace GwentAccess.Ui
             var parts = CrimsonNodes.Texts(c);
             return parts.Count > 0 ? string.Join(", ", parts) : CrimsonNodes.Label(c);
         }
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
-        }
-
-        private static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
     }
 }

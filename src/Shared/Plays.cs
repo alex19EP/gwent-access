@@ -143,7 +143,6 @@ namespace GwentAccess
         public bool IsTarget(Card c) => Targets != null && Try(() => Targets.ValidTargets.Contains(c.Id));
         public bool IsChosen(Card c) => Targets != null && Try(() => Targets.SelectedTargets.Contains(c.Id));
         public bool IsTargetRow(Location l) => Rows != null && Contains(Rows.ValidTargets, l);
-        public bool IsChosenRow(Location l) => Rows != null && Contains(Rows.SelectedTargets, l);
 
         public static bool Same(Location a, Location b) => a != null && b != null && a.PlayerId == b.PlayerId && a.Loc == b.Loc;
 

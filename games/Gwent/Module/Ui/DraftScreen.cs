@@ -34,15 +34,7 @@ namespace GwentAccess.Ui
         // The drafting container, while the arena panel is on the input layer that has the input.
         private static ArenaDraftingContainer Drafting(out UIArenaPanel panel)
         {
-            panel = null;
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count && panel == null; i++)
-            {
-                var c = attached[i];
-                if (c != null && c.gameObject.activeInHierarchy) panel = c.TryCast<UIArenaPanel>();
-            }
+            panel = CrimsonNodes.ActivePanel<UIArenaPanel>();
             if (panel == null) return null;
             var d = panel.GetComponentInChildren<ArenaDraftingContainer>(false);
             return d != null && d.gameObject.activeInHierarchy ? d : null;

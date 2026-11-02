@@ -201,6 +201,16 @@ namespace GwentAccess
         private static readonly System.Text.RegularExpressions.Regex SpaceBeforeClose = new System.Text.RegularExpressions.Regex(@" ([.,:;!?)»])");
         private static readonly System.Text.RegularExpressions.Regex SpaceAfterOpen = new System.Text.RegularExpressions.Regex(@"([(«]) ");
 
+        /// <summary>The parts that have words, joined with commas: "Level 2, 40 Ore".</summary>
+        public static string Join(params string[] parts)
+        {
+            var list = new List<string>();
+            foreach (var s in parts) if (!string.IsNullOrEmpty(s)) list.Add(s);
+            return string.Join(", ", list);
+        }
+
+        public static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
+
         /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers. A tag becomes a space (it may
         /// separate two words), which is then dropped again before closing punctuation and after an opening
         /// bracket: "&lt;b&gt;Order&lt;/b&gt;: (&lt;b&gt;ranged&lt;/b&gt;)" reads "Order: (ranged)".</summary>

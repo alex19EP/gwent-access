@@ -186,16 +186,7 @@ namespace GwentAccess.Ui
             return false;
         }
 
-        private static UIMainMenuContentPanel ContentPanel(CrimsonInputLayer layer)
-        {
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIMainMenuContentPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIMainMenuContentPanel ContentPanel(CrimsonInputLayer layer) => CrimsonNodes.ActivePanel<UIMainMenuContentPanel>(layer);
 
         // True from when the menu comes up until the player's first key: the game's own selection isn't followed
         // meanwhile, so the cursor starts at the top even when the game moves its selection while the menu settles

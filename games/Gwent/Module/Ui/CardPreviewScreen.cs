@@ -36,19 +36,9 @@ namespace GwentAccess.Ui
         // The preview, when the input layer that has the input holds it and it carries the crafting component.
         private static UICardPreview Preview()
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UICardPreview>();
-                if (p == null) continue;
-                var crafter = p.CraftingComponent;
-                return crafter != null && crafter.gameObject.activeInHierarchy ? p : null;
-            }
-            return null;
+            var p = CrimsonNodes.ActivePanel<UICardPreview>();
+            var crafter = p?.CraftingComponent;
+            return crafter != null && crafter.gameObject.activeInHierarchy ? p : null;
         }
 
         private static GwentGameplay.Card CurrentCard(UICardPreview p)

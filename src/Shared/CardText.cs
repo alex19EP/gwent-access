@@ -7,10 +7,10 @@ using Localization;
 
 namespace GwentAccess
 {
-    /// <summary>Turns a Gwent card into speech: name, power, armor, provisions, and what it does.</summary>
+    /// <summary>The card behind a UI control, and a one-line form of a card for a control the dedicated screens
+    /// don't read (<see cref="UiText.DescribeSelection"/>). <see cref="CardReader"/> is the full reader.</summary>
     internal static class CardText
     {
-
         /// <summary>Find the card behind a UI control, if it shows one.</summary>
         public static Card CardOf(Component c)
         {
@@ -38,7 +38,7 @@ namespace GwentAccess
         }
 
         /// <summary>Short form for moving around: "Name, power 5, armor 2, 7 provisions. What it does."</summary>
-        public static string Describe(Card card, bool full = false)
+        public static string Describe(Card card)
         {
             if (card == null) return "";
             var parts = new List<string>();
@@ -70,26 +70,7 @@ namespace GwentAccess
             string desc = Safe(() => LocalizationHelper.GetTooltipDescription(card));
             if (desc.Length > 0) text += " " + desc;
 
-            if (full)
-            {
-                string cats = Safe(() => LocalizationHelper.LocalizeCategories(card));
-                if (cats.Length > 0) text += " Categories: " + cats + ".";
-                string faction = "";
-                try { faction = UiText.Clean(LocalizationHelper.GetFactionName(card.FactionId)); } catch { }
-                if (faction.Length > 0) text += " Faction: " + faction + ".";
-                try
-                {
-                    var t = card.Template;
-                    if (t != null) text += " Rarity: " + t.Rarity + ".";
-                }
-                catch { }
-                string kw = Safe(() => LocalizationHelper.GetKeywordsDescription(card));
-                if (kw.Length > 0) text += " Keywords: " + kw;
-                string flavor = Safe(() => LocalizationHelper.GetCardFlavor(card));
-                if (flavor.Length > 0 && !flavor.StartsWith("[MISSING]")) text += " Flavor: " + flavor;
-            }
             return text;
         }
-
     }
 }
