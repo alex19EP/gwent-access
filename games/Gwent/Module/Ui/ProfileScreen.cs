@@ -33,7 +33,20 @@ namespace GwentAccess.Ui
         public override int Layer => 1;
         public override string ScreenName => "Profile";
 
-        public override bool IsActive() => Panel() != null;
+        // Active once the tab bar is drawn (or after a second, for a window without one): the window's first
+        // frames hold only its Exit/Back bar, and a cursor placed then stayed on Exit instead of the open tab.
+        public override bool IsActive()
+        {
+            var p = Panel();
+            if (p == null) { _shownAt = -1; return false; }
+            float now = UnityEngine.Time.realtimeSinceStartup;
+            if (_shownAt < 0) _shownAt = now;
+            bool tabs = false;
+            try { tabs = p.m_ProfileTabContainer?.m_Menu != null && p.m_ProfileTabContainer.m_Menu.gameObject.activeInHierarchy; } catch { }
+            return tabs || now - _shownAt > 1f;
+        }
+
+        private static float _shownAt = -1;
 
         private static UIPlayerProfilePanel _panel;
 
@@ -93,6 +106,14 @@ namespace GwentAccess.Ui
         private static NodeVtable Toggle(AControl c, Func<string> label = null)
         {
             var v = CrimsonNodes.Button(c, label ?? (() => Describe(c)));
+            // An option of an open dropdown list ("Collection Progress" under the stats' column picker) says
+            // whether it is the column shown, as the list highlights it.
+            var box = c.GetComponentInParent<UIDropdownContainer>();
+            if (box != null && c.TryCast<UIDropdownButton>() != null && UnderListItems(c.transform, box.transform))
+                v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+                {
+                    new NodeAnnouncement(() => SafeChosen(box, c) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                };
             var t = c.TryCast<ToggleButtonControl>();
             if (t != null)
                 v.Announcements = new List<NodeAnnouncement>(v.Announcements)
@@ -100,6 +121,26 @@ namespace GwentAccess.Ui
                     new NodeAnnouncement(() => SafeToggled(t) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
                 };
             return v;
+        }
+
+        private static bool UnderListItems(Transform t, Transform box)
+        {
+            for (; t != null && t.Pointer != box.Pointer; t = t.parent) if (t.name == "ListItemsRoot") return true;
+            return false;
+        }
+
+        // The game keeps no selected id for these lists (-1); the dropdown's head shows the current choice's words.
+        private static bool SafeChosen(UIDropdownContainer box, AControl c)
+        {
+            try
+            {
+                string mine = string.Join(" ", CrimsonNodes.Texts(c));
+                foreach (var b in box.GetComponentsInChildren<UIDropdownButton>(false))
+                    if (!UnderListItems(b.transform, box.transform))
+                        return mine.Length > 0 && string.Join(" ", CrimsonNodes.Texts(b)) == mine;
+            }
+            catch { }
+            return false;
         }
 
         // ---- the banner ----
@@ -564,7 +605,9 @@ namespace GwentAccess.Ui
             var parts = new List<string>();
             bool named = around.Count > 0 && !IsCount(around[0]);
             if (tip != null && !named) parts.Add(tip);
-            foreach (var s in around) if (!parts.Contains(s)) parts.Add(s);
+            // Drawn words the tooltip already says ("Highest" under the rank whose tooltip is "Highest Rank") go.
+            foreach (var s in around)
+                if (!parts.Contains(s) && !(tip != null && !IsCount(s) && tip.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0)) parts.Add(s);
             if (tip != null && named && !parts.Contains(tip)) parts.Add(tip);
             return parts.Count > 0 ? Joined(parts) : CrimsonNodes.Label(c);
         }
