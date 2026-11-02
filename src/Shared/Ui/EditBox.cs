@@ -52,6 +52,8 @@ namespace GwentAccess.Ui
                 new NodeAnnouncement(() => Placeholder(field) ?? _fallbackName, kind: AnnouncementKinds.Label),
                 NodeAnnouncement.Static("edit"),
                 new NodeAnnouncement(() => Typed(field) is string t && t.Length > 0 ? t : null, kind: AnnouncementKinds.Value),
+                // Arrows don't enter the field (they move between items): say how to, until typing starts.
+                new NodeAnnouncement(() => Editing() ? null : "Enter to type", live: true, kind: AnnouncementKinds.Tooltip),
             },
             OnActivate = () =>
             {

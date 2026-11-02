@@ -600,7 +600,30 @@ namespace GwentAccess.Ui
         private static readonly HashSet<object> _stopsAtActivation = new HashSet<object>();
 
         public override bool QuietLanding(GraphNode node) =>
-            _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f && _stopsAtActivation.Contains(node.StopKey);
+            _backAt > 0
+            || _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f && _stopsAtActivation.Contains(node.StopKey);
+
+        // Backspace out of PLAY: the menu rebuilds in two steps (the play stack's cards, then the top cards), and
+        // the cursor's landing on the first was read ("Autumn Cycle, 1 of 4"). Landings are held until it settles,
+        // then where it settled is said once.
+        private static float _backAt = -1;
+        private const float BackSettle = 0.6f;
+
+        public override bool Back()
+        {
+            if (!PressBack()) return false;
+            _backAt = UnityEngine.Time.realtimeSinceStartup;
+            return true;
+        }
+
+        public override void Tick() => SettleBack();
+
+        private void SettleBack()
+        {
+            if (_backAt < 0 || UnityEngine.Time.realtimeSinceStartup - _backAt < BackSettle) return;
+            _backAt = -1;
+            GraphNavigator.SayWhere();
+        }
 
         private static void NoteActivation()
         {

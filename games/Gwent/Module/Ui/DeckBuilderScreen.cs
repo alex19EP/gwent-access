@@ -36,6 +36,25 @@ namespace GwentAccess.Ui
 
         public override bool IsActive() => Panel() != null;
 
+        /// <summary>Backspace off a card or deck: while a deck is open, its Exit, which asks whether to save (never
+        /// "Exit without saving"); its bar binds no Back key. On the deck list, the game's Back.</summary>
+        public override bool Back()
+        {
+            try
+            {
+                var edit = DeckBuilder.Edit;
+                var quit = edit?.m_QuitAndSaveBinding;
+                if (quit != null && quit.gameObject.activeInHierarchy) { Navigator.ClickControl(quit); return true; }
+                // A starter deck can't be changed, so its only Exit is the no-save one: nothing is lost.
+                var noSave = edit?.m_QuitWithoutSavingBinding;
+                bool starter = false;
+                try { starter = DeckBuilder.Deck()?.IsStarterDeck == true; } catch { }
+                if (starter && noSave != null && noSave.gameObject.activeInHierarchy) { Navigator.ClickControl(noSave); return true; }
+            }
+            catch { }
+            return PressBack();
+        }
+
         // The panel, when the input layer that has the input holds it.
         private static UIDBPanel Panel()
         {
@@ -315,6 +334,8 @@ namespace GwentAccess.Ui
         // The card count as last spoken, and when the list last changed: a search or filter change speaks the
         // new count once the list has settled (typing changes it on every letter).
         private static int _spokenCount = -1;
+        private static IntPtr _countEdit;
+        private static float _countSettleUntil;
         private static float _countChangedAt;
 
         /// <summary>The search box's edit-box echo, then the card count after a search or filter change, queued
@@ -323,6 +344,12 @@ namespace GwentAccess.Ui
         {
             _search.Tick();
             int n = _cards.Count;
+            // Opening or leaving a deck refilters the grid to its faction: not the player's filter change, and the
+            // count isn't news (it was said as "2437 cards" on every return to the deck list).
+            IntPtr edit = IntPtr.Zero;
+            try { edit = DeckBuilder.Edit?.Pointer ?? IntPtr.Zero; } catch { }
+            if (edit != _countEdit) { _countEdit = edit; _spokenCount = -1; _countSettleUntil = Time.realtimeSinceStartup + 2f; }
+            if (Time.realtimeSinceStartup < _countSettleUntil) { _spokenCount = n; return; }
             if (_spokenCount < 0) { _spokenCount = n; return; }
             if (n == _spokenCount) { _countChangedAt = 0; return; }
             if (_countChangedAt == 0) { _countChangedAt = Time.realtimeSinceStartup; return; }

@@ -344,7 +344,11 @@ namespace GwentAccess.Ui
             else if (Keys.Down(KeyCode.End)) Edge(GraphDir.Down);
             else if (Keys.Down(KeyCode.Return) && !_screen.LeavesToGame(KeyCode.Return)
                 || Keys.Down(KeyCode.KeypadEnter) && !_screen.LeavesToGame(KeyCode.KeypadEnter)) Activate();
-            else if (Keys.Down(KeyCode.Backspace)) Run(_graph.CurrentNode?.Vtable.OnSecondary, _graph.Secondary);
+            else if (Keys.Down(KeyCode.Backspace))
+            {
+                if (_graph.CurrentNode?.Vtable.OnSecondary != null) Run(_graph.CurrentNode.Vtable.OnSecondary, _graph.Secondary);
+                else Back();
+            }
             else if (Keys.Down(KeyCode.Space)) Details();
         }
 
@@ -419,6 +423,15 @@ namespace GwentAccess.Ui
             try { op(); }
             catch (Exception e) { ScreenManager.LogOnce(_screen, "node action", e); }
             SpeakState();
+        }
+
+        // Backspace with nothing of the item's own to do: the screen's Back, never a silent key.
+        private static void Back()
+        {
+            bool done = false;
+            try { done = _screen.Back(); }
+            catch (Exception e) { ScreenManager.LogOnce(_screen, "Back", e); }
+            if (!done) Say("Nothing to go back to here.", interrupt: true);
         }
 
         private static void SpeakState()

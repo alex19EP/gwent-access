@@ -59,8 +59,9 @@ namespace GwentAccess.Ui
             // A screen that left with no overlay above it, or whose overlay went without it coming back, is closed.
             float now = UnityEngine.Time.realtimeSinceStartup;
             List<Screen> closed = null;
+            bool overlayTop = desired.Count > 0 && SafeOverlays(desired[desired.Count - 1]);
             foreach (var kv in _covered)
-                if (topLayer <= kv.Key.Layer && now - kv.Value > (desired.Count == 0 ? EmptyGrace : CoverGrace)) (closed ??= new List<Screen>()).Add(kv.Key);
+                if (topLayer <= kv.Key.Layer && !overlayTop && now - kv.Value > (desired.Count == 0 ? EmptyGrace : CoverGrace)) (closed ??= new List<Screen>()).Add(kv.Key);
             if (closed != null)
                 foreach (var c in closed) { _covered.Remove(c); GraphNavigator.ScreenClosed(c); }
             var below = _stack;
@@ -127,6 +128,11 @@ namespace GwentAccess.Ui
         }
 
         private static float _nameCheckAt;
+
+        private static bool SafeOverlays(Screen s)
+        {
+            try { return s.Overlays; } catch { return false; }
+        }
 
         private static string SafeName(Screen s)
         {

@@ -71,6 +71,65 @@ namespace GwentAccess.Ui
         /// screen (a loading screen: each showing is news, not the place the player left).</summary>
         public virtual bool NamedOnReturn => false;
 
+        /// <summary>A screen opened over another as a window of it (the fallback panel screen: the journey, the
+        /// leaderboards… opened from the main menu), though on a lower layer: the screen under it keeps its cursor
+        /// while it is up, as under an overlay of a higher layer.</summary>
+        public virtual bool Overlays => false;
+
+        /// <summary>Backspace when the focused item has no Backspace action of its own (Hearthstone Access's Back):
+        /// leave the screen the way the game does (its Back/Exit/Close button, or the toggle that opened it). True
+        /// when something was pressed; false says so to the player instead of a dead key. The default runs the
+        /// screen's bar entry bound to the game's Back key (see <see cref="PressBack"/>).</summary>
+        public virtual bool Back() => PressBack();
+
+        /// <summary>The game's Back on screen: a shown bar entry (InputButtonContainer) whose key glyph is the
+        /// gamepad's back key, on the input layer that has the input. Its button is clicked (the mouse's path, so
+        /// sounds and the UX event run); the glyph and the button are separate objects, paired by the callback
+        /// they share. Without a button the callback itself runs, as the key does.</summary>
+        public static bool PressBack()
+        {
+#if !GWENT
+            return false; // Thronebreaker's older engine: its bar buttons are matched by its own screens
+#else
+            try
+            {
+                var layer = CrimsonInputManager.Instance?.ActiveLayer;
+                if (layer == null) return false;
+                var attached = layer.GetAttachedControls();
+                for (int i = 0; i < attached.Count; i++)
+                {
+                    var root = attached[i];
+                    if (root == null || !root.gameObject.activeInHierarchy) continue;
+                    foreach (var bar in root.GetComponentsInChildren<InputButtonContainer>(false))
+                    {
+                        var labels = bar.m_Labels;
+                        for (int j = 0; labels != null && j < labels.Count; j++)
+                        {
+                            var g = labels[j];
+                            if (g == null || !g.gameObject.activeInHierarchy || !BackKeys.Contains(g.InputKey.ToString())) continue;
+                            var callback = g.Callback;
+                            if (callback == null) continue;
+                            foreach (var kv in bar.m_Buttons)
+                                if (kv.Value != null && kv.Value.Pointer == callback.Pointer && kv.Key != null && kv.Key.gameObject.activeInHierarchy)
+                                {
+                                    Plugin.LogInfo("[back] " + kv.Key.gameObject.name + " (" + string.Join("|", CrimsonNodes.Texts(kv.Key)) + ")");
+                                    Navigator.ClickControl(kv.Key);
+                                    return true;
+                                }
+                            Plugin.LogInfo("[back] callback of " + g.gameObject.name);
+                            callback.Invoke();
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception e) { Plugin.LogInfo("[back] " + e.Message); }
+            return false;
+#endif
+        }
+
+        private static readonly HashSet<string> BackKeys = new HashSet<string> { "B", "Back", "Cancel", "Escape" };
+
         /// <summary>The screen's own keys, checked before the navigator's.</summary>
         public virtual IReadOnlyList<ScreenKey> ExtraKeys => Array.Empty<ScreenKey>();
 

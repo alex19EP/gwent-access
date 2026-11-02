@@ -64,6 +64,9 @@ F1               Help: the keys for the screen you're on, then the keys that wor
 Arrow keys       Move around the screen. Left/Right also change a setting's value.
 Tab / Shift+Tab  Next / previous section.
 Enter            Use the current item. Escape: the game's own back / menu.
+Backspace        Back: the screen's Back, Exit or Close (Cancel in a popup). Where an item has
+                 a Backspace action of its own (a deck's options, a card's preview, cancelling
+                 in a match), that comes first. Says "Nothing to go back to here" otherwise.
 Space            Details of the current item, or read it again.
 F7               Repeat the last thing spoken.
 Shift+F7         Repeat the last popup, tutorial or screen message. Press again

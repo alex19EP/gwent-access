@@ -70,6 +70,25 @@ namespace GwentAccess.Ui
 
         public override bool NamedOnReturn => Panel()?.TryCast<UILoadingScreenBase>() != null;
 
+        /// <summary>The journey, leaderboards… are windows of the screen that opened them (the main menu keeps its
+        /// place under them); a loading screen is not (what follows it replaces the screen before).</summary>
+        public override bool Overlays => Panel() is AGwentPanel p && p.TryCast<UILoadingScreenBase>() == null;
+
+        // A panel starts at its top, not wherever the game parked its selection (the leaderboard opened on its
+        // tenth item, the journey on EXIT): the game's selection is followed only after the player's first key.
+        private bool _fresh;
+        public override void OnFocus() => _fresh = true;
+
+        public override AControl GameSelection()
+        {
+            if (_fresh)
+            {
+                if (Keys.AnyDown()) _fresh = false;
+                return null;
+            }
+            return base.GameSelection();
+        }
+
         // Panels another screen or the game's furniture owns: never the fallback's.
         private static readonly string[] Skip =
         {

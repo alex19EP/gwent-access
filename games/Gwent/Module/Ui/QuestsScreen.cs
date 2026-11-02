@@ -50,6 +50,12 @@ namespace GwentAccess.Ui
 
         public override void OnPop() => _rerolledSlot = -1;
 
+        private AControl _opener;
+        public override void OnFocus() => _opener = ContactsScreen.SocialOpener();
+
+        /// <summary>Backspace closes the window as pressing its social bar button again does.</summary>
+        public override bool Back() => ContactsScreen.CloseSocialWindow(_opener, "quest");
+
         // Whether this build has named where the cursor starts.
         private bool _startSet;
 
