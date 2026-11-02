@@ -1,0 +1,52 @@
+name: Bug report
+description: Something the mod says wrong, says twice, leaves out, or a key that does the wrong thing.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please send the log right after the problem happens: Gwent replaces it each time it starts.
+  - type: input
+    id: build
+    attributes:
+      label: Mod build
+      description: The contents of BepInEx\plugins\GwentAccess\build.txt in your Gwent folder, or the version the mod says when Gwent starts.
+      placeholder: "0.28.0"
+    validations:
+      required: true
+  - type: input
+    id: screen
+    attributes:
+      label: Screen
+      description: Where it happened. F9 says where you are.
+      placeholder: "Deck builder, Collection"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: The keys you pressed, in order.
+      placeholder: |
+        1. Main menu, DECK BUILDER, Enter.
+        2. Down to my Skellige deck, Enter.
+        3. Backspace.
+    validations:
+      required: true
+  - type: textarea
+    id: heard
+    attributes:
+      label: What you heard, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Attach BepInEx\LogOutput.log from your Gwent folder, or paste the lines from around the problem.
+      render: text
+  - type: input
+    id: reader
+    attributes:
+      label: Screen reader
+      placeholder: "NVDA 2026.2"

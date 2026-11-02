@@ -9,7 +9,7 @@ namespace GwentAccess
     {
         public const string Guid = "gwentaccess";
         public const string Name = "Gwent Access";
-        public const string Version = "0.27.0";
+        public const string Version = "0.28.0";
 
         /// <summary>Under the plugin folder's Module\ (stable name; the assembly inside is timestamped).</summary>
         public const string ModuleFile = "GwentAccess.Module.dll";

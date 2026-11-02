@@ -1,6 +1,6 @@
 GWENT ACCESS
 A screen reader mod for Gwent: The Witcher Card Game (Steam, Windows)
-Version 0.27
+Version 0.28
 
 Gwent Access makes Gwent playable with the NVDA screen reader. It reads the menus,
 cards, popups and the battle board, and adds keyboard commands for playing a match
@@ -103,11 +103,19 @@ MENUS
   with what you picked; current; to come), then the buttons. Once the deck is done,
   the screen lists your wins, Play (starts a match against a player) and your deck.
   EXIT leaves and keeps your draft; Abandon ends it.
-- Other screens (Journey, Leaderboards, What's new!, the season cycle, loading tips):
-  read top to bottom with Up/Down. Items the game draws on one line (a leaderboard
-  entry's rank, name and rating; column headings) are a row: Left/Right move along it.
-  A journey step says its number, reward and whether it is locked or claimed. Tab
-  reaches the buttons at the bottom.
+- Journey: Tab goes through your level and crowns, the steps, the reward preview and
+  the buttons. Each step is a row: Up/Down move between steps, Left/Right between its
+  Standard reward, its Premium reward and, on special steps, the Fast Travel buttons
+  with their prices. You start on your current step. Enter on a reward shows it in
+  the preview, which is then read.
+- Autumn Cycle (the season cycle): your cycle level and dates, then the reward levels
+  ("Level 2, 40 Ore, next"), starting on your next reward. Tab reaches the quests,
+  under Easy, Medium and Hard; Right from a quest reaches its Change Quest button.
+  Then the cycle's contract.
+- Other screens (Leaderboards, What's new!, the Journey's story, loading tips): read
+  top to bottom with Up/Down. Items the game draws on one line (a leaderboard entry's
+  rank, name and rating) are a row: Left/Right move along it. Tab reaches the buttons
+  at the bottom.
 
 PLAYING A MATCH
 Gwent is best of three rounds. Each turn you play ONE card, then end your turn.
