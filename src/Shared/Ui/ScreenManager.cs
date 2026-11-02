@@ -18,6 +18,9 @@ namespace GwentAccess.Ui
         // (or for CoverGrace, across the frames between one panel going and the overlay's arriving).
         private static readonly Dictionary<Screen, float> _covered = new Dictionary<Screen, float>();
         private const float CoverGrace = 0.5f;
+        // With no screen up at all (a popup's closing animation, when the game's layer is neither the popup's nor
+        // the menu's), a covered screen keeps its place longer.
+        private const float EmptyGrace = 3f;
         // The name each screen was last announced by: one screen can stand for several panels (the fallback panel
         // screen), and coming back as a different one is a new screen to the player.
         private static readonly Dictionary<Screen, string> _names = new Dictionary<Screen, string>();
@@ -57,7 +60,7 @@ namespace GwentAccess.Ui
             float now = UnityEngine.Time.realtimeSinceStartup;
             List<Screen> closed = null;
             foreach (var kv in _covered)
-                if (topLayer <= kv.Key.Layer && now - kv.Value > CoverGrace) (closed ??= new List<Screen>()).Add(kv.Key);
+                if (topLayer <= kv.Key.Layer && now - kv.Value > (desired.Count == 0 ? EmptyGrace : CoverGrace)) (closed ??= new List<Screen>()).Add(kv.Key);
             if (closed != null)
                 foreach (var c in closed) { _covered.Remove(c); GraphNavigator.ScreenClosed(c); }
             var below = _stack;
@@ -66,7 +69,13 @@ namespace GwentAccess.Ui
             var cur = Current;
             // A screen that stayed live under the one that went (the main menu under the help) is returned to too.
             if (cur != null && below.Contains(cur)) uncovered = true;
-            if (ReferenceEquals(cur, _focused)) return;
+            if (ReferenceEquals(cur, _focused))
+            {
+                // Its name can change while focused (the deck builder's title: the list, then the deck being edited);
+                // keep the one to compare against on return current.
+                if (cur != null && now >= _nameCheckAt) { _nameCheckAt = now + 0.5f; _names[cur] = SafeName(cur); }
+                return;
+            }
             if (_focused != null) Safe(_focused.OnUnfocus, _focused, "OnUnfocus");
             _focused = cur;
             Plugin.LogInfo("[screens] focus: " + (cur?.Key ?? "none (game)") + (uncovered ? " (back from an overlay)" : ""));
@@ -74,7 +83,7 @@ namespace GwentAccess.Ui
             {
                 Safe(cur.OnFocus, cur, "OnFocus");
                 // Back from an overlay the player is where they were: only the item is spoken, not the screen again.
-                var name = cur.ScreenName;
+                var name = SafeName(cur);
                 bool same = uncovered && !cur.NamedOnReturn && _names.TryGetValue(cur, out var was) && was == name;
                 _names[cur] = name;
                 if (!same && !string.IsNullOrEmpty(name)) Speech.Say(name);
@@ -115,6 +124,13 @@ namespace GwentAccess.Ui
             var parts = new List<string>();
             foreach (var s in _stack) parts.Add(s.Key + "@" + s.Layer);
             return parts.Count == 0 ? "none" : string.Join(" < ", parts);
+        }
+
+        private static float _nameCheckAt;
+
+        private static string SafeName(Screen s)
+        {
+            try { return s.ScreenName; } catch { return null; }
         }
 
         private static bool SafeIsActive(Screen s)

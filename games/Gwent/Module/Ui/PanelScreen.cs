@@ -29,6 +29,7 @@ namespace GwentAccess.Ui
             ["UIWelcomeScreenPanel(Clone)"] = ("welcome_screen_title", "What's new!"),
             ["UIOuroborosProgressionPanelPrefab(Clone)"] = ("ouroboros_main_menu_card_title_autumn", "Season cycle"),
             ["UIMainMenuLeaderboardPrefab(Clone)"] = ("leaderboards_title", "Leaderboards"),
+            ["UIDraftPanel(Clone)"] = ("arenav2_mainmenu_title", "Draft"),
         };
 
         public override string ScreenName
@@ -175,6 +176,17 @@ namespace GwentAccess.Ui
             float Top(List<Entry> g) { float t = float.MinValue; foreach (var e in g) t = Math.Max(t, e.Pos.y); return t; }
             float Left(List<Entry> g) { float l = float.MaxValue; foreach (var e in g) l = Math.Min(l, e.Pos.x); return l; }
             sorted.Sort((x, y) => Math.Abs(Top(x) - Top(y)) > LineSlack ? Top(y).CompareTo(Top(x)) : Left(x).CompareTo(Left(y)));
+            // A caption drawn with its number on its own just after ("Wins in current draft", "0"): one item.
+            for (int i = 0; i + 1 < sorted.Count; i++)
+            {
+                var a = sorted[i]; var z = sorted[i + 1];
+                if (a.Count == 1 && z.Count == 1 && a[0].Control == null && z[0].Control == null
+                    && IsNumber(z[0].Text) && !IsNumber(a[0].Text) && !char.IsDigit(a[0].Text[a[0].Text.Length - 1]))
+                {
+                    a[0].Text = a[0].Text + ", " + z[0].Text;
+                    sorted.RemoveAt(i + 1);
+                }
+            }
             b.BeginStop("panel:content");
             int n = 0;
             // A notice with nothing to press (the match intro, a loading tip): one message, read whole on landing;
@@ -213,6 +225,7 @@ namespace GwentAccess.Ui
                 foreach (var e in g) { lo = Math.Min(lo, e.Pos.y); hi = Math.Max(hi, e.Pos.y); }
                 bool row = g.Count > 1 && hi - lo <= RowSlack;
                 g.Sort((x, y) => row || Math.Abs(x.Pos.y - y.Pos.y) <= LineSlack ? x.Pos.x.CompareTo(y.Pos.x) : y.Pos.y.CompareTo(x.Pos.y));
+                if (!row) JoinNumbers(g);
                 if (row) b.StartRow();
                 foreach (var e in g) Add(b, e, ref n);
                 if (row) b.EndRow();
@@ -225,6 +238,22 @@ namespace GwentAccess.Ui
         }
 
         private const float LineSlack = 6f, RowSlack = 24f;
+
+        // A caption with its number drawn on its own just after it, within a group: one item.
+        private static void JoinNumbers(List<Entry> g)
+        {
+            for (int i = 0; i + 1 < g.Count; i++)
+            {
+                var a = g[i]; var z = g[i + 1];
+                if (a.Control == null && z.Control == null && IsNumber(z.Text) && !IsNumber(a.Text) && !char.IsDigit(a.Text[a.Text.Length - 1]))
+                {
+                    a.Text = a.Text + ", " + z.Text;
+                    g.RemoveAt(i + 1);
+                }
+            }
+        }
+
+        private static bool IsNumber(string s) => s.Length > 0 && s.Length <= 6 && int.TryParse(s, out _);
 
         // The notice last built: its panel, words and message, and what its landing says.
         private static string _noticePanel, _noticeMessage, _noticeSaid;

@@ -196,6 +196,21 @@ namespace GwentAccess.Ui
         }
 #endif
 
+#if GWENT
+        internal static string DeckRowText(AControl c)
+        {
+            try
+            {
+                var row = c.TryCast<GwentVisuals.UIDeckCardButtonControl>();
+                var card = row?.Card?.Card;
+                if (card == null) return null;
+                string copies = Texts(c).Find(t => t.Length > 1 && t[0] == 'x' && int.TryParse(t.Substring(1), out _));
+                return CardReader.Summary(card) + (copies != null ? ", " + copies : "");
+            }
+            catch { return null; }
+        }
+#endif
+
         private static bool Shown(Component c)
         {
             try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
@@ -205,6 +220,11 @@ namespace GwentAccess.Ui
         {
             try
             {
+#if GWENT
+                // A deck list row (the deck builder's, Draft's finished deck) is a card with its provisions and
+                // copies drawn beside it: read as the collection reads cards, with its copies ("x2").
+                if (DeckRowText(c) is string row) return row;
+#endif
                 var parts = Texts(c);
                 if (parts.Count > 1) return parts[0];
                 if (NotificationText(c) is string note) return note;

@@ -94,6 +94,12 @@ MENUS
   details follow it: title, time left, description, quantity and the Buy button.
   Enter on Buy goes through the game's own purchase, with its confirmation popup.
   Every price says its currency; real-money prices carry their symbol.
+- Draft: each step's three choices come first, under the step's title ("Choose
+  ability"): an ability's name and text, a package's name and its cards (Space reads
+  every card in full), a card. Enter picks it. Tab reaches the draft's steps (done,
+  with what you picked; current; to come), then the buttons. Once the deck is done,
+  the screen lists your wins, Play (starts a match against a player) and your deck.
+  EXIT leaves and keeps your draft; Abandon ends it.
 - Other screens (Journey, Leaderboards, What's new!, the season cycle, loading tips):
   read top to bottom with Up/Down. Items the game draws on one line (a leaderboard
   entry's rank, name and rating; column headings) are a row: Left/Right move along it.
