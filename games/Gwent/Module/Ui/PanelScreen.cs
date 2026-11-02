@@ -38,6 +38,7 @@ namespace GwentAccess.Ui
                 var p = Panel();
                 if (p == null) return null;
                 if (Titles.TryGetValue(p.gameObject.name, out var t)) return GameText.Get(t.Key, t.Fallback);
+                if (p.TryCast<UILoadingScreenBase>() != null) return "Loading"; // its tip is read as its content
                 return UiText.FriendlyName(p.gameObject.name.Replace("(Clone)", "").Replace("Prefab", "").Replace("UI", ""));
             }
         }
@@ -64,6 +65,8 @@ namespace GwentAccess.Ui
         }
 
         public override bool IsActive() => Panel() != null;
+
+        public override bool NamedOnReturn => Panel()?.TryCast<UILoadingScreenBase>() != null;
 
         // Panels another screen or the game's furniture owns: never the fallback's.
         private static readonly string[] Skip =
@@ -96,7 +99,6 @@ namespace GwentAccess.Ui
             public Transform TextTransform;
             public string Text;     // a read-only text…
             public AControl Control; // …or a control
-            public bool Bar;         // a bottom bar button
         }
 
         public override void Build(GraphBuilder b)

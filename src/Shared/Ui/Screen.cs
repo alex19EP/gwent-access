@@ -67,6 +67,10 @@ namespace GwentAccess.Ui
         /// the same path (a hand slot refilled by the next card).</summary>
         public virtual bool ReturnsToOpener => true;
 
+        /// <summary>Say <see cref="ScreenName"/> even when the screen comes back from under an overlay as the same
+        /// screen (a loading screen: each showing is news, not the place the player left).</summary>
+        public virtual bool NamedOnReturn => false;
+
         /// <summary>The screen's own keys, checked before the navigator's.</summary>
         public virtual IReadOnlyList<ScreenKey> ExtraKeys => Array.Empty<ScreenKey>();
 

@@ -82,24 +82,13 @@ namespace GwentAccess.Ui
                 Line(b, ref n, "Escape, the game's own Back or menu");
                 b.PopContext();
             }
-            else
-            {
-                // Over a screen no mod screen handles yet: the older hotkeys are the way around it.
-                b.PushContext("This screen");
-                Line(b, ref n, "F2 and F3, previous or next item");
-                Line(b, ref n, "Shift F2 and Shift F3, previous or next section");
-                Line(b, ref n, "F4, click the item");
-                b.PopContext();
-            }
 
             b.PushContext("Anywhere");
             Line(b, ref n, "F1, open or close this help");
             Line(b, ref n, "F7, repeat the last thing spoken");
             Line(b, ref n, "Shift F7, repeat the last popup or tutorial message; again for older ones");
-            Line(b, ref n, "F9, read the whole screen");
-            Line(b, ref n, "F6, the game's own key hints for this screen");
+            Line(b, ref n, "F9, where am I: the current item again, with its screen and section");
             Line(b, ref n, "F5, switch controller mode by hand. It follows your controller on its own");
-            Line(b, ref n, "Shift F1, card details on the older screens");
             Line(b, ref n, "F8, accessibility on or off. Off, Gwent Access is silent and gives the game every key back");
 #if DEBUG
             Line(b, ref n, "F11, development builds: load a newer build of the mod without restarting");

@@ -14,22 +14,19 @@ namespace GwentAccess.Ui
     {
         private static readonly List<Screen> _registered = new List<Screen>();
         private static List<Screen> _stack = new List<Screen>();
+        // Screens that left the stack, with when: their cursors are kept while an overlay of a higher layer is up
+        // (or for CoverGrace, across the frames between one panel going and the overlay's arriving).
+        private static readonly Dictionary<Screen, float> _covered = new Dictionary<Screen, float>();
+        private const float CoverGrace = 0.5f;
+        // The name each screen was last announced by: one screen can stand for several panels (the fallback panel
+        // screen), and coming back as a different one is a new screen to the player.
+        private static readonly Dictionary<Screen, string> _names = new Dictionary<Screen, string>();
         private static Screen _focused;
 
         /// <summary>The screen the navigator is attached to, or null when no mod screen is up.</summary>
         public static Screen Current => _stack.Count > 0 ? _stack[_stack.Count - 1] : null;
 
         public static void Register(Screen s) => _registered.Add(s);
-
-        /// <summary>Would a mod screen own the UI if polled right now? Legacy narrators ask this instead of
-        /// <see cref="GraphNavigator.Owns"/> when they run before this frame's poll — a popup closing hands the
-        /// selection back to the menu one frame before the stack notices (spec §10.5, the rising edge).</summary>
-        public static bool AnyActive()
-        {
-            foreach (var s in _registered)
-                if (SafeIsActive(s)) return true;
-            return false;
-        }
 
         public static void Tick()
         {
@@ -38,27 +35,49 @@ namespace GwentAccess.Ui
                 if (SafeIsActive(s)) desired.Add(s);
             desired.Sort((a, b) => a.Layer != b.Layer ? a.Layer.CompareTo(b.Layer) : _registered.IndexOf(a).CompareTo(_registered.IndexOf(b)));
 
+            int topLayer = desired.Count > 0 ? desired[desired.Count - 1].Layer : int.MinValue;
             for (int i = _stack.Count - 1; i >= 0; i--)
                 if (!desired.Contains(_stack[i]))
                 {
                     var gone = _stack[i];
                     Safe(gone.OnPop, gone, "OnPop");
-                    GraphNavigator.ScreenClosed(gone);
+                    // Maybe an overlay of a higher layer took the game's input from it (the card preview over the
+                    // deck builder, a popup over a menu): the game hides the screen's panel from the active input
+                    // layer without closing it. Keep its cursor for when the overlay goes (below).
+                    _covered[gone] = UnityEngine.Time.realtimeSinceStartup;
                 }
+            bool uncovered = false;
             foreach (var s in desired)
-                if (!_stack.Contains(s)) Safe(s.OnPush, s, "OnPush");
+                if (!_stack.Contains(s))
+                {
+                    Safe(s.OnPush, s, "OnPush");
+                    if (_covered.Remove(s) && ReferenceEquals(s, desired[desired.Count - 1])) uncovered = true;
+                }
+            // A screen that left with no overlay above it, or whose overlay went without it coming back, is closed.
+            float now = UnityEngine.Time.realtimeSinceStartup;
+            List<Screen> closed = null;
+            foreach (var kv in _covered)
+                if (topLayer <= kv.Key.Layer && now - kv.Value > CoverGrace) (closed ??= new List<Screen>()).Add(kv.Key);
+            if (closed != null)
+                foreach (var c in closed) { _covered.Remove(c); GraphNavigator.ScreenClosed(c); }
+            var below = _stack;
             _stack = desired;
 
             var cur = Current;
+            // A screen that stayed live under the one that went (the main menu under the help) is returned to too.
+            if (cur != null && below.Contains(cur)) uncovered = true;
             if (ReferenceEquals(cur, _focused)) return;
             if (_focused != null) Safe(_focused.OnUnfocus, _focused, "OnUnfocus");
             _focused = cur;
-            Plugin.LogInfo("[screens] focus: " + (cur?.Key ?? "none (game)"));
+            Plugin.LogInfo("[screens] focus: " + (cur?.Key ?? "none (game)") + (uncovered ? " (back from an overlay)" : ""));
             if (cur != null)
             {
                 Safe(cur.OnFocus, cur, "OnFocus");
+                // Back from an overlay the player is where they were: only the item is spoken, not the screen again.
                 var name = cur.ScreenName;
-                if (!string.IsNullOrEmpty(name)) Speech.Say(name);
+                bool same = uncovered && !cur.NamedOnReturn && _names.TryGetValue(cur, out var was) && was == name;
+                _names[cur] = name;
+                if (!same && !string.IsNullOrEmpty(name)) Speech.Say(name);
             }
             GraphNavigator.Attach(cur);
         }
@@ -76,6 +95,7 @@ namespace GwentAccess.Ui
                 GraphNavigator.ScreenClosed(gone);
             }
             _stack = new List<Screen>();
+            _covered.Clear();
             _focused = null;
             GraphNavigator.Reset();
         }
@@ -84,6 +104,8 @@ namespace GwentAccess.Ui
         public static void Reset()
         {
             _stack.Clear();
+            _covered.Clear();
+            _names.Clear();
             _focused = null;
             _registered.Clear();
         }

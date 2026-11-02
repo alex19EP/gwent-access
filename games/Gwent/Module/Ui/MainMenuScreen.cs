@@ -143,17 +143,11 @@ namespace GwentAccess.Ui
             if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base || ContentPanel(layer) == null)
             {
                 _shownSince = -1;
-                Quiet = false;
                 return false;
             }
             if (_shownSince < 0) _shownSince = UnityEngine.Time.realtimeSinceStartup;
-            Quiet = PassingThrough();
-            return !Quiet;
+            return !PassingThrough();
         }
-
-        /// <summary>The menu is up but only being passed through (see <see cref="PassingThrough"/>): the older
-        /// selection narrator stays quiet too, or it reads the menu as it loads ("Top bar. blindndanger…").</summary>
-        public static bool Quiet { get; private set; }
 
         // When the menu first showed this time; -1 while it isn't up.
         private float _shownSince = -1;

@@ -20,99 +20,10 @@ namespace GwentAccess
         public static DBCollectionState Home;
         public static DBEditCollectionState List;
 
-        private static CollectionDeck SelectedDeck()
-        {
-            try
-            {
-                var c = SelectedControlPatch.Current;
-                if (c == null) return null;
-                var b = c.TryCast<UIDeckButtonControl>() ?? c.GetComponentInParent<UIDeckButtonControl>();
-                if (b != null) return b.Deck;
-                // A deck's dropdown option: find the deck button next to it.
-                var root = c.transform;
-                for (int i = 0; i < 6 && root != null; i++, root = root.parent)
-                {
-                    var bb = root.GetComponentInChildren<UIDeckButtonControl>();
-                    if (bb != null) return bb.Deck;
-                }
-            }
-            catch { }
-            return null;
-        }
 
 
-        /// <summary>True while the player has deliberately moved to the search box (Ctrl+F or F2/F3 onto it).</summary>
-        public static bool SearchWanted;
-        private static float _noSaveArmedUntil = -1;
 
-        /// <summary>Ctrl+Q in the deck builder: save and leave the editor, or leave the deck builder.</summary>
-        public static bool Quit()
-        {
-            try
-            {
-                if (Edit != null && Battle.Controller() == null)
-                {
-                    bool starter = false;
-                    try { var d = Deck(); starter = d != null && d.IsStarterDeck; } catch { }
-                    float now = Time.realtimeSinceStartup;
-                    if (starter || now < _noSaveArmedUntil)
-                    {
-                        _noSaveArmedUntil = -1;
-                        Speech.Say(starter ? "Leaving the starter deck." : "Leaving without saving.", true);
-                        Edit.QuitWithoutSaving();
-                        return true;
-                    }
-                    Speech.Say("Saving and leaving the deck.", true);
-                    var me = Edit;
-                    DeactivateSearch();
-                    try { Edit.HandleQuitSaveRequest(); Plugin.LogInfo("Ctrl+Q: HandleQuitSaveRequest called"); } catch (Exception e) { Plugin.LogInfo("HandleQuitSaveRequest failed: " + e.Message); }
-                    MainThread.Later(2.5f, () =>
-                    {
-                        if (Edit == null || Edit.Pointer != me.Pointer) return;
-                        // Second route: the same path as choosing "Save and exit" in the game's own save popup.
-                        try { Plugin.LogInfo("Ctrl+Q: trying save-popup accept path"); Edit.HandleCloseEditingPopup(PopupData.EResult.Accept); } catch (Exception e) { Plugin.LogInfo("Save-popup path failed: " + e.Message); }
-                        MainThread.Later(3f, () =>
-                        {
-                            if (Edit != null && Edit.Pointer == me.Pointer)
-                            {
-                                _noSaveArmedUntil = Time.realtimeSinceStartup + 8f;
-                                Speech.Say("Still in the deck editor. Another way to save: press F3 to the SHOP button in the top bar, F4, and the game asks to save; press Enter. Or press Control Q again to leave without saving.", false);
-                            }
-                        });
-                    });
-                    return true;
-                }
-                if (List != null && Battle.Controller() == null)
-                {
-                    Speech.Say("Leaving the deck builder.", true);
-                    List.HandleQuitRequest();
-                    return true;
-                }
-                if (Home != null && Battle.Controller() == null)
-                {
-                    Speech.Say("Leaving the deck builder.", true);
-                    Home.HandleQuitRequest();
-                    return true;
-                }
-            }
-            catch (Exception e) { Plugin.LogInfo("Deck builder quit failed: " + e); }
-            return false;
-        }
 
-        /// <summary>Takes the cursor out of the card search box so Escape and other keys reach the game again.</summary>
-        public static void DeactivateSearch()
-        {
-            try
-            {
-                foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<InputFieldControl>()))
-                {
-                    var f = o.TryCast<InputFieldControl>();
-                    if (f == null || f.gameObject.name != "TextSearch" || !f.gameObject.activeInHierarchy) continue;
-                    f.DeactivateInputField();
-                }
-            }
-            catch (Exception e) { Plugin.LogInfo("Deactivate search failed: " + e.Message); }
-        }
 
 
         public static float EnteredAt = -100;

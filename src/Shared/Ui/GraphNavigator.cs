@@ -39,9 +39,6 @@ namespace GwentAccess.Ui
         // Write-back memory: the identity last handed to the screen's OnCursorMoved.
         private static ControlId _syncedKey;
 
-        /// <summary>True while a mod screen owns the keyboard and speech for the game's current UI. Legacy paths
-        /// (the selection narrator) stand down on it — one keypress, one model (spec §10.5).</summary>
-        public static bool Owns => _screen != null;
 
         private static readonly KeyCode[] NavKeys =
         {
@@ -478,11 +475,17 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>Re-speak the focused control with its full context ("where am I").</summary>
-        public static void SayWhere()
+        public static void SayWhere() => SayWhere(false);
+
+        /// <summary>F9: the focused control with its full context, after the screen's name when asked.</summary>
+        public static void SayWhere(bool withScreen)
         {
-            if (_graph == null || !_graph.Rerender()) return;
+            if (_graph == null || !_graph.Rerender()) { if (withScreen) Say("Nothing to read here.", interrupt: true); return; }
             var node = _graph.CurrentNode;
-            if (node != null) Say(GraphAnnouncer.ComposeFull(node), interrupt: true);
+            if (node == null) return;
+            string name = withScreen ? _screen?.ScreenName : null;
+            string full = GraphAnnouncer.ComposeFull(node);
+            Say(string.IsNullOrEmpty(name) ? full : name + ", " + full, interrupt: true);
         }
 
         // ---- render ----

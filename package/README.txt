@@ -68,35 +68,37 @@ Space            Details of the current item, or read it again.
 F7               Repeat the last thing spoken.
 Shift+F7         Repeat the last popup, tutorial or screen message. Press again
                  (within 5 seconds) to hear older ones, up to 15 back.
-F9               Read the current screen.
-F6               The game's own key hints for this screen.
+F9               Where am I: the current item again, with its screen and section.
 F8               Accessibility on/off ("Accessibility off" / "on"): off, the mod is
                  silent and gives the game every key.
 F5               Switch controller mode by hand. The mod already switches it on
                  when a controller is connected and off when there is none.
-Shift+F1         Full card details on the screens that still use the older keys.
-F3 / F2, F4      Next / previous item and click, on the screens that still use
-                 the older keys (F1 help lists them when they apply).
-Ctrl+Q           Press the screen's Exit or Back button. In the deck editor: save and exit.
 
 MENUS
-- Popups are read with their choices and keys. In popups, Enter is always Accept and
-  Escape is always Cancel, no matter which choice is highlighted.
-- Main menu: one list. Up/Down go through the game modes, your deck, the menu bar
-  (quests, options, quit) and your profile; Tab / Shift+Tab jump to the next / previous
-  part. Left/Right change the game mode, or the
-  deck when you are on it. A letter jumps to the next item starting with it, and opens
-  it when it is the only one (Quit is only ever reached, never opened, this way).
+- Popups read their message first. Enter on the message presses the popup's default
+  button (Accept, OK...); arrow to another button and Enter presses that one instead.
+  Escape is the game's own cancel.
+- Main menu: Tab / Shift+Tab move between its sections: the game modes, your deck,
+  the menu bar (quests, options, quit...), your profile and currencies, and any
+  notifications. Up/Down move through the items of the section you are in. In the
+  game modes and your deck, Left/Right also change the mode or the deck. A letter
+  jumps to the next item starting with it, and opens it when it is the only one
+  (Quit is only ever reached, never opened, this way). You start on PLAY.
 - Settings: Up/Down go through the categories. Enter opens one and takes you to its
   options; Apply, Restore Defaults, Exit and Back follow the options. Left/Right change
   a value. Escape or Backspace in the options goes back to the categories; Escape on
   the categories closes settings. Remember to press Apply Settings.
 - Daily rewards: Left/Right go through the days, Up/Down read a card reward, Tab
   reaches the buttons.
-- Shop: pick an item (a keg or pack), then its price option (like "x1 for 100 Ore"),
-  then press Ctrl+B. The mod asks you to press Ctrl+B again to confirm. It only buys
-  with Ore, and refuses anything that costs real money.
-
+- Shop: pick a category, then a product (a keg, a pack...). Its price options and its
+  details follow it: title, time left, description, quantity and the Buy button.
+  Enter on Buy goes through the game's own purchase, with its confirmation popup.
+  Every price says its currency; real-money prices carry their symbol.
+- Other screens (Journey, Leaderboards, What's new!, the season cycle, loading tips):
+  read top to bottom with Up/Down. Items the game draws on one line (a leaderboard
+  entry's rank, name and rating; column headings) are a row: Left/Right move along it.
+  A journey step says its number, reward and whether it is locked or claimed. Tab
+  reaches the buttons at the bottom.
 
 PLAYING A MATCH
 Gwent is best of three rounds. Each turn you play ONE card, then end your turn.
@@ -142,25 +144,25 @@ If you really want to forfeit, do it again within 15 seconds.
 
 
 DECK BUILDING
-Main menu: F3 to DECK BUILDER, F4.
+Main menu: Tab to the game modes or menu bar, then DECK BUILDER, Enter.
 
-On your deck list:
-Ctrl+U   Duplicate the selected deck (starter decks can't be edited; edit a copy).
-Ctrl+N   Rename the selected deck. Type the new name and press Enter.
-         Names can use letters, numbers, spaces, dashes and underscores.
-Enter    Open the selected deck.
-Ctrl+Q   Leave the deck builder.
+Tab / Shift+Tab move between the sections: your decks (or, while editing, the deck you
+are editing), the card collection, the filters, the side filters and the buttons.
+
+On your deck list: Enter opens a deck. A deck's options (edit, rename, duplicate,
+delete...) follow it while the game shows them. Starter decks can't be edited;
+duplicate one and edit the copy.
 
 While editing a deck:
-Shift+F3     Jump between Your deck, Collection, Filters and Other buttons.
-Ctrl+A       Add the selected collection card to your deck.
-Ctrl+R       Remove the selected card from your deck.
-Ctrl+D       Deck stats: cards (25 minimum), units (13 minimum), provisions used and limit.
-Ctrl+H       List the whole deck.
-Ctrl+F       Jump to the card search box. Type part of a card name.
-Ctrl+N       Rename this deck.
-Ctrl+Q       Save and exit. If the game won't let you leave, press Ctrl+Q again
-             within 8 seconds to leave without saving. In a starter deck it just leaves.
+- The deck section comes first: the totals the game checks (cards of 25, units of 13,
+  provisions used of the limit), then the leader ability, the stratagem and each card
+  ("Geralt of Rivia, power 3, 10 provisions", "x2" for two copies). Enter is the
+  game's own click on the row.
+- In the collection, Enter is the game's click on the card (it adds it to the deck you
+  are editing). Backspace opens the card's preview (the game's right click); Escape
+  closes it. Page Up / Page Down move a row of the grid.
+- Ctrl+F    Search cards. Type part of a card name.
+- Exit (in the buttons section) leaves the editor; the game asks whether to save.
 
 Provisions are the deck-building budget: 150 plus your leader ability's bonus.
 Every card costs provisions; stronger cards cost more.
@@ -177,8 +179,9 @@ TROUBLESHOOTING
 - No speech at all: make sure NVDA is running before you start Gwent. Press F8: if you hear
   "Accessibility on", it had been switched off.
   If nothing, the mod didn't load; check BepInEx\LogOutput.log in the Gwent folder.
-- Speech stopped mid-game: press F7 to repeat, F9 to read the screen.
-- Stuck on a screen: Ctrl+Q, then Escape. Alt+F4 closes the game if all else fails.
+- Speech stopped mid-game: press F7 to repeat, F9 for where you are.
+- Stuck on a screen: Escape, or Tab to the screen's buttons. Alt+F4 closes the game if
+  all else fails.
 - Reporting a problem: send BepInEx\LogOutput.log from your Gwent folder, right after
   the problem happens (it is replaced each time you start the game).
 

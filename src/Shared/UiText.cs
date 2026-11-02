@@ -116,30 +116,6 @@ namespace GwentAccess
             return value;
         }
 
-        /// <summary>
-        /// The "body" text of a screen: text that isn't a button or a label sitting next to a control.
-        /// E.g. the tutorial's "Welcome to Gwent! During three short battles...".
-        /// </summary>
-        public static string BodyText(Component panel, int maxChars)
-        {
-            var parts = new List<string>();
-            var seen = new HashSet<string>();
-            foreach (var t in panel.GetComponentsInChildren<TMPro.TMP_Text>(false))
-            {
-                try
-                {
-                    var ctl = t.GetComponentInParent<AControl>();
-                    if (ctl != null && ctl.IsSelectable) continue;
-                    string c = Clean(t.text);
-                    if (c.Contains("support ID") || c.StartsWith("Game version")) continue;
-                    Add(parts, seen, t.text);
-                }
-                catch { }
-            }
-            string all = string.Join(". ", parts);
-            if (all.Length > maxChars) all = all.Substring(0, maxChars);
-            return all;
-        }
 
         /// <summary>A settings row (e.g. "Music volume: 80. Left or right arrow to change"), or null if c isn't in one.</summary>
         public static string SettingText(AControl c)
@@ -312,13 +288,6 @@ namespace GwentAccess
             return p;
         }
 
-        /// <summary>Panels that are just decoration/overlays and shouldn't be announced.</summary>
-        public static bool LooksLikeNoise(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return true;
-            string n = name.ToLowerInvariant();
-            return n.Contains("tooltip") || n.Contains("loading") || n.Contains("cursor") || n.Contains("overlay") || n.Contains("background");
-        }
 
         /// <summary>Turn object names like "Btn_PlayButton" into "Play Button" as a fallback.</summary>
         public static string Prettify(string name)

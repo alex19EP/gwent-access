@@ -4,13 +4,12 @@ using CrimsonUI;
 namespace GwentAccess
 {
     /// <summary>
-    /// The click every game's graph screens use on Enter. The rest of <see cref="Navigator"/> (Gwent's legacy
-    /// F2/F3 object navigation) lives with the Gwent module.
+    /// The click every game's graph screens use on Enter.
     /// </summary>
-    internal static partial class Navigator
+    internal static class Navigator
     {
-        /// <summary>Run a control's own click path: a ButtonControl's left click or a Button's Click. Shared by the
-        /// F4 navigator and the graph screens' Enter.
+        /// <summary>Run a control's own click path: a ButtonControl's left click or a Button's Click: the graph
+        /// screens' Enter.
         ///
         /// A bottom-bar button's callback must run through the button, not be invoked from the container's
         /// <c>m_Buttons</c> map: <c>InvokeOnLeftClick</c> runs it (the container binds it to <c>OnLeftClick</c>) and
