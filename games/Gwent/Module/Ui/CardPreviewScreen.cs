@@ -36,19 +36,9 @@ namespace GwentAccess.Ui
         // The preview, when the input layer that has the input holds it and it carries the crafting component.
         private static UICardPreview Preview()
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UICardPreview>();
-                if (p == null) continue;
-                var crafter = p.CraftingComponent;
-                return crafter != null && crafter.gameObject.activeInHierarchy ? p : null;
-            }
-            return null;
+            var p = CrimsonNodes.ActivePanel<UICardPreview>();
+            var crafter = p?.CraftingComponent;
+            return crafter != null && crafter.gameObject.activeInHierarchy ? p : null;
         }
 
         private static GwentGameplay.Card CurrentCard(UICardPreview p)
@@ -130,19 +120,7 @@ namespace GwentAccess.Ui
         // the container's own callback. Glyph labels are key hints.
         private static List<AControl> BarButtons(UICardPreview p)
         {
-            var list = new List<AControl>();
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    list.Add(c);
-                }
-            }
-            return list;
+            return CrimsonNodes.BarButtons(p);
         }
 
         private static string Caption(AControl c)

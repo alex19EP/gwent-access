@@ -45,13 +45,7 @@ namespace GwentAccess
             {
                 string t = Describe(c);
                 if (t.Contains("$") || t.Contains("€") || t.Contains("£") || t.ToLowerInvariant().Contains("steam")) return t + ". Real money";
-                return t + " Ore. Control B buys";
-            }
-            if (objName == "ProductTile")
-            {
-                string t = Describe(c);
-                if (!t.Contains("$")) t = t.Replace(", ", " for ") + " Ore";
-                return t + ". Then Control B to buy";
+                return t;
             }
             if ((objName == "ButtonControlLeft" || objName == "ButtonControlRight") && UiText.DebugPath(c).Contains("QuantityControl"))
                 return objName == "ButtonControlLeft" ? "Fewer" : "More";
@@ -72,7 +66,7 @@ namespace GwentAccess
             {
                 var deckBtn = c.TryCast<GwentVisuals.UIDeckButtonControl>();
                 if (deckBtn != null && DeckBuilder.List != null)
-                    return Describe(c) + ". Enter opens it, Control U duplicates, Control N renames";
+                    return Describe(c);
             }
             catch { }
             var card = CardText.CardOf(c);
@@ -116,30 +110,6 @@ namespace GwentAccess
             return value;
         }
 
-        /// <summary>
-        /// The "body" text of a screen: text that isn't a button or a label sitting next to a control.
-        /// E.g. the tutorial's "Welcome to Gwent! During three short battles...".
-        /// </summary>
-        public static string BodyText(Component panel, int maxChars)
-        {
-            var parts = new List<string>();
-            var seen = new HashSet<string>();
-            foreach (var t in panel.GetComponentsInChildren<TMPro.TMP_Text>(false))
-            {
-                try
-                {
-                    var ctl = t.GetComponentInParent<AControl>();
-                    if (ctl != null && ctl.IsSelectable) continue;
-                    string c = Clean(t.text);
-                    if (c.Contains("support ID") || c.StartsWith("Game version")) continue;
-                    Add(parts, seen, t.text);
-                }
-                catch { }
-            }
-            string all = string.Join(". ", parts);
-            if (all.Length > maxChars) all = all.Substring(0, maxChars);
-            return all;
-        }
 
         /// <summary>A settings row (e.g. "Music volume: 80. Left or right arrow to change"), or null if c isn't in one.</summary>
         public static string SettingText(AControl c)
@@ -217,8 +187,29 @@ namespace GwentAccess
         }
 
         private static readonly System.Text.RegularExpressions.Regex Spaces = new System.Text.RegularExpressions.Regex(@"\s+");
+        private static readonly System.Text.RegularExpressions.Regex Counter = new System.Text.RegularExpressions.Regex(@"(?<![\d/])(\d+)\s*/\s*(\d+)(?![\d/])");
+
+        // <sprite="[PC]" name=Action_Preview>, <sprite name="ScrapsNeg">: the sprite asset (quoted or not, may be
+        // absent) and the sprite's name.
+        private static readonly System.Text.RegularExpressions.Regex SpriteTag = new System.Text.RegularExpressions.Regex(
+            @"<sprite(?:=""?(?<asset>[^"" >]*)""?)?[^>]*?\bname=""?(?<name>[^"" >]+)""?[^>]*>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>Names an inline sprite (asset, sprite name) in words, or null to drop it as decoration. Set by
+        /// a game module (Gwent: <c>KeyGlyphs</c>, which names input glyphs by the mod's or the controller's key).</summary>
+        public static Func<string, string, string> SpriteWords;
         private static readonly System.Text.RegularExpressions.Regex SpaceBeforeClose = new System.Text.RegularExpressions.Regex(@" ([.,:;!?)»])");
         private static readonly System.Text.RegularExpressions.Regex SpaceAfterOpen = new System.Text.RegularExpressions.Regex(@"([(«]) ");
+
+        /// <summary>The parts that have words, joined with commas: "Level 2, 40 Ore".</summary>
+        public static string Join(params string[] parts)
+        {
+            var list = new List<string>();
+            foreach (var s in parts) if (!string.IsNullOrEmpty(s)) list.Add(s);
+            return string.Join(", ", list);
+        }
+
+        public static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
 
         /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers. A tag becomes a space (it may
         /// separate two words), which is then dropped again before closing punctuation and after an opening
@@ -226,6 +217,18 @@ namespace GwentAccess
         public static string Clean(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
+            // Some translation strings carry escaped line breaks as the two characters '\' 'n' (the new-player
+            // intro's "minutes.\n\nIf you..."); TextMeshPro draws them as breaks, a screen reader would say them.
+            if (s.IndexOf('\\') >= 0) s = s.Replace("\\r", " ").Replace("\\n", " ");
+            // An input glyph drawn inline ("Take a look by using <sprite="[PC]" name=Action_Preview>") is a key the
+            // sentence depends on: the game's resolver names it, before the tags are stripped.
+            if (SpriteWords != null && s.IndexOf("<sprite", StringComparison.OrdinalIgnoreCase) >= 0)
+                s = SpriteTag.Replace(s, m =>
+                {
+                    string words = null;
+                    try { words = SpriteWords(m.Groups["asset"].Value, m.Groups["name"].Value); } catch { }
+                    return string.IsNullOrEmpty(words) ? m.Value : " " + words + " ";
+                });
             var sb = new StringBuilder(s.Length);
             bool inTag = false;
             foreach (char ch in s)
@@ -236,6 +239,9 @@ namespace GwentAccess
                 if (!inTag) sb.Append(ch);
             }
             string t = Spaces.Replace(sb.ToString(), " ").Trim();
+            // A counter drawn as "0/3" (quests, hand size) reads "0 of 3": a screen reader says "slash" otherwise.
+            // Not inside longer runs like a date ("1/2/2026").
+            t = Counter.Replace(t, "$1 of $2");
             t = SpaceBeforeClose.Replace(t, "$1");
             return SpaceAfterOpen.Replace(t, "$1");
         }
@@ -286,13 +292,6 @@ namespace GwentAccess
             return p;
         }
 
-        /// <summary>Panels that are just decoration/overlays and shouldn't be announced.</summary>
-        public static bool LooksLikeNoise(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return true;
-            string n = name.ToLowerInvariant();
-            return n.Contains("tooltip") || n.Contains("loading") || n.Contains("cursor") || n.Contains("overlay") || n.Contains("background");
-        }
 
         /// <summary>Turn object names like "Btn_PlayButton" into "Play Button" as a fallback.</summary>
         public static string Prettify(string name)

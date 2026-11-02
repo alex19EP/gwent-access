@@ -34,7 +34,8 @@ namespace GwentAccess.Ui
                 // The first mulligan comes before the game starts round 1 (its index is still -1 then), so the
                 // match opening is told by the match, not the round number.
                 string round = "", leaders = "";
-                try { round = ", round " + Math.Max(gc.RoundManager.CurrentRoundIndex + 1, 1); } catch { }
+                // Between rounds the index still names the round just played (round 2's mulligan reads index 0).
+                try { var rm = gc.RoundManager; round = ", round " + Math.Max(rm.CurrentRoundIndex + (rm.HasInitialMulliganFinished() ? 2 : 1), 1); } catch { }
                 if (gc.Pointer != _leadersSaidIn)
                 {
                     _leadersSaidIn = gc.Pointer;
@@ -65,15 +66,10 @@ namespace GwentAccess.Ui
 
         private static AControl Panel()
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<GwentUnity.UI.UIMulliganPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
+            var p = CrimsonNodes.ActivePanel<GwentUnity.UI.UIMulliganPanel>();
+            // Not while it is hiding: after the confirm popup's YES the panel plays its closing animation, and
+            // taking the cursor back for those frames re-announced "Mulligan, 1 swap left".
+            return p != null && p.Visibility != CrimsonUIBehaviour.EVisibility.Hiding && p.Visibility != CrimsonUIBehaviour.EVisibility.Hidden ? p : null;
         }
 
         private readonly Dictionary<string, Card> _cards = new Dictionary<string, Card>();
@@ -112,18 +108,7 @@ namespace GwentAccess.Ui
             // The panel's glyph buttons (finish swapping, hide cards): never selectable in the game, offered
             // here and clicked through their own callbacks, as in the settings window. The icon-only twins
             // (a checkmark, an eye) repeat the labelled ones and are left out.
-            var buttons = new List<AControl>();
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    if (!buttons.Exists(x => x.Pointer == c.Pointer)) buttons.Add(c);
-                }
-            }
+            var buttons = CrimsonNodes.BarButtons(panel);
             if (buttons.Count > 0)
             {
                 b.BeginStop("buttons");
@@ -287,7 +272,7 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager);
+                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager, always: true);
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, keep the rest and finish" },

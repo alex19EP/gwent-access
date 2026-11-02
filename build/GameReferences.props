@@ -6,7 +6,7 @@
 
        GameDir: the game's install folder (BepInEx already run once so BepInEx\interop exists). The game project
        sets DefaultGameDir and GameDirEnvVar (GWENT_DIR, THRONEBREAKER_DIR). First wins: dotnet build
-       -p:GameDir=... (the Gwent projects also take GwentDir), that environment variable, the same line in the
+       -p:GameDir=..., that environment variable, the same line in the
        repo's git-ignored .env (what the justfile reads; parsed here so a language server, which runs MSBuild
        without the justfile, finds the same install), then DefaultGameDir. -->
   <PropertyGroup>

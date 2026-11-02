@@ -10,7 +10,10 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// The main menu: the play-mode cards, the deck chosen for them, the menu bar (rewards, settings, quit…),
-    /// the profile and currency bar, notifications and the social panel — one Tab stop each, in that order.
+    /// the profile and currency bar, notifications and the social panel — one Tab stop each, Up/Down within
+    /// a part. The modes are one row (Left/Right
+    /// change the mode), Left/Right on the deck button change the deck, Tab moves between the parts, and a letter jumps
+    /// to an item (opening it when it is the only one with that letter).
     ///
     /// Built from the controls the Base input layer has attached, so whatever the game shows (the top-level
     /// cards, or the play stack with its mode cards and deck selector; new-player gating that hides most of
@@ -58,10 +61,11 @@ namespace GwentAccess.Ui
         private static bool _friendSetup;
         private static readonly int ProfileRegion = System.Array.FindIndex(Regions, r => r.Stop == "profile");
 
-        // Skipped subtree: a play card's scrollable description, selectable only so a gamepad can scroll it —
-        // Space on the card reads that text. (The friend-match staging is skipped too, unless a friend match is
-        // being set up: see RegionOf.)
-        private static readonly HashSet<string> Hidden = new HashSet<string> { "DescriptionPanelRoot" };
+        // Skipped subtrees: a play card's scrollable description, selectable only so a gamepad can scroll it
+        // (Space on the card reads that text), and the social window (Friends, Quests), which has screens of
+        // its own: while it opens, the menu read its search box as "Social, textsearch". The friend-match
+        // staging is skipped too, unless a friend match is being set up: see RegionOf.
+        private static readonly HashSet<string> Hidden = new HashSet<string> { "DescriptionPanelRoot", "SocialWindow" };
 
         // How long a landing the screen chose holds the game's selection against the game's own moves.
         private const float SteerSeconds = 1.5f;
@@ -74,23 +78,122 @@ namespace GwentAccess.Ui
         private float _steerUntil;
         private AControl _steer;
 
+        // ---- keys ----
+
+        private List<ScreenKey> _keys;
+
+        /// <summary>Tab and Shift+Tab move like Down and Up (one list); a letter jumps to the next item whose name
+        /// starts with it and, when it is the only one, opens it (Hearthstone Access's main-menu letters).</summary>
+        public override IReadOnlyList<ScreenKey> ExtraKeys
+        {
+            get
+            {
+                if (_keys != null) return _keys;
+                _keys = new List<ScreenKey>
+                {
+                };
+                bool first = true;
+                for (var k = KeyCode.A; k <= KeyCode.Z; k++)
+                {
+                    char letter = (char)('a' + (k - KeyCode.A));
+                    _keys.Add(new ScreenKey
+                    {
+                        Key = k,
+                        Run = () => Letter(letter),
+                        Hint = first ? "A letter, jump to the next item starting with it; when it is the only one, open it" : null,
+                    });
+                    first = false;
+                }
+                return _keys;
+            }
+        }
+
+        // Items a letter never opens, only reaches: leaving the game.
+        private static bool NeverOpenByLetter(string label) =>
+            label.StartsWith("Quit", System.StringComparison.OrdinalIgnoreCase)
+            || label.StartsWith("Exit", System.StringComparison.OrdinalIgnoreCase)
+            || label.StartsWith(GameText.Get("main_menu_quit", "Quit"), System.StringComparison.OrdinalIgnoreCase);
+
+        private static void Letter(char letter)
+        {
+            var nodes = GraphNavigator.Nodes();
+            if (nodes.Count == 0) return;
+            var matches = new List<GraphNode>();
+            foreach (var n in nodes)
+            {
+                if (!n.Focusable) continue;
+                string l = GraphNavigator.LabelOf(n)?.Trim();
+                if (!string.IsNullOrEmpty(l) && char.ToLowerInvariant(l[0]) == letter) matches.Add(n);
+            }
+            if (matches.Count == 0) { Speech.Say("Nothing starting with " + char.ToUpperInvariant(letter) + ".", true); return; }
+            // The next match after the cursor, wrapping, so pressing the letter again walks them.
+            var cur = GraphNavigator.CurrentNode;
+            int curAt = -1;
+            for (int i = 0; i < matches.Count; i++) if (cur != null && matches[i].Id.Equals(cur.Id)) curAt = i;
+            var target = matches[(curAt + 1) % matches.Count];
+            if (cur == null || !target.Id.Equals(cur.Id)) GraphNavigator.FocusNode(target.Id);
+            if (matches.Count == 1 && !NeverOpenByLetter(GraphNavigator.LabelOf(target) ?? "")) GraphNavigator.ActivateCurrent();
+        }
+
+        // The game modes and the deck can hold one entry (a new player's PLAY, the starter deck): "1 of 1" says so.
+        public override bool PositionOfOne => true;
+
         public override bool IsActive()
         {
             var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base) return false;
-            return ContentPanel(layer) != null;
+            if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base || ContentPanel(layer) == null)
+            {
+                _shownSince = -1;
+                return false;
+            }
+            if (_shownSince < 0) _shownSince = UnityEngine.Time.realtimeSinceStartup;
+            return !PassingThrough();
         }
 
-        private static UIMainMenuContentPanel ContentPanel(CrimsonInputLayer layer)
+        // When the menu first showed this time; -1 while it isn't up.
+        private float _shownSince = -1;
+        private static GwentVisuals.GwentApp _app;
+
+        /// <summary>
+        /// The new-player flow only passes through the menu: at start-up and between tutorial battles the game
+        /// shows it while its current FTUX step gets going — opening the intro panel, a cinematic, the next
+        /// tutorial battle — and reading it ("Profile and currencies, CARDSMITH, unavailable") announced a place
+        /// the player never gets to use. Quiet while the step hasn't run its opening actions, a transition is
+        /// under way, or the step launches a battle or cinematic. Bounded: after 15 seconds of menu the menu is
+        /// read regardless, so a stalled flow can't leave the player in silence.
+        /// </summary>
+        private bool PassingThrough()
         {
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
+            if (UnityEngine.Time.realtimeSinceStartup - _shownSince > 15f) return false;
+            try
             {
-                var p = attached[i]?.TryCast<UIMainMenuContentPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
+                if (_app == null || _app.Pointer == System.IntPtr.Zero || _app.WasCollected) _app = UnityEngine.Object.FindObjectOfType<GwentVisuals.GwentApp>();
+                var ux = _app?.UX;
+                if (ux == null || !ux.IsInitialized) return true;
+                if (!ux.IsInUXFlow) return false;
+                var fs = ux.FlowState;
+                var step = fs?.CurrentStep;
+                if (step == null || fs.m_InProgressTransitionState != null) return true;
+                if (step.m_CurrentActionIdToTrigger < step.m_IntroActions.Count) return true;
+                var intro = step.UXStep?.IntroActions;
+                for (int i = 0; intro != null && i < intro.Count; i++)
+                {
+                    var a = intro[i]?.Action;
+                    if (a == GwentVisuals.UX.EUXActionType.LaunchBattle || a == GwentVisuals.UX.EUXActionType.PlayCinematic) return true;
+                }
             }
-            return null;
+            catch { }
+            return false;
         }
+
+        private static UIMainMenuContentPanel ContentPanel(CrimsonInputLayer layer) => CrimsonNodes.ActivePanel<UIMainMenuContentPanel>(layer);
+
+        // True from when the menu comes up until the player's first key: the game's own selection isn't followed
+        // meanwhile, so the cursor starts at the top even when the game moves its selection while the menu settles
+        // (onto VERSUS AI, seconds after a match ends). See GameSelection.
+        private bool _fresh;
+
+        public override void OnFocus() => _fresh = true;
 
         public override void OnPop()
         {
@@ -131,10 +234,22 @@ namespace GwentAccess.Ui
             // silently instead of falling to a neighbour (spec §9: no content yet).
             if (!TrackSelector(selector, byStop, active)) return;
 
+            // One Tab stop per part of the menu (the player's choice): Tab / Shift+Tab move between the parts, Up/Down
+            // between the items of the part you are in. The game modes and the play stack's mode cards also move
+            // with Left/Right, as they lie side by side.
+            ControlId first = null;
+            bool pickerShown = false;
             for (int r = 0; r < byStop.Length; r++)
             {
                 if (byStop[r] == null) continue;
                 bool known = r < Regions.Length;
+                if (known && Regions[r].Stop == "cosmetics")
+                {
+                    pickerShown = true;
+                    var start = AddCosmetics(b, byStop[r], activeDeck);
+                    first ??= start;
+                    continue;
+                }
                 b.BeginStop(known ? Regions[r].Stop : "other");
                 string context = r == DeckListRegion
                     ? GameText.Get(DeckSelector.SELECT_DECK_TEXT_LOCALIZATION_KEY, "Change deck")
@@ -142,11 +257,78 @@ namespace GwentAccess.Ui
                     : known ? Regions[r].Context : null;
                 if (context != null) b.PushContext(context);
                 if (r == ProfileRegion && overlay != null) AddProfile(b, overlay);
+                bool sideBySide = known && (Regions[r].Stop == "modes" || Regions[r].Stop == "cards");
+                var ids = new List<ControlId>();
+                foreach (var c in byStop[r]) ids.Add(CrimsonNodes.Id(c));
+                first ??= ids.Count > 0 ? ids[0] : null;
                 AddControls(b, byStop[r], activeDeck);
+                if (sideBySide)
+                    for (int i = 1; i < ids.Count; i++)
+                    {
+                        b.Connect(ids[i - 1], GraphDir.Right, ids[i]);
+                        b.Connect(ids[i], GraphDir.Left, ids[i - 1]);
+                    }
                 if (context != null) b.PopContext();
+                // The opponent toggles on the shown mode card (VERSUS AI / VERSUS PLAYER): a choice of their own, a
+                // stop after the modes. Kept out of the modes' stop: the navigator lands on a stop's selected member,
+                // which would start the menu on VERSUS AI instead of the first mode.
+                if (known && Regions[r].Stop == "modes")
+                {
+                    var toggles = OpponentToggles(byStop[r]);
+                    if (toggles.Count > 0)
+                    {
+                        b.BeginStop("opponent");
+                        b.PushContext(GameText.Get("opponent_selection_title", "Opponent"));
+                        AddOpponentChoice(b, toggles);
+                        b.PopContext();
+                    }
+                }
             }
 
+            b.BeginStop("notes");
+            AddNotes(b, byStop[System.Array.FindIndex(Regions, x => x.Stop == "notifications")]);
+
+            // Opening the menu starts at the top (the first game mode), not wherever the game's selection was left
+            // (the shop button, at the bottom).
+            if (first != null) b.SetStart(first);
             if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
+            // The cosmetics picker opening: the cursor goes to the equipped choice, the one the picker scrolls to.
+            if (pickerShown && !_pickerWasShown && _pickerStart != null)
+            {
+                GraphNavigator.Suggest(_pickerStart);
+                _pickerOpenedAt = UnityEngine.Time.realtimeSinceStartup;
+            }
+            _pickerWasShown = pickerShown;
+        }
+
+        /// <summary>
+        /// The notifications pinned on the menu (a new player's "Finish the 2nd game out of 3 in Standard mode",
+        /// with its "1/3" progress): drawn for everyone but not selectable when they carry no button, so they
+        /// would be missing from the list. Each shown one with no control already listed becomes a read-only item
+        /// with its words ("1/3" read as "1 of 3").
+        /// </summary>
+        private static void AddNotes(GraphBuilder b, List<AControl> listed)
+        {
+            UINotificationControl[] notes;
+            try { notes = UnityEngine.Object.FindObjectsOfType<UINotificationControl>(); } catch { return; }
+            bool pushed = false;
+            foreach (var note in notes)
+            {
+                if (note == null || !note.gameObject.activeInHierarchy) continue;
+                if (listed != null && listed.Exists(c => c.transform.IsChildOf(note.transform))) continue;
+                var texts = CrimsonNodes.Texts(note);
+                if (texts.Count == 0) continue;
+                for (int i = 0; i < texts.Count; i++)
+                    if (System.Text.RegularExpressions.Regex.IsMatch(texts[i], @"^\d+ of \d+$")) texts[i] = "progress " + texts[i];
+                string text = string.Join(", ", texts);
+                if (!pushed) { b.PushContext("Notifications"); pushed = true; }
+                b.AddItem(ControlId.Structural("menu:note:" + CrimsonNodes.PathKey(note.transform, null)), new NodeVtable
+                {
+                    Announcements = new[] { new NodeAnnouncement(() => text, kind: AnnouncementKinds.Label) },
+                    OnTooltip = () => Speech.Say(text, true),
+                });
+            }
+            if (pushed) b.PopContext();
         }
 
         /// <summary>
@@ -218,10 +400,14 @@ namespace GwentAccess.Ui
             {
                 string sprite = img.sprite?.name ?? "";
                 foreach (var season in new[] { "winter", "spring", "summer", "autumn" })
-                    if (sprite.Contains(season)) return season;
+                    if (sprite.Contains(season)) return LastCycleSeason = season;
             }
             return null;
         }
+
+        /// <summary>The season the menu's cycle badge last showed, for screens whose own badge has no season
+        /// picture while the menu's is hidden (the profile banner).</summary>
+        internal static string LastCycleSeason;
 
         // ---- the deck selector ----
 
@@ -288,10 +474,39 @@ namespace GwentAccess.Ui
         /// (to the guides button on open; to the shop, then the mode card, after a pick).</summary>
         public override AControl GameSelection()
         {
+            if (_steer == null && _fresh)
+            {
+                // The key's own frame still ignores it: the cursor's move is written back to the game first.
+                if (Keys.AnyDown()) _fresh = false;
+                return null;
+            }
+            if (_steer == null && UnityEngine.Time.realtimeSinceStartup - _pickerOpenedAt < 1f) return null;
+            // On an item of the mod's own (the picker's Show all arrow, a profile line) the cursor can't hand its
+            // place to the game, so the game's selection, wherever it was left, isn't a move to follow.
+            if (_steer == null && GraphNavigator.CurrentNode != null && GraphNavigator.CurrentNode.Id.Reference is not AControl) return null;
             var real = base.GameSelection();
             if (_steer == null) return real;
             if (real == null || real.Pointer != _steer.Pointer) _steer.ParentLayer?.RequestControlSelection(_steer);
             return _steer;
+        }
+
+        // The next or previous deck in the selector's own list, chosen through the list's click handler.
+        private static void CycleDeck(AControl button, int delta)
+        {
+            try
+            {
+                var selector = button.GetComponentInParent<DeckSelector>();
+                var decks = selector?.GetDeckList();
+                if (decks == null || decks.Count == 0) { Speech.Say("No other decks.", true); return; }
+                if (decks.Count == 1) { Speech.Say("Only one deck.", true); return; }
+                ulong current = selector.GetSelectedDeck()?.Id ?? 0;
+                int at = 0;
+                for (int i = 0; i < decks.Count; i++) if (decks[i]?.Id == current) { at = i; break; }
+                int next = ((at + (delta >= 0 ? 1 : -1)) % decks.Count + decks.Count) % decks.Count;
+                selector.OnDeckButtonClicked(decks[next]);
+                Plugin.LogInfo("[menu] deck " + at + " -> " + next);
+            }
+            catch (System.Exception e) { Plugin.LogInfo("[menu] deck change failed: " + e.Message); Speech.Say("Couldn't change the deck.", true); }
         }
 
         private static ulong DeckOf(AControl c)
@@ -319,6 +534,10 @@ namespace GwentAccess.Ui
                     continue;
                 }
                 var items = controls.GetRange(i, end - i);
+                // A bar's icon twin of a captioned button (the cosmetics picker's two "Back"s) is one button to a
+                // sighted player: keep the first of any run with the same label.
+                for (int k = items.Count - 1; k > 0; k--)
+                    if (CrimsonNodes.Label(items[k]) == CrimsonNodes.Label(items[k - 1])) items.RemoveAt(k);
                 if (row.TryCast<GwentVisuals.VirtualDeckContainer>() != null)
                     items.Sort((x, y) => IsDeckButton(y).CompareTo(IsDeckButton(x)));
                 b.StartRow();
@@ -363,10 +582,71 @@ namespace GwentAccess.Ui
         // A deck button reads its deck name and leader ability. In the open list the active deck says so; the
         // deck button outside it says it opens a list ("collapsed"), as a sighted player sees the dropdown
         // arrow.
+        // When an item was last activated: for a moment after, landings the game causes (its selection jumping
+        // about while it leaves the menu for a match, "Deck, Back", "Blood Drops, unavailable") stay quiet.
+        private static float _activatedAt = -10;
+
+        // The stops the menu had when Enter was pressed: a landing in one of them right after is the menu shifting
+        // under a choice (PLAY's stack opening, the shop button), not news; a stop that appeared (a cosmetics
+        // picker, the deck list) is what the press opened, and is read.
+        private static readonly HashSet<object> _stopsAtActivation = new HashSet<object>();
+
+        public override bool QuietLanding(GraphNode node) =>
+            _backAt > 0
+            || _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f && _stopsAtActivation.Contains(node.StopKey)
+            // PLAY opens the mode stack and the deck together, and the game's selection passes through the deck
+            // ("Deck, NEW DECK", then its name) before settling on the modes: only the modes are news.
+            || Equals(_activatedFrom, "cards") && Equals(node.StopKey, "deck") && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 1.5f;
+
+        // The stop of the item Enter was pressed on.
+        private static object _activatedFrom;
+
+        // Backspace out of PLAY: the menu rebuilds in two steps (the play stack's cards, then the top cards), and
+        // the cursor's landing on the first was read ("Autumn Cycle, 1 of 4"). Landings are held until it settles,
+        // then where it settled is said once.
+        private static float _backAt = -1;
+        private const float BackSettle = 0.6f;
+
+        public override bool Back()
+        {
+            if (!PressBack()) return false;
+            _backAt = UnityEngine.Time.realtimeSinceStartup;
+            return true;
+        }
+
+        public override void Tick() => SettleBack();
+
+        private void SettleBack()
+        {
+            if (_backAt < 0 || UnityEngine.Time.realtimeSinceStartup - _backAt < BackSettle) return;
+            _backAt = -1;
+            GraphNavigator.SayWhere();
+        }
+
+        private static void NoteActivation()
+        {
+            _activatedAt = UnityEngine.Time.realtimeSinceStartup;
+            _activatedFrom = GraphNavigator.CurrentNode?.StopKey;
+            _stopsAtActivation.Clear();
+            try { foreach (var n in GraphNavigator.Nodes()) if (n.StopKey != null) _stopsAtActivation.Add(n.StopKey); } catch { }
+        }
+
         private static NodeVtable Vtable(AControl c, ulong activeDeck)
+        {
+            var v = VtableCore(c, activeDeck);
+            var act = v.OnActivate;
+            if (act != null) v.OnActivate = () => { NoteActivation(); act(); };
+            return v;
+        }
+
+        private static NodeVtable VtableCore(AControl c, ulong activeDeck)
         {
             if (c.TryCast<SocialButton>() is SocialButton social) return SocialToggle(c, social);
             if (CardOf(c) is UIMainMenuCardItem card) return CardVtable(c, card);
+            // The carousel's PLAY slot is a stack of mode cards whose clickable "Root" holds them all; it reads as
+            // the slot's own title ("PLAY", from its loc key), not the first nested card's ("Draft").
+            if (c.gameObject.name == "Root" && c.transform.parent != null && KeyTitleOf(c.transform.parent.name) is string slot)
+                return CrimsonNodes.Button(c, () => slot);
             if (!IsDeckButton(c)) return CrimsonNodes.Button(c);
             var v = CrimsonNodes.Button(c, () => DeckLabel(c));
             bool inList = RegionOf(c) == DeckListRegion;
@@ -379,6 +659,8 @@ namespace GwentAccess.Ui
                         kind: AnnouncementKinds.Value),
             };
             v.Announcements = anns;
+            // Left/Right on the deck button change the deck, as picking the next one in its list does.
+            if (!inList) v.OnAdjust = (delta, large) => CycleDeck(c, delta);
             return v;
         }
 
@@ -432,6 +714,14 @@ namespace GwentAccess.Ui
         private static NodeVtable CardVtable(AControl c, UIMainMenuCardItem card)
         {
             var v = CrimsonNodes.Button(c, () => CardLabel(c, card));
+            // The description drawn on a play-mode card ("Standard Mode. Play against worthy opponents…", a new
+            // player's next goal) is read after the card's name, as a sighted player reads it on the card.
+            v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+            {
+                // Live: the game draws a card's description once it is highlighted, a moment after landing, so
+                // it is spoken when it appears (Left/Right through the modes read each one).
+                new NodeAnnouncement(() => DrawnDescription(card), live: true, kind: AnnouncementKinds.Tooltip),
+            };
             if (!IsStandIn(c, card)) return v;
             var button = c.TryCast<ButtonControl>();
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
@@ -450,9 +740,55 @@ namespace GwentAccess.Ui
         private static string CardLabel(AControl c, UIMainMenuCardItem card)
         {
             CardTexts(card, out string title, out var timer);
-            title ??= CrimsonNodes.Label(c);
+            title ??= KeyTitle(card) ?? CrimsonNodes.Label(c);
             string detail = LockedReason(card) ?? (timer.Count > 0 ? string.Join(" ", timer) : null);
             return detail == null ? title : title + ", " + detail;
+        }
+
+        // A card whose title isn't drawn yet (the menu still building, or a locked card's stand-in up) is named
+        // from its object, "Item(mainmenu_practice_title)": the game's own string for that key. The stand-in's
+        // own name ("Look Disabled Highlight Control") was spoken otherwise.
+        private static string KeyTitle(UIMainMenuCardItem card) => KeyTitleOf(card.gameObject.name);
+
+        // "Item(mainmenu_multiplayer_window)" → the game's string for that key, or null.
+        private static string KeyTitleOf(string n)
+        {
+            try
+            {
+                int open = n.IndexOf('('), close = n.LastIndexOf(')');
+                if (open < 0 || close <= open + 1) return null;
+                string key = n.Substring(open + 1, close - open - 1);
+                if (key == "Clone") return null;
+                string t = UiText.Clean(GameText.Get(key, ""));
+                return t.Length > 0 ? t : null;
+            }
+            catch { return null; }
+        }
+
+        // The description panel's words as drawn on the card (null when it shows none).
+        private static string DrawnDescription(UIMainMenuCardItem card)
+        {
+            try
+            {
+                var parts = new List<string>();
+                foreach (var d in card.GetComponentsInChildren<UIPlayMenuCardDescription>(false))
+                    if (!InNestedCard(d.transform, card))
+                    foreach (var tmp in d.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                    {
+                        if (!tmp.isActiveAndEnabled || tmp.color.a < 0.3f) continue;
+                        if (UnderOpponentChoice(tmp.transform)) continue; // listed as items of their own
+                        string t = UiText.Clean(tmp.text);
+                        if (t.Length == 0) continue;
+                        // The rank badge's number reads as a rank; its progress bar says nothing while it has
+                        // nothing to fill ("1/0").
+                        if (tmp.name == "RankText") t = GameText.Get("interface_profile_current_rank", "Rank") + " " + t;
+                        else if (tmp.name == "ProgressText" && t.EndsWith(" of 0")) continue;
+                        var line = Narrator.Sentence(t);
+                        if (!parts.Contains(line)) parts.Add(line);
+                    }
+                return parts.Count > 0 ? string.Join(" ", parts) : null;
+            }
+            catch { return null; }
         }
 
         // Space on a stand-in, which holds no text of its own: the card's label, then what the mode is.
@@ -472,11 +808,173 @@ namespace GwentAccess.Ui
             foreach (var t in card.GetComponentsInChildren<TMPro.TMP_Text>(false))
             {
                 if (t.GetComponentInParent<UIPlayMenuCardDescription>() != null) continue;
+                if (InNestedCard(t.transform, card)) continue; // the play stack's own cards ("Draft", "Training")
                 string s = UiText.Clean(t.text);
                 if (s.Length == 0 || UiText.IsPlaceholder(s)) continue;
                 if (t.GetComponentInParent<TimerCountdownRenderer>() != null) timer.Add(s);
                 else title ??= s;
             }
+        }
+
+        /// <summary>
+        /// A mode's opponent choice (Training: "VERSUS AI", "VERSUS PLAYER"), drawn inside the front card's
+        /// description, which the menu otherwise skips (it is selectable only so a gamepad can scroll it). Both
+        /// choices are listed after the mode cards as a sighted player sees them: the chosen one "selected", a
+        /// locked one "unavailable" with the game's reason ("Requires at least rank 25"). Enter clicks one.
+        /// </summary>
+        private static bool _pickerWasShown;
+
+        // The picker's variation lists: a skin set's skins, and their own variants.
+        private static bool InVariations(AControl c)
+        {
+            try
+            {
+                var inv = c.GetComponentInParent<UIVanityInventory>();
+                if (inv == null) return false;
+                return inv.m_VariationList != null && c.transform.IsChildOf(inv.m_VariationList.transform)
+                    || inv.m_VariationSubList != null && c.transform.IsChildOf(inv.m_VariationSubList.transform);
+            }
+            catch { return false; }
+        }
+
+        private static bool Collapsed(GwentUnity.UICollapsibleVanityList l)
+        {
+            try { return l.m_IsCollapsedDelegate?.Invoke() ?? true; } catch { return true; }
+        }
+        // When the picker last opened: for a second the game's selection (left on whatever slot the picker had
+        // last time) isn't followed, while the cursor's start is written back to it.
+        private static float _pickerOpenedAt = -10;
+        private static ControlId _pickerStart;
+
+        /// <summary>
+        /// The cosmetics picker (UIVanityInventory) as three stops: its choices (the boards, coins… of the slot
+        /// being changed), read with the description panel; its slot list (board, music, leader skin, cardback,
+        /// coin, each named by its hover tooltip and showing what is equipped); then the rest (full preview).
+        /// Returns the equipped choice, where the cursor starts when the picker opens.
+        /// </summary>
+        private ControlId AddCosmetics(GraphBuilder b, List<AControl> controls, ulong activeDeck)
+        {
+            var choices = new List<AControl>();
+            var variations = new List<AControl>();
+            var slots = new List<AControl>();
+            var rest = new List<AControl>();
+            foreach (var c in controls)
+            {
+                if (c.GetComponentInParent<GwentUnity.UICollapsibleVanityList>() != null) choices.Add(c);
+                else if (InVariations(c)) variations.Add(c);
+                else if (CrimsonNodes.InSlotList(c)) slots.Add(c);
+                else rest.Add(c);
+            }
+            _pickerStart = null;
+            if (choices.Count > 0)
+            {
+                var list = choices[0].GetComponentInParent<GwentUnity.UICollapsibleVanityList>();
+                b.BeginStop("cosmetics");
+                b.PushContext(GameText.Get("cosmetics_title", "Cosmetics"));
+                AddControls(b, choices, activeDeck);
+                // The arrow beside the strip that shows every choice (or fewer again): a mouse-only icon, no words.
+                var open = list?.m_OpenWindowButton;
+                if (open != null && open.gameObject.activeInHierarchy)
+                {
+                    var l = list;
+                    b.AddItem(ControlId.Structural("cosmetics:expand"), new NodeVtable
+                    {
+                        Announcements = new[] { new NodeAnnouncement(() => Collapsed(l) ? "Show all" : "Show fewer", live: true, kind: AnnouncementKinds.Label) },
+                        // The game moves its selection as the lists swap; the cursor stays on the arrow.
+                        OnActivate = () =>
+                        {
+                            _pickerOpenedAt = UnityEngine.Time.realtimeSinceStartup;
+                            try { l.HandleCollapseButtonClick(); } catch (System.Exception e) { Plugin.LogInfo("[menu] expand: " + e.Message); }
+                        },
+                    });
+                }
+                b.PopContext();
+                string equipped = null;
+                try
+                {
+                    int at = list.m_EquippedPosition;
+                    if (list.m_Items != null && at >= 0 && at < list.m_Items.Count) equipped = list.m_Items[at]?.NameKey;
+                }
+                catch { }
+                foreach (var c in choices)
+                {
+                    var th = c.TryCast<VirtualSkinThumbnailButton>();
+                    if (equipped != null && th?.m_VanityItem?.NameKey == equipped) { _pickerStart = CrimsonNodes.Id(c); break; }
+                }
+                _pickerStart ??= CrimsonNodes.Id(choices[0]);
+            }
+            // A leader's skins (the set chosen above has several): their own stop, after the sets.
+            if (variations.Count > 0)
+            {
+                b.BeginStop("cosmetics:variations");
+                AddControls(b, variations, activeDeck);
+            }
+            if (slots.Count > 0)
+            {
+                b.BeginStop("cosmetics:slots");
+                AddControls(b, slots, activeDeck);
+            }
+            if (rest.Count > 0)
+            {
+                b.BeginStop("cosmetics:other");
+                AddControls(b, rest, activeDeck);
+            }
+            return _pickerStart;
+        }
+
+        // The shown mode card's opponent toggles that have words.
+        private static List<ToggleButtonControl> OpponentToggles(List<AControl> modes)
+        {
+            var list = new List<ToggleButtonControl>();
+            try
+            {
+                foreach (var mode in modes)
+                {
+                    var card = CardOf(mode);
+                    if (card == null) continue;
+                    foreach (var tr in card.GetComponentsInChildren<Transform>(false))
+                    {
+                        if (tr.name != "OpponentSelection") continue;
+                        foreach (var toggle in tr.GetComponentsInChildren<ToggleButtonControl>(false))
+                            if (CrimsonNodes.Texts(toggle).Count > 0) list.Add(toggle);
+                        return list;
+                    }
+                }
+            }
+            catch (System.Exception e) { Plugin.LogInfo("[menu] opponent choice: " + e.Message); }
+            return list;
+        }
+
+        private static void AddOpponentChoice(GraphBuilder b, List<ToggleButtonControl> toggles)
+        {
+            foreach (var toggle in toggles)
+            {
+                var t = toggle;
+                b.AddItem(CrimsonNodes.Id(t), new NodeVtable
+                {
+                    Announcements = new[]
+                    {
+                        new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(t)), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => t.IsToggled ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => t.IsCurrentlySelectable() ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+                    },
+                    OnActivate = () => { if (t.IsCurrentlySelectable()) Navigator.ClickControl(t); else Speech.Say("Not available right now.", true); },
+                });
+            }
+        }
+
+        private static bool UnderOpponentChoice(Transform t)
+        {
+            for (; t != null; t = t.parent) if (t.name == "OpponentSelection") return true;
+            return false;
+        }
+
+        // A text belonging to a card nested inside this one (the PLAY card's stack of mode cards).
+        private static bool InNestedCard(Transform t, UIMainMenuCardItem card)
+        {
+            for (var p = t.parent; p != null && p.Pointer != card.transform.Pointer; p = p.parent)
+                if (p.GetComponent<UIMainMenuCardItem>() != null) return true;
+            return false;
         }
 
         // Why a disabled card is locked, or null: the game has no reason for some kinds of card.

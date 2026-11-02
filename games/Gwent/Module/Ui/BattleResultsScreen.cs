@@ -32,20 +32,7 @@ namespace GwentAccess.Ui
         public override void OnPush() => _bannerCount = 0;
 
         // The results panel, when the input layer that has the input holds it.
-        private static UIBattleResultsPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIBattleResultsPanel>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIBattleResultsPanel Panel() => CrimsonNodes.ActivePanel<UIBattleResultsPanel>();
 
         // The shown result banner's label: the win, loss or draw banner, whichever the game turned on.
         private static string Banner(UIBattleResultsPanel panel)
@@ -69,6 +56,7 @@ namespace GwentAccess.Ui
             var panel = Panel();
             if (panel == null) return;
 
+            ControlId last = null;
             b.BeginStop("results");
             var mine = Scores(panel.m_Player1Content);
             var theirs = Scores(panel.m_Player2Content);
@@ -77,7 +65,7 @@ namespace GwentAccess.Ui
             {
                 string line = round + " " + (i + 1) + ": " + At(mine, i) + " : " + At(theirs, i);
                 var id = ControlId.Structural("results:round:" + i);
-                b.AddItem(id, new NodeVtable
+                b.AddItem(last = id, new NodeVtable
                 {
                     Announcements = new[] { new NodeAnnouncement(() => line, kind: AnnouncementKinds.Label) },
                     OnTooltip = () => Speech.Say(line, true),
@@ -93,7 +81,7 @@ namespace GwentAccess.Ui
             for (int i = 0; i < banners.Count; i++)
             {
                 var banner = banners[i];
-                b.AddItem(ControlId.Structural("results:reward:" + i), new NodeVtable
+                b.AddItem(last = ControlId.Structural("results:reward:" + i), new NodeVtable
                 {
                     Announcements = new[] { new NodeAnnouncement(() => BannerText(banner), kind: AnnouncementKinds.Label) },
                     OnTooltip = () => Speech.Say(BannerText(banner) ?? "", true),
@@ -105,13 +93,17 @@ namespace GwentAccess.Ui
                 var button = SafeVanity(info);
                 if (button == null) continue;
                 var widget = info;
-                if (Selectable(button))
-                    b.AddItem(CrimsonNodes.Id(button), CrimsonNodes.Button(button, () => PlayerText(widget)));
+                // The second panel is the opponent's, as its place on screen shows; an AI opponent's panel draws
+                // no name, only its title, which alone didn't say whose it was.
+                bool opponent = info == panel.m_P2Info;
+                System.Func<string> text = () => opponent ? "Opponent, " + PlayerText(widget) : PlayerText(widget);
+                if (CrimsonNodes.Selectable(button))
+                    b.AddItem(last = CrimsonNodes.Id(button), CrimsonNodes.Button(button, text));
                 else
-                    b.AddItem(CrimsonNodes.Id(button), new NodeVtable
+                    b.AddItem(last = CrimsonNodes.Id(button), new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => PlayerText(widget), kind: AnnouncementKinds.Label) },
-                        OnTooltip = () => Speech.Say(PlayerText(widget) ?? "", true),
+                        Announcements = new[] { new NodeAnnouncement(text, kind: AnnouncementKinds.Label) },
+                        OnTooltip = () => Speech.Say(text() ?? "", true),
                     });
             }
 
@@ -119,13 +111,25 @@ namespace GwentAccess.Ui
             // a person after the server closes the game, or in the new-player flow's mock; in Practice it stays
             // off. After a send the game disables it, which the button's live "unavailable" reads.
             var gg = panel.m_GoodGameButtonControl;
-            if (gg != null && Shown(gg) && GoodGameOn(panel))
-                b.AddItem(CrimsonNodes.Id(gg), CrimsonNodes.Button(gg,
+            if (gg != null && CrimsonNodes.Shown(gg) && GoodGameOn(panel))
+                b.AddItem(last = CrimsonNodes.Id(gg), CrimsonNodes.Button(gg,
                     () => GameText.Get("input_send_good_game", "Good game")));
 
             b.BeginStop("results:buttons");
+            ControlId firstButton = null;
             foreach (var c in BarButtons(panel))
-                b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            {
+                var id = CrimsonNodes.Id(c);
+                firstButton ??= id;
+                b.AddItem(id, CrimsonNodes.Button(c));
+            }
+            // The bar (Exit, Continue) is its own Tab stop, and Down past the last result reaches it too, so the
+            // list doesn't seem to end before the way out.
+            if (last != null && firstButton != null)
+            {
+                b.Connect(last, GraphDir.Down, firstButton);
+                b.Connect(firstButton, GraphDir.Up, last);
+            }
         }
 
         // One player's round scores in round order (kept as shown; two rounds can have the same score).
@@ -197,7 +201,7 @@ namespace GwentAccess.Ui
             try
             {
                 var button = info?.m_VanityButton;
-                return button != null && Shown(button) ? button : null;
+                return button != null && CrimsonNodes.Shown(button) ? button : null;
             }
             catch { return null; }
         }
@@ -206,19 +210,7 @@ namespace GwentAccess.Ui
         // container's own callback.
         private static List<AControl> BarButtons(UIBattleResultsPanel panel)
         {
-            var list = new List<AControl>();
-            foreach (var bar in panel.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    list.Add(c);
-                }
-            }
-            return list;
+            return CrimsonNodes.BarButtons(panel);
         }
 
         private static bool GoodGameOn(UIBattleResultsPanel panel)
@@ -228,15 +220,7 @@ namespace GwentAccess.Ui
         }
 
         // The local player's card opens their profile; an AI opponent's card is disabled, a picture only.
-        private static bool Selectable(AControl c)
-        {
-            try { return c.IsCurrentlySelectable(); } catch { return false; }
-        }
 
-        private static bool Shown(UnityEngine.Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
-        }
 
         /// <summary>The cursor starts on the rounds, not on the player card the game selects.</summary>
         public override AControl GameSelection() => null;

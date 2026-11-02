@@ -98,18 +98,7 @@ namespace GwentAccess.Ui
 
         public override void OnUnfocus() => Release();
 
-        private static UIRewardSystemPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIRewardSystemPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIRewardSystemPanel Panel() => CrimsonNodes.ActivePanel<UIRewardSystemPanel>();
 
         // An open tree: the tree canvas is shown and has drawn its nodes.
         private static List<RewardSystemTreeElement> OpenTree(UIRewardSystemPanel p)
@@ -146,16 +135,7 @@ namespace GwentAccess.Ui
 
             // Whatever else the window offers (zoom, the glyph-key buttons), in the game's order.
             foreach (var c in CrimsonNodes.Leaves(p)) if (used.Add(c.Pointer)) rest.Add(c);
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (used.Add(c.Pointer)) rest.Add(c);
-                }
-            }
+            rest.AddRange(CrimsonNodes.BarButtons(p, used));
             if (rest.Count > 0)
             {
                 b.BeginStop("buttons");
@@ -280,7 +260,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => TreeName(tree), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => NullIfEmpty(UiText.Clean(tree.m_NodeProgressText?.text)), live: true, kind: AnnouncementKinds.Value),
+                        new NodeAnnouncement(() => UiText.NullIfEmpty(UiText.Clean(tree.m_NodeProgressText?.text)), live: true, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => Navigator.ClickControl(btn),
                     OnTooltip = () => Speech.Say(string.Join(". ", CrimsonNodes.Texts(tree)), true),
@@ -420,7 +400,17 @@ namespace GwentAccess.Ui
 
         // A tab is an icon; the tab model's entry at the same index names the icon. The game has names for the
         // seasons and the toad year; the other themes are named in English.
+        // Two tabs can carry the same icon (the base set's, on a base and an event background): the later one
+        // says it is the second, as a sighted player tells them apart by place.
         private static string TabName(UIRewardSystemPanel p, int index)
+        {
+            string name = IconName(p, index);
+            int same = 1;
+            for (int i = 0; i < index; i++) if (IconName(p, i) == name) same++;
+            return same > 1 ? name + ", " + same : name;
+        }
+
+        private static string IconName(UIRewardSystemPanel p, int index)
         {
             string icon = null;
             try
@@ -761,7 +751,7 @@ namespace GwentAccess.Ui
                     var rewards = infos[i]?.Rewards;
                     for (int j = 0; rewards != null && j < rewards.Count; j++)
                     {
-                        string s = UiText.Clean(RewardTextHelper.GetText(rewards[j]));
+                        string s = RewardText.Of(rewards[j]) ?? "";
                         if (s.Length > 0 && !parts.Contains(s)) parts.Add(s);
                     }
                 }
@@ -779,7 +769,5 @@ namespace GwentAccess.Ui
             catch { }
             return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
-
-        private static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
     }
 }

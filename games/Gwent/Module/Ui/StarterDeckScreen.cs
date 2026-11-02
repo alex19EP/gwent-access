@@ -68,9 +68,13 @@ namespace GwentAccess.Ui
         private static void BuildFactions(GraphBuilder b, UIPickStarterDeck pick)
         {
             b.BeginStop("starter:factions");
+            var others = new List<AControl>();
             foreach (var c in CrimsonNodes.Leaves(pick))
             {
                 var button = c;
+                // Only the faction cards here; the panel's settings icon (FTUXSettings) read as a nameless
+                // "6 of 6" and, being a toggle, was clicked by landing on it. It gets its own stop below.
+                if (FactionText(button, "Title") == null) { others.Add(button); continue; }
                 b.AddItem(CrimsonNodes.Id(button), new NodeVtable
                 {
                     Announcements = new[]
@@ -81,6 +85,11 @@ namespace GwentAccess.Ui
                     OnActivate = () => Navigator.ClickControl(button),
                     OnTooltip = () => Speech.Say(string.Join(", ", CrimsonNodes.Texts(button)), true),
                 });
+            }
+            if (others.Count > 0)
+            {
+                b.BeginStop("starter:other");
+                foreach (var c in others) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
             }
         }
 
@@ -114,13 +123,13 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => CrimsonNodes.Label(toggle), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
-                        new NodeAnnouncement(() => Toggled(toggle) ? PageText(desc) : null, live: true, kind: AnnouncementKinds.Tooltip),
+                        new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? PageText(desc, toggle) : null, live: true, kind: AnnouncementKinds.Tooltip),
                     },
                     OnActivate = () => Navigator.ClickControl(toggle),
-                    OnTooltip = () => Speech.Say(PageText(desc) ?? "", true),
+                    OnTooltip = () => Speech.Say(PageText(desc, toggle) ?? "", true),
                 });
-                if (Toggled(toggle)) b.SetStart(id);
+                if (CrimsonNodes.Toggled(toggle)) b.SetStart(id);
             }
             b.EndRow();
             b.PopContext();
@@ -129,6 +138,14 @@ namespace GwentAccess.Ui
             b.BeginStop("starter:buttons");
             foreach (var c in BarButtons(desc))
                 b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+
+            // The settings icon, after the bar.
+            foreach (var c in CrimsonNodes.Leaves(desc))
+                if (c.TryCast<ToggleButtonControl>() is ToggleButtonControl t && t.GetComponentInParent<FactionDescriptionElement>() == null)
+                {
+                    b.BeginStop("starter:settings");
+                    b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+                }
         }
 
         // The page toggles, when the description is the panel in use.
@@ -137,8 +154,10 @@ namespace GwentAccess.Ui
             var list = new List<ToggleButtonControl>();
             try
             {
+                // Only the description pages (each a FactionDescriptionElement's toggle): the panel's settings icon
+                // (FTUXSettingsButton) is a toggle too, and read as a page "Options" that landing on opened.
                 foreach (var t in desc.GetComponentsInChildren<ToggleButtonControl>(false))
-                    if (t.IsCurrentlySelectable()) list.Add(t);
+                    if (t.IsCurrentlySelectable() && t.GetComponentInParent<FactionDescriptionElement>() != null) list.Add(t);
             }
             catch { }
             return list;
@@ -156,11 +175,20 @@ namespace GwentAccess.Ui
             catch { return null; }
         }
 
-        // The shown page's text, rich text (the card links' colour and link tags) stripped.
-        private static string PageText(UIPickStarterDeckDescription desc)
+        // The page's text, rich text (the card links' colour and link tags) stripped — only once the window
+        // shows this page's text (its label carries the page's key, faction_<faction>_<id>_desc_text): the text
+        // cross-fades after the toggle, and reading it early spoke the previous page's words under this page's
+        // name. Until then null; the live announcement speaks it when it arrives.
+        private static string PageText(UIPickStarterDeckDescription desc, ToggleButtonControl page)
         {
             try
             {
+                var element = page?.GetComponentInParent<FactionDescriptionElement>();
+                if (element != null)
+                {
+                    string want = string.Format(UIPickStarterDeckDescription.KEY_DESCRIPTION_TEXT_FORMAT, element.m_Faction, element.m_Id);
+                    if (desc.m_Description?.m_LocalizationKey != want) return null;
+                }
                 var t = desc.transform.Find("SafeArea/DescriptionWindow/Content/Blend2/Description")?.GetComponent<TMPro.TMP_Text>();
                 string s = t != null ? UiText.Clean(t.text) : null;
                 return string.IsNullOrEmpty(s) || UiText.IsPlaceholder(s) ? null : s;
@@ -172,19 +200,7 @@ namespace GwentAccess.Ui
         // container's own callback, as on the tutorial panels.
         private static List<AControl> BarButtons(UIPickStarterDeckDescription desc)
         {
-            var list = new List<AControl>();
-            foreach (var bar in desc.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    list.Add(c);
-                }
-            }
-            return list;
+            return CrimsonNodes.BarButtons(desc);
         }
 
         /// <summary>On the description the cursor follows the shown page, not the game's selection: "Вперед"
@@ -193,7 +209,7 @@ namespace GwentAccess.Ui
         {
             if (Panels(out _, out var desc) && desc != null)
                 foreach (var page in Pages(desc))
-                    if (Toggled(page)) return page;
+                    if (CrimsonNodes.Toggled(page)) return page;
             return base.GameSelection();
         }
 
@@ -203,7 +219,9 @@ namespace GwentAccess.Ui
         public override void OnCursorMoved(GraphNode node)
         {
             base.OnCursorMoved(node);
-            if (node?.Id.Reference is AControl c && c.TryCast<ToggleButtonControl>() is ToggleButtonControl page && !Toggled(page))
+            // Only a description page: other toggles (the settings icon) open things when clicked.
+            if (node?.Id.Reference is AControl c && c.TryCast<ToggleButtonControl>() is ToggleButtonControl page && !CrimsonNodes.Toggled(page)
+                && page.GetComponentInParent<FactionDescriptionElement>() != null)
                 Navigator.ClickControl(page);
         }
 
@@ -215,11 +233,6 @@ namespace GwentAccess.Ui
             if (key != UnityEngine.KeyCode.Return && key != UnityEngine.KeyCode.KeypadEnter) return false;
             try { return GraphNavigator.CurrentNode?.Id.Reference is AControl c && c.IsCurrentlySelectable(); }
             catch { return false; }
-        }
-
-        private static bool Toggled(ToggleButtonControl t)
-        {
-            try { return t.IsToggled; } catch { return false; }
         }
     }
 }

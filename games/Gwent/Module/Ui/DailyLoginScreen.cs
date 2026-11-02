@@ -45,18 +45,7 @@ namespace GwentAccess.Ui
         public override bool IsActive() => Panel() != null;
 
         // The panel attached to the input layer that has the input.
-        private static UIDailyLoginRewardPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIDailyLoginRewardPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIDailyLoginRewardPanel Panel() => CrimsonNodes.ActivePanel<UIDailyLoginRewardPanel>();
 
         // The game parks no selection here, and moves it around a claim; the cursor stays with the player.
         public override AControl GameSelection() => null;
@@ -72,18 +61,20 @@ namespace GwentAccess.Ui
             if (slots != null && slots.Count > 0)
             {
                 b.BeginStop("days");
+                b.StartRow("days"); // the days side by side as drawn: Left/Right move, Up/Down read a card reward
                 ControlId start = null;
                 for (int i = 0; i < slots.Count; i++)
                 {
                     var slot = slots[i];
-                    if (!Shown(slot)) continue;
+                    if (!CrimsonNodes.Shown(slot)) continue;
                     used.Add(slot.Pointer);
                     var id = CrimsonNodes.Id(slot);
                     _days[(string)id.StructuralKey] = slot;
                     // The days run in order, so the last claimed or counting down is where the game is at.
-                    if (start == null || Shown(slot.m_ClaimBox) || Shown(slot.m_TimerCountdownRenderer)) start = id;
+                    if (start == null || CrimsonNodes.Shown(slot.m_ClaimBox) || CrimsonNodes.Shown(slot.m_TimerCountdownRenderer)) start = id;
                     b.AddItem(id, Day(p, slot));
                 }
+                b.EndRow();
                 if (start != null) b.SetStart(start);
             }
 
@@ -99,15 +90,7 @@ namespace GwentAccess.Ui
         // The bar's glyph-key buttons are never selectable, so the walk above misses them.
         private static void AddBar(InputButtonContainer bar, List<AControl> buttons, HashSet<IntPtr> used)
         {
-            if (!Shown(bar)) return;
-            var children = bar.GetChildren();
-            for (int i = 0; children != null && i < children.Count; i++)
-            {
-                var c = children[i];
-                if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                if (CrimsonNodes.Texts(c).Count == 0) continue;  // an empty spare slot in the bar
-                if (used.Add(c.Pointer)) buttons.Add(c);
-            }
+            if (CrimsonNodes.Shown(bar)) buttons.AddRange(CrimsonNodes.BarButtons(new[] { bar }, used));
         }
 
         // ---- a day ----
@@ -135,11 +118,11 @@ namespace GwentAccess.Ui
             try
             {
                 var reward = slot.RewardView?.Reward;
-                if (reward != null) parts.Add(UiText.Clean(RewardTextHelper.GetText(reward)));
-                if (Shown(slot.m_BoostRewardIcon))
+                if (reward != null) parts.Add(RewardText.Of(reward));
+                if (CrimsonNodes.Shown(slot.m_BoostRewardIcon))
                 {
                     var boost = p.m_RewardsContainer.m_RewardController?.GimmeStuff(slot.SlotId).BoostReward;
-                    if (boost != null) parts.Add(UiText.Clean(RewardTextHelper.GetText(boost)));
+                    if (boost != null) parts.Add(RewardText.Of(boost));
                 }
             }
             catch (Exception e) { Plugin.LogInfo("[daily-login] reward read failed: " + e.Message); }
@@ -150,7 +133,7 @@ namespace GwentAccess.Ui
         // The slot's claimed box, with its date ("Выполнено, 30.10.2026", as a finished contract reads).
         private static string Claimed(UIDailyLoginRewardSlot slot)
         {
-            if (!Shown(slot.m_ClaimBox)) return null;
+            if (!CrimsonNodes.Shown(slot.m_ClaimBox)) return null;
             string word = GameText.Get("daily_quest_completed", "Completed");
             string date = UiText.Clean(slot.m_ClaimedDataLabel?.Text?.text);
             return date.Length > 0 ? word + ", " + date : word;
@@ -160,7 +143,7 @@ namespace GwentAccess.Ui
         private static string Countdown(UIDailyLoginRewardSlot slot)
         {
             var timer = slot.m_TimerCountdownRenderer;
-            return Shown(timer) ? string.Join(", ", CrimsonNodes.Texts(timer)) : null;
+            return CrimsonNodes.Shown(timer) ? string.Join(", ", CrimsonNodes.Texts(timer)) : null;
         }
 
         private static string Details(UIDailyLoginRewardPanel p, UIDailyLoginRewardSlot slot)
@@ -214,16 +197,6 @@ namespace GwentAccess.Ui
         {
             var node = GraphNavigator.CurrentNode;
             return node?.Id.StructuralKey is string key && _days.TryGetValue(key, out var slot) ? CardOf(slot) : null;
-        }
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
-        }
-
-        private static bool Shown(GameObject g)
-        {
-            try { return g != null && g.activeInHierarchy; } catch { return false; }
         }
     }
 }

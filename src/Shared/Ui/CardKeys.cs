@@ -6,9 +6,13 @@ using UnityEngine;
 namespace GwentAccess.Ui
 {
     /// <summary>
-    /// The card-reading keys every screen showing cards shares: Ctrl+Up/Down step through the focused card's
-    /// lines (the summary spoken on landing is line 0; silent at either end), I explains its keywords — just the
-    /// current line's once Ctrl+Up/Down is on an ability that has any — and K reads its kind and base power.
+    /// The card-reading keys every screen showing cards shares (Accessible Arena's and Hearthstone Access's
+    /// model: Left/Right move through the cards, Up/Down read the focused one): Up/Down step through the focused
+    /// card's lines (the summary spoken on landing is line 0; "Beginning of card" / "End of card" past the ends),
+    /// I explains its keywords — just the current line's once Up/Down is on an ability that has any — and K reads
+    /// its kind and base power. On screens of cards only (the board, the mulligan, choices, piles) Up/Down always
+    /// read; where cards sit among other items (rewards) they read only while a card is focused, and move
+    /// otherwise.
     /// </summary>
     internal sealed class CardKeys
     {
@@ -17,16 +21,23 @@ namespace GwentAccess.Ui
         private Card _lineCard;
         private int _line;
 
-        public CardKeys(Func<Card> focused, Func<PlayerManager> players)
+        private readonly bool _always;
+        private readonly Action _noCard;
+
+        /// <param name="always">Up/Down always read (no card focused: <paramref name="noCard"/>, by default "No
+        /// card."); false: they read only while a card is focused, and move otherwise.</param>
+        public CardKeys(Func<Card> focused, Func<PlayerManager> players, bool always = false, Action noCard = null)
         {
             _focused = focused;
             _players = players;
+            _always = always;
+            _noCard = noCard;
         }
 
         public IEnumerable<ScreenKey> Keys => new[]
         {
-            new ScreenKey { Key = KeyCode.DownArrow, Ctrl = true, Run = () => StepLine(1), Hint = "Control Down, next line of the card" },
-            new ScreenKey { Key = KeyCode.UpArrow, Ctrl = true, Run = () => StepLine(-1), Hint = "Control Up, previous line of the card" },
+            new ScreenKey { Key = KeyCode.DownArrow, Run = () => StepLine(1), When = Reads, Hint = "Down, next line of the card" },
+            new ScreenKey { Key = KeyCode.UpArrow, Run = () => StepLine(-1), When = Reads, Hint = "Up, previous line of the card" },
             new ScreenKey { Key = KeyCode.I, Run = SayKeywords, Hint = "I, what the card's keywords mean" },
             new ScreenKey { Key = KeyCode.K, Run = SayStats, Hint = "K, card kind and base power" },
         };
@@ -34,14 +45,22 @@ namespace GwentAccess.Ui
         /// <summary>The cursor moved: the next Ctrl+Up/Down starts from the new card's summary.</summary>
         public void Reset() => _lineCard = null;
 
+        private bool Reads() => _always || _focused() != null;
+
         private void StepLine(int dir)
         {
             var card = _focused();
-            if (card == null) return;
+            if (card == null)
+            {
+                if (_noCard != null) _noCard(); else Speech.Say("No card.", true);
+                return;
+            }
             if (_lineCard == null || _lineCard.Id != card.Id) { _lineCard = card; _line = 0; }
             var lines = CardReader.Lines(card, _players());
             int next = _line + dir;
-            if (next < 0 || next >= lines.Count) return;
+            // Past either end says so (Accessible Arena's "End of card"), instead of silence.
+            if (next < 0) { Speech.Say("Beginning of card", true); return; }
+            if (next >= lines.Count) { Speech.Say("End of card", true); return; }
             _line = next;
             Speech.Say(lines[next].Text, true);
         }

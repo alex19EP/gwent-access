@@ -42,11 +42,9 @@ With [just](https://github.com/casey/just), `just all` runs the tests and deploy
 | `src/Shared/Speech.cs`, `src/Host/Prism.cs` | Speaks through the screen reader via Prism; the host owns the native context so it survives module reloads. |
 | `src/Shared/Ui/` | The graph screens: each screen declares its controls, the navigator moves the cursor and speaks. |
 | `src/Shared/BattleSpeech.cs`, `Narrator.cs`, `Plays.cs` | Match commentary, what the game is waiting on, board reading. |
-| `games/Gwent/Module/Legacy/Hotkeys.cs` | Gwent's older layer: reads the keyboard on a background thread; work runs on the game thread through `MainThread.cs`. |
-| `games/Gwent/Module/Legacy/MenuSpeech.cs` | Hooks `CrimsonInputLayer.set_SelectedControl` and describes whatever the game selects. |
-| `games/Gwent/Module/Legacy/Navigator.cs` | F2/F3 object navigation, sections (Shift+F2/F3), clicking, settings and deck builder lists, shop buying. |
-| `games/Gwent/Module/Legacy/HandNav.cs` | Hand/board reading, mulligan, pass, end turn, turn timer, forfeit guard. |
-| `games/Gwent/Module/DeckBuilder.cs` | Add/remove cards, deck stats, rename, duplicate, search, save and exit. |
+| `games/Gwent/Module/Hotkeys.cs` | The keys that work everywhere (F1 help, F5 controller mode, F7 repeat, F8 on/off, F9 where am I), read on a background thread; work runs on the game thread through `MainThread.cs`. |
+| `games/Gwent/Module/Ui/PanelScreen.cs` | The fallback for panels with no screen of their own (Journey, Leaderboards, What's new!, loading tips): their texts and controls in reading order. |
+| `games/Gwent/Module/DeckBuilder.cs` | Tracks the deck builder's states, the open deck's totals, and says each card added or removed. |
 | `src/Shared/CardText.cs`, `games/Gwent/Module/RewardBookText.cs` | Turning cards and reward nodes into words. |
 
 Logs go to `BepInEx\LogOutput.log` and record every spoken line and hotkey, which makes bug reports easy to trace.
