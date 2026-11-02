@@ -54,6 +54,17 @@ namespace GwentAccess
             return abilities.Count == 0 ? summary : summary + ". " + string.Join(" ", abilities);
         }
 
+        /// <summary>Only the card's ability text ("Deploy: Boost adjacent units by 2."), or "" when it has none or
+        /// is hidden from you.</summary>
+        public static string Abilities(Card card, PlayerManager pm = null)
+        {
+            if (card == null || Hidden(card, pm)) return "";
+            var abilities = new List<string>();
+            foreach (var ability in Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false).Split('\n'))
+                Add(abilities, UiText.Clean(ability));
+            return string.Join(" ", abilities);
+        }
+
         /// <summary>One line of a card, with the keywords it mentions (the game's keys, e.g. "order", "veil").</summary>
         public sealed class CardLine
         {

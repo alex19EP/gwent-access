@@ -39,9 +39,6 @@ namespace GwentAccess.Ui
         // Write-back memory: the identity last handed to the screen's OnCursorMoved.
         private static ControlId _syncedKey;
 
-        /// <summary>True while a mod screen owns the keyboard and speech for the game's current UI. Legacy paths
-        /// (the selection narrator) stand down on it — one keypress, one model (spec §10.5).</summary>
-        public static bool Owns => _screen != null;
 
         private static readonly KeyCode[] NavKeys =
         {
@@ -61,6 +58,7 @@ namespace GwentAccess.Ui
         {
             if (ReferenceEquals(screen, _screen)) return;
             _screen = screen;
+            GraphAnnouncer.MinPositionCount = screen != null && screen.PositionOfOne ? 1 : 2;
             _spokenKey = null;
             _spokenNode = null;
             _syncedKey = null;
@@ -154,6 +152,9 @@ namespace GwentAccess.Ui
             if (ptr == _observedGame) return;
             _observedGame = ptr;
             if (sel == null) return;
+            // The cursor is on a control the game won't select (VERSUS PLAYER while it is locked): the game puts
+            // its selection back where it was, which is a refusal, not a move to follow.
+            if (_graph.CurrentNode?.Id.Reference is CrimsonUI.AControl here && !Selectable(here)) return;
             // The nearest node at or above the selection: a node can stand for a composite control whose inner
             // parts the game selects (a settings row's switcher and its arrows).
             for (var t = sel.transform; t != null; t = t.parent)
@@ -167,6 +168,11 @@ namespace GwentAccess.Ui
                 _syncedKey = target.Id; // the game is already there; nothing to write back
                 return;
             }
+        }
+
+        private static bool Selectable(CrimsonUI.AControl c)
+        {
+            try { return c.IsCurrentlySelectable(); } catch { return true; }
         }
 
         // ---- return to the opener ----
@@ -311,12 +317,17 @@ namespace GwentAccess.Ui
             Plugin.LogInfo("[key] " + mods + k + (game ? " (game)" : "") + " on " + _screen.Key + (at != null ? " @ " + at : ""));
         }
 
+        // A screen key pressed this frame; the arrows also repeat while held (Up/Down reading a card's lines).
+        private static bool Pressed(KeyCode k) =>
+            k == KeyCode.UpArrow || k == KeyCode.DownArrow || k == KeyCode.LeftArrow || k == KeyCode.RightArrow
+                ? Keys.DownOrRepeat(k) : Keys.Down(k);
+
         private static void HandleKeys()
         {
             try { LogKeys(); } catch { }
             if (Keys.Alt) return;
             foreach (var k in _screen.ExtraKeys)
-                if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Keys.Down(k.Key))
+                if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Pressed(k.Key) && (k.When == null || k.When()))
                 {
                     try { k.Run(); }
                     catch (Exception e) { ScreenManager.LogOnce(_screen, "key " + k.Key, e); }
@@ -333,7 +344,11 @@ namespace GwentAccess.Ui
             else if (Keys.Down(KeyCode.End)) Edge(GraphDir.Down);
             else if (Keys.Down(KeyCode.Return) && !_screen.LeavesToGame(KeyCode.Return)
                 || Keys.Down(KeyCode.KeypadEnter) && !_screen.LeavesToGame(KeyCode.KeypadEnter)) Activate();
-            else if (Keys.Down(KeyCode.Backspace)) Run(_graph.CurrentNode?.Vtable.OnSecondary, _graph.Secondary);
+            else if (Keys.Down(KeyCode.Backspace))
+            {
+                if (_graph.CurrentNode?.Vtable.OnSecondary != null) Run(_graph.CurrentNode.Vtable.OnSecondary, _graph.Secondary);
+                else Back();
+            }
             else if (Keys.Down(KeyCode.Space)) Details();
         }
 
@@ -410,6 +425,15 @@ namespace GwentAccess.Ui
             SpeakState();
         }
 
+        // Backspace with nothing of the item's own to do: the screen's Back, never a silent key.
+        private static void Back()
+        {
+            bool done = false;
+            try { done = _screen.Back(); }
+            catch (Exception e) { ScreenManager.LogOnce(_screen, "Back", e); }
+            if (!done) Say("Nothing to go back to here.", interrupt: true);
+        }
+
         private static void SpeakState()
         {
             var st = _graph.CurrentNode?.Vtable.StateText;
@@ -446,12 +470,43 @@ namespace GwentAccess.Ui
             if (_state != null) _state.NextSuggestedMove = id;
         }
 
-        /// <summary>Re-speak the focused control with its full context ("where am I").</summary>
-        public static void SayWhere()
+        /// <summary>For a screen key: an arrow press (Tab as Down on a one-list screen).</summary>
+        public static void Step(GraphDir dir) { if (_graph != null) Arrow(dir); }
+
+        /// <summary>For a screen key: Enter on the focused node, as the key does.</summary>
+        public static void ActivateCurrent() { if (_graph != null) Activate(); }
+
+        /// <summary>The nodes of the current render, in declaration order (empty when none).</summary>
+        public static IReadOnlyList<GraphNode> Nodes()
         {
-            if (_graph == null || !_graph.Rerender()) return;
+            if (_graph == null || !_graph.Rerender() || _graph.Current == null) return Array.Empty<GraphNode>();
+            return _graph.Current.Order;
+        }
+
+        /// <summary>A node's own name, its label announcement as spoken.</summary>
+        public static string LabelOf(GraphNode node)
+        {
+            try
+            {
+                foreach (var a in GraphAnnouncer.EffectiveAnnouncements(node))
+                    if (a.Kind == AnnouncementKinds.Label) return a.Text?.Invoke();
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>Re-speak the focused control with its full context ("where am I").</summary>
+        public static void SayWhere() => SayWhere(false);
+
+        /// <summary>F9: the focused control with its full context, after the screen's name when asked.</summary>
+        public static void SayWhere(bool withScreen)
+        {
+            if (_graph == null || !_graph.Rerender()) { if (withScreen) Say("Nothing to read here.", interrupt: true); return; }
             var node = _graph.CurrentNode;
-            if (node != null) Say(GraphAnnouncer.ComposeFull(node), interrupt: true);
+            if (node == null) return;
+            string name = withScreen ? _screen?.ScreenName : null;
+            string full = GraphAnnouncer.ComposeFull(node);
+            Say(string.IsNullOrEmpty(name) ? full : name + ", " + full, interrupt: true);
         }
 
         // ---- render ----

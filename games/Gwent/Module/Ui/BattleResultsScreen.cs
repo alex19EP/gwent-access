@@ -69,6 +69,7 @@ namespace GwentAccess.Ui
             var panel = Panel();
             if (panel == null) return;
 
+            ControlId last = null;
             b.BeginStop("results");
             var mine = Scores(panel.m_Player1Content);
             var theirs = Scores(panel.m_Player2Content);
@@ -77,7 +78,7 @@ namespace GwentAccess.Ui
             {
                 string line = round + " " + (i + 1) + ": " + At(mine, i) + " : " + At(theirs, i);
                 var id = ControlId.Structural("results:round:" + i);
-                b.AddItem(id, new NodeVtable
+                b.AddItem(last = id, new NodeVtable
                 {
                     Announcements = new[] { new NodeAnnouncement(() => line, kind: AnnouncementKinds.Label) },
                     OnTooltip = () => Speech.Say(line, true),
@@ -93,7 +94,7 @@ namespace GwentAccess.Ui
             for (int i = 0; i < banners.Count; i++)
             {
                 var banner = banners[i];
-                b.AddItem(ControlId.Structural("results:reward:" + i), new NodeVtable
+                b.AddItem(last = ControlId.Structural("results:reward:" + i), new NodeVtable
                 {
                     Announcements = new[] { new NodeAnnouncement(() => BannerText(banner), kind: AnnouncementKinds.Label) },
                     OnTooltip = () => Speech.Say(BannerText(banner) ?? "", true),
@@ -105,13 +106,17 @@ namespace GwentAccess.Ui
                 var button = SafeVanity(info);
                 if (button == null) continue;
                 var widget = info;
+                // The second panel is the opponent's, as its place on screen shows; an AI opponent's panel draws
+                // no name, only its title, which alone didn't say whose it was.
+                bool opponent = info == panel.m_P2Info;
+                System.Func<string> text = () => opponent ? "Opponent, " + PlayerText(widget) : PlayerText(widget);
                 if (Selectable(button))
-                    b.AddItem(CrimsonNodes.Id(button), CrimsonNodes.Button(button, () => PlayerText(widget)));
+                    b.AddItem(last = CrimsonNodes.Id(button), CrimsonNodes.Button(button, text));
                 else
-                    b.AddItem(CrimsonNodes.Id(button), new NodeVtable
+                    b.AddItem(last = CrimsonNodes.Id(button), new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => PlayerText(widget), kind: AnnouncementKinds.Label) },
-                        OnTooltip = () => Speech.Say(PlayerText(widget) ?? "", true),
+                        Announcements = new[] { new NodeAnnouncement(text, kind: AnnouncementKinds.Label) },
+                        OnTooltip = () => Speech.Say(text() ?? "", true),
                     });
             }
 
@@ -120,12 +125,24 @@ namespace GwentAccess.Ui
             // off. After a send the game disables it, which the button's live "unavailable" reads.
             var gg = panel.m_GoodGameButtonControl;
             if (gg != null && Shown(gg) && GoodGameOn(panel))
-                b.AddItem(CrimsonNodes.Id(gg), CrimsonNodes.Button(gg,
+                b.AddItem(last = CrimsonNodes.Id(gg), CrimsonNodes.Button(gg,
                     () => GameText.Get("input_send_good_game", "Good game")));
 
             b.BeginStop("results:buttons");
+            ControlId firstButton = null;
             foreach (var c in BarButtons(panel))
-                b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            {
+                var id = CrimsonNodes.Id(c);
+                firstButton ??= id;
+                b.AddItem(id, CrimsonNodes.Button(c));
+            }
+            // The bar (Exit, Continue) is its own Tab stop, and Down past the last result reaches it too, so the
+            // list doesn't seem to end before the way out.
+            if (last != null && firstButton != null)
+            {
+                b.Connect(last, GraphDir.Down, firstButton);
+                b.Connect(firstButton, GraphDir.Up, last);
+            }
         }
 
         // One player's round scores in round order (kept as shown; two rounds can have the same score).

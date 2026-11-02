@@ -79,6 +79,57 @@ namespace GwentAccess.Ui
             _result = null;
         }
 
+        private AControl _opener;
+        public override void OnFocus() => _opener = SocialOpener();
+
+        /// <summary>Backspace: close the window the way a mouse player does on desktop, by pressing the social bar
+        /// button that opened it again (the window's own close buttons are mobile-only). Escape is not the
+        /// game's Back here: it opens the main menu's "quit?" question.</summary>
+        public override bool Back() => CloseSocialWindow(_opener, "friend");
+
+        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new List<ScreenKey>
+        {
+            new ScreenKey { Key = KeyCode.Escape, Run = () => { if (!CloseSocialWindow(_opener, "friend")) Speech.Say("Nothing to go back to here.", true); },
+                When = () => !_search.Editing(), Hint = "Escape or Backspace, close the friend list" },
+        };
+        private List<ScreenKey> _keys;
+
+        /// <summary>The social bar button the game has selected as a window opens: the one the player pressed.</summary>
+        internal static AControl SocialOpener()
+        {
+            try
+            {
+                var sel = CrimsonInputManager.Instance?.ActiveLayer?.SelectedControl;
+                if (sel == null) return null;
+                return sel.TryCast<GwentUnity.SocialButton>() != null || sel.GetComponentInParent<GwentUnity.SocialButton>() != null ? sel : null;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Press the opener again; without one (the window was open before this screen knew), the
+        /// shown social bar button whose icon is the section's ("friend", "quest").</summary>
+        internal static bool CloseSocialWindow(AControl opener, string icon)
+        {
+            try
+            {
+                if (opener == null || !opener.gameObject.activeInHierarchy)
+                {
+                    opener = null;
+                    foreach (var sb in UnityEngine.Object.FindObjectsOfType<GwentUnity.SocialButton>())
+                    {
+                        if (sb == null || !sb.gameObject.activeInHierarchy) continue;
+                        foreach (var img in sb.GetComponentsInChildren<UnityEngine.UI.Image>(false))
+                            if (img.sprite != null && img.sprite.name.ToLowerInvariant().Contains(icon)) { opener = sb; break; }
+                        if (opener != null) break;
+                    }
+                }
+                if (opener == null) return false;
+                Navigator.ClickControl(opener);
+                return true;
+            }
+            catch { return false; }
+        }
+
         public override void Build(GraphBuilder b)
         {
             var w = Window();

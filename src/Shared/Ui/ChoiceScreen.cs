@@ -156,7 +156,7 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => null); // face up, as in Build
+                _cardKeys = new CardKeys(FocusedCard, () => null, always: true); // face up, as in Build
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, done choosing" },
