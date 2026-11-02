@@ -267,6 +267,7 @@ namespace GwentAccess.Ui
                 foreach (var c in byStop[r]) ids.Add(CrimsonNodes.Id(c));
                 first ??= ids.Count > 0 ? ids[0] : null;
                 AddControls(b, byStop[r], activeDeck);
+                if (known && Regions[r].Stop == "modes") AddOpponentChoice(b, byStop[r]);
                 if (sideBySide)
                     for (int i = 1; i < ids.Count; i++)
                     {
@@ -553,7 +554,21 @@ namespace GwentAccess.Ui
         // A deck button reads its deck name and leader ability. In the open list the active deck says so; the
         // deck button outside it says it opens a list ("collapsed"), as a sighted player sees the dropdown
         // arrow.
+        // When an item was last activated: for a moment after, landings the game causes (its selection jumping
+        // about while it leaves the menu for a match, "Deck, Back", "Blood Drops, unavailable") stay quiet.
+        private static float _activatedAt = -10;
+
+        public override bool QuietLanding(GraphNode node) => _steer == null && UnityEngine.Time.realtimeSinceStartup - _activatedAt < 2.5f;
+
         private static NodeVtable Vtable(AControl c, ulong activeDeck)
+        {
+            var v = VtableCore(c, activeDeck);
+            var act = v.OnActivate;
+            if (act != null) v.OnActivate = () => { _activatedAt = UnityEngine.Time.realtimeSinceStartup; act(); };
+            return v;
+        }
+
+        private static NodeVtable VtableCore(AControl c, ulong activeDeck)
         {
             if (c.TryCast<SocialButton>() is SocialButton social) return SocialToggle(c, social);
             if (CardOf(c) is UIMainMenuCardItem card) return CardVtable(c, card);
@@ -632,7 +647,9 @@ namespace GwentAccess.Ui
             // player's next goal) is read after the card's name, as a sighted player reads it on the card.
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
-                new NodeAnnouncement(() => DrawnDescription(card), kind: AnnouncementKinds.Tooltip),
+                // Live: the game draws a card's description once it is highlighted, a moment after landing, so
+                // it is spoken when it appears (Left/Right through the modes read each one).
+                new NodeAnnouncement(() => DrawnDescription(card), live: true, kind: AnnouncementKinds.Tooltip),
             };
             if (!IsStandIn(c, card)) return v;
             var button = c.TryCast<ButtonControl>();
@@ -685,7 +702,19 @@ namespace GwentAccess.Ui
                 var parts = new List<string>();
                 foreach (var d in card.GetComponentsInChildren<UIPlayMenuCardDescription>(false))
                     if (!InNestedCard(d.transform, card))
-                    foreach (var t in CrimsonNodes.Texts(d)) { var line = Narrator.Sentence(t); if (!parts.Contains(line)) parts.Add(line); }
+                    foreach (var tmp in d.GetComponentsInChildren<TMPro.TMP_Text>(false))
+                    {
+                        if (!tmp.isActiveAndEnabled || tmp.color.a < 0.3f) continue;
+                        if (UnderOpponentChoice(tmp.transform)) continue; // listed as items of their own
+                        string t = UiText.Clean(tmp.text);
+                        if (t.Length == 0) continue;
+                        // The rank badge's number reads as a rank; its progress bar says nothing while it has
+                        // nothing to fill ("1/0").
+                        if (tmp.name == "RankText") t = GameText.Get("interface_profile_current_rank", "Rank") + " " + t;
+                        else if (tmp.name == "ProgressText" && t.EndsWith(" of 0")) continue;
+                        var line = Narrator.Sentence(t);
+                        if (!parts.Contains(line)) parts.Add(line);
+                    }
                 return parts.Count > 0 ? string.Join(" ", parts) : null;
             }
             catch { return null; }
@@ -714,6 +743,52 @@ namespace GwentAccess.Ui
                 if (t.GetComponentInParent<TimerCountdownRenderer>() != null) timer.Add(s);
                 else title ??= s;
             }
+        }
+
+        /// <summary>
+        /// A mode's opponent choice (Training: "VERSUS AI", "VERSUS PLAYER"), drawn inside the front card's
+        /// description, which the menu otherwise skips (it is selectable only so a gamepad can scroll it). Both
+        /// choices are listed after the mode cards as a sighted player sees them: the chosen one "selected", a
+        /// locked one "unavailable" with the game's reason ("Requires at least rank 25"). Enter clicks one.
+        /// </summary>
+        private static void AddOpponentChoice(GraphBuilder b, List<AControl> modes)
+        {
+            try
+            {
+                foreach (var mode in modes)
+                {
+                    var card = CardOf(mode);
+                    if (card == null) continue;
+                    foreach (var tr in card.GetComponentsInChildren<Transform>(false))
+                    {
+                        if (tr.name != "OpponentSelection") continue;
+                        foreach (var toggle in tr.GetComponentsInChildren<ToggleButtonControl>(false))
+                        {
+                            var t = toggle;
+                            var texts = CrimsonNodes.Texts(t);
+                            if (texts.Count == 0) continue;
+                            b.AddItem(CrimsonNodes.Id(t), new NodeVtable
+                            {
+                                Announcements = new[]
+                                {
+                                    new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(t)), kind: AnnouncementKinds.Label),
+                                    new NodeAnnouncement(() => t.IsToggled ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                                    new NodeAnnouncement(() => t.IsCurrentlySelectable() ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+                                },
+                                OnActivate = () => { if (t.IsCurrentlySelectable()) Navigator.ClickControl(t); else Speech.Say("Not available right now.", true); },
+                            });
+                        }
+                        return;
+                    }
+                }
+            }
+            catch (System.Exception e) { Plugin.LogInfo("[menu] opponent choice: " + e.Message); }
+        }
+
+        private static bool UnderOpponentChoice(Transform t)
+        {
+            for (; t != null; t = t.parent) if (t.name == "OpponentSelection") return true;
+            return false;
         }
 
         // A text belonging to a card nested inside this one (the PLAY card's stack of mode cards).
