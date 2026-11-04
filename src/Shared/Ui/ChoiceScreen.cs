@@ -110,6 +110,11 @@ namespace GwentAccess.Ui
             try { return _req.SelectedChoices.Contains(card.Id); } catch { return false; }
         }
 
+        /// <summary>When Enter or E last answered a choice (realtime seconds). The play it asks for comes as a
+        /// request of its own a few frames after the panel closes; the battle screen waits for it
+        /// (<see cref="BattleScreen"/>'s Build) instead of announcing a landing that is gone at once.</summary>
+        public static float AnsweredAt { get; private set; } = -100f;
+
         private void Pick(Card card, bool enabled)
         {
             if (!enabled) { Speech.Say("Unavailable.", true); return; }
@@ -120,6 +125,7 @@ namespace GwentAccess.Ui
                 int max = _req.MaxChoices;
                 if (max > 1) h.ToggleChoice(card);
                 else h.SelectChoice(card);
+                AnsweredAt = Time.realtimeSinceStartup;
                 Plugin.LogInfo("[choice] pick " + card.Id);
             }
             catch (Exception e) { Plugin.LogInfo("[choice] pick failed: " + e); Speech.Say("Couldn't pick.", true); }
@@ -129,7 +135,7 @@ namespace GwentAccess.Ui
         {
             var h = Handler();
             if (h == null) return;
-            try { h.HandleFinishBtnClicked(); Plugin.LogInfo("[choice] finish"); }
+            try { h.HandleFinishBtnClicked(); AnsweredAt = Time.realtimeSinceStartup; Plugin.LogInfo("[choice] finish"); }
             catch (Exception e) { Plugin.LogInfo("[choice] finish failed: " + e); Speech.Say("Couldn't finish.", true); }
         }
 
