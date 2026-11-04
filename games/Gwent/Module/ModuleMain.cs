@@ -38,6 +38,7 @@ namespace GwentAccess
             Plugin.LogInfo("Patches applied: " + ok + ", failed: " + bad);
 
             Ui.ScreenManager.Register(new Ui.MainMenuScreen());
+            Ui.ScreenManager.Register(new Ui.MatchmakingScreen());
             Ui.ScreenManager.Register(new Ui.SettingsScreen());
             Ui.ScreenManager.Register(new Ui.BattleScreen());
             Ui.ScreenManager.Register(new Ui.MulliganScreen());
@@ -47,24 +48,35 @@ namespace GwentAccess
             Ui.ScreenManager.Register(new Ui.LogScreen());
             Ui.ScreenManager.Register(new Ui.RewardBookScreen());
             Ui.ScreenManager.Register(new Ui.ShopScreen());
+            Ui.ScreenManager.Register(new Ui.ProductPreviewScreen());
+            Ui.ScreenManager.Register(new Ui.GiftScreen());
             Ui.ScreenManager.Register(new Ui.KegOpeningScreen());
             Ui.ScreenManager.Register(new Ui.ProfileScreen());
+            Ui.ScreenManager.Register(new Ui.ShowcasePickerScreen());
             Ui.ScreenManager.Register(new Ui.ContactsScreen());
             Ui.ScreenManager.Register(new Ui.QuestsScreen());
+            Ui.ScreenManager.Register(new Ui.SideWindowScreen());
             Ui.ScreenManager.Register(new Ui.DailyLoginScreen());
             Ui.ScreenManager.Register(new Ui.InviteScreen());
             Ui.ScreenManager.Register(new Ui.StarterDeckScreen());
             Ui.ScreenManager.Register(new Ui.MillSparesScreen());
             Ui.ScreenManager.Register(new Ui.DeckBuilderScreen());
             Ui.ScreenManager.Register(new Ui.DraftScreen());
+            Ui.ScreenManager.Register(new Ui.DraftLobbyScreen());
             Ui.ScreenManager.Register(new Ui.NewDeckScreen());
             Ui.ScreenManager.Register(new Ui.CycleScreen());
+            Ui.ScreenManager.Register(new Ui.CycleRerollScreen());
             Ui.ScreenManager.Register(new Ui.JourneyScreen());
-            Ui.ScreenManager.Register(new Ui.CardPreviewScreen());
+            Ui.ScreenManager.Register(new Ui.JourneyStoryScreen());
+            Ui.ScreenManager.Register(new Ui.WhatsNewScreen());
+            Ui.ScreenManager.Register(new Ui.LeaderboardScreen());
+            Ui.ScreenManager.Register(new Ui.SeasonTransitionScreen());
             Ui.ScreenManager.Register(new Ui.TutorialPanelScreen());
             Ui.ScreenManager.Register(new Ui.RewardPopupScreen());
+            Ui.ScreenManager.Register(new Ui.CardPreviewScreen());
             Ui.ScreenManager.Register(new Ui.PopupScreen());
             Ui.ScreenManager.Register(new Ui.BattleResultsScreen());
+            Ui.ScreenManager.Register(new Ui.VersusScreen());
             Ui.ScreenManager.Register(new Ui.HelpScreen());
             Ui.ScreenManager.Register(new Ui.PanelScreen());
         }

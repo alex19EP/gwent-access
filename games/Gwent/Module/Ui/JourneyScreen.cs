@@ -25,7 +25,7 @@ namespace GwentAccess.Ui
     /// - The panel's buttons (EXIT, Journey Story, Journey List, Back), each once: the bar draws a mouse and a
     ///   gamepad copy of each.
     ///
-    /// The story and the journey list are left to the fallback panel screen.
+    /// The story is <see cref="JourneyStoryScreen"/>'s; the journey list is left to the fallback panel screen.
     /// </summary>
     internal sealed class JourneyScreen : Screen
     {

@@ -39,7 +39,6 @@ namespace GwentAccess.Ui
                 if (p == null) return null;
                 if (Titles.TryGetValue(p.gameObject.name, out var t)) return GameText.Get(t.Key, t.Fallback);
                 if (p.TryCast<UILoadingScreenBase>() != null) return "Loading"; // its tip is read as its content
-                if (p.TryCast<IntroPanel>() != null) return "Versus";            // the two players before the coin toss
                 return UiText.FriendlyName(p.gameObject.name.Replace("(Clone)", "").Replace("Prefab", "").Replace("UIDB", "").Replace("UI", ""));
             }
         }
@@ -95,15 +94,27 @@ namespace GwentAccess.Ui
             "UIBattleDialoguePanel", "UIBattleCardPresentationPanel", "SocialPanel", "UIMainMenuBGPanel", "PopupPanel",
             "UIResultBannerPanel", // the results screen that follows names itself by the same banner
             "TauntSelectorView", // the emote wheel: EmoteScreen once it has opened
+            "IntroPanel", // the Versus banner: VersusScreen
+            "UIShopProductPreviewPanel", // ProductPreviewScreen
+            "UIWelcomeScreenPanel", // WhatsNewScreen
+            "UIOuroborosRerollPanel", // CycleRerollScreen
+            "UIShopGiftPanel", // GiftScreen
+            "UIMainMenuLeaderboardPanel", // LeaderboardScreen
+            "UISeasonTransitionPanel", // SeasonTransitionScreen
         };
 
         // Panels a dedicated screen reads once they finish opening: the fallback would read their placeholders
-        // meanwhile. The journey's story is still the fallback's.
+        // meanwhile. The journey's main view and its story are dedicated (JourneyScreen, JourneyStoryScreen).
         private static bool Dedicated(AGwentPanel p)
         {
             if (p.TryCast<GwentVisuals.UIOuroborosProgressionPanel>() != null) return true;
             var journey = p.TryCast<GwentVisuals.UIJourneyPanel>();
-            try { return journey != null && journey.m_CurrentState == GwentVisuals.JourneyViewState.Main; } catch { return false; }
+            try
+            {
+                return journey != null && (journey.m_CurrentState == GwentVisuals.JourneyViewState.Main
+                    || journey.m_CurrentState == GwentVisuals.JourneyViewState.Story);
+            }
+            catch { return false; }
         }
 
         // The first attached, shown panel on the active layer with something to read or press.
@@ -309,7 +320,7 @@ namespace GwentAccess.Ui
         }
 
         // Drawn invisibly: text alpha 0, or a fully transparent CanvasGroup above it (faded, not disabled).
-        private static bool Faded(TMPro.TMP_Text t)
+        internal static bool Faded(TMPro.TMP_Text t)
         {
             if (t.alpha <= 0.01f) return true;
             foreach (var g in t.GetComponentsInParent<CanvasGroup>())
