@@ -157,8 +157,10 @@ namespace GwentAccess.Ui
             {
                 Announcements = new[]
                 {
+                    // A toggle speaks one line, the new label in the game's words ("Unmute opponent" once muted);
+                    // the state word is read with it when the item is reached, not again on the toggle.
                     new NodeAnnouncement(() => MuteLabel(tm), live: true, kind: AnnouncementKinds.Label),
-                    new NodeAnnouncement(() => Muted(tm) ? "muted" : null, live: true, kind: AnnouncementKinds.Value),
+                    new NodeAnnouncement(() => Muted(tm) ? "muted" : null, kind: AnnouncementKinds.Value),
                 },
                 OnActivate = () => ToggleMute(v),
             });
