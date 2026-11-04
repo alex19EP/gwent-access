@@ -70,8 +70,8 @@ namespace GwentAccess.Ui
         public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new List<ScreenKey>
         {
             // Escape is not the game's Back here: it opens the main menu's "quit?" question.
-            new ScreenKey { Key = KeyCode.Escape, Run = () => { if (!Back()) Speech.Say("Nothing to go back to here.", true); },
-                Hint = "Escape or Backspace, close the window" },
+            new ScreenKey { Key = KeyCode.Escape, Run = () => { if (!Back()) Speech.Say(Loc.T("Nothing to go back to here."), true); },
+                Hint = Loc.T("Escape or Backspace, close the window") },
         };
         private List<ScreenKey> _keys;
 
@@ -154,7 +154,7 @@ namespace GwentAccess.Ui
                 Announcements = new[]
                 {
                     new NodeAnnouncement(() => JourneyQuestText(q), kind: AnnouncementKinds.Label),
-                    new NodeAnnouncement(() => (slot + 1) + " of " + count, kind: AnnouncementKinds.Position),
+                    new NodeAnnouncement(() => Loc.T("{0} of {1}", slot + 1, count), kind: AnnouncementKinds.Position),
                 },
                 SpeaksOwnPosition = true,
                 OnTooltip = () => Speech.Say(JourneyQuestText(q), true),
@@ -180,13 +180,13 @@ namespace GwentAccess.Ui
                 var bar = q.m_ProgressBarWithReward;
                 if (CrimsonNodes.Shown(bar))
                 {
-                    if (CrimsonNodes.Shown(bar.m_ProgressBar)) foreach (var t in CrimsonNodes.Texts(bar.m_ProgressBar)) parts.Add("progress " + t);
+                    if (CrimsonNodes.Shown(bar.m_ProgressBar)) foreach (var t in CrimsonNodes.Texts(bar.m_ProgressBar)) parts.Add(Loc.T("progress {0}", t));
                     parts.Add(Reward(bar.m_RewardIcon));
                 }
             }
             catch (Exception e) { Plugin.LogInfo("[side] journey quest: " + e.Message); }
             parts.RemoveAll(string.IsNullOrEmpty);
-            return parts.Count > 0 ? string.Join(", ", parts) : "Quest";
+            return parts.Count > 0 ? string.Join(", ", parts) : Loc.T("Quest");
         }
 
         // A reward icon as a mouse player reads it: its hover tooltip (what it is), then the number drawn on it.
@@ -207,7 +207,7 @@ namespace GwentAccess.Ui
             b.AddLabel(ControlId.Structural("side:cycle:level"), () =>
             {
                 string n = CrimsonNodes.Text(w.m_LevelLabel);
-                return UiText.Join(CrimsonNodes.Text(w.m_NameLabel), n.Length > 0 ? "level " + n : null);
+                return UiText.Join(CrimsonNodes.Text(w.m_NameLabel), n.Length > 0 ? Loc.T("level {0}", n) : null);
             });
             b.AddLabel(ControlId.Structural("side:cycle:dates"), () => CrimsonNodes.Text(w.m_DateLabel));
             AddButton(b, w.m_TopBarInfoButton, () => GameText.Capitalized(GameText.Get("ouroboros_info_title", "Information")), used);
@@ -267,11 +267,11 @@ namespace GwentAccess.Ui
         {
             if (!CrimsonNodes.Shown(bar)) return null;
             string t = CrimsonNodes.Text(bar.m_ProgressText);
-            if (t.Length > 0) return "progress " + t;
+            if (t.Length > 0) return Loc.T("progress {0}", t);
             try
             {
                 float v = bar.m_ProgressValue;
-                return v >= 0f && v <= 1f ? "progress " + Mathf.RoundToInt(v * 100f) + "%" : null;
+                return v >= 0f && v <= 1f ? Loc.T("progress {0}%", Mathf.RoundToInt(v * 100f)) : null;
             }
             catch { return null; }
         }

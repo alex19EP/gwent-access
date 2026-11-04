@@ -359,7 +359,7 @@ namespace GwentAccess.Ui
         /// clicked as the mouse clicks them, so the price and the buy button follow.</summary>
         private static NodeVtable Quantity(UIQuantityControl q)
         {
-            string Title() => UiText.NullIfEmpty(string.Join(" ", CrimsonNodes.Texts(q.m_QuantityTitle))) ?? "Quantity";
+            string Title() => UiText.NullIfEmpty(string.Join(" ", CrimsonNodes.Texts(q.m_QuantityTitle))) ?? Loc.T("Quantity");
             string Value() => UiText.NullIfEmpty(UiText.Clean(q.m_QuantityText?.text));
             return new NodeVtable
             {
@@ -404,7 +404,7 @@ namespace GwentAccess.Ui
             string currency = CurrencyName(w);
             string s = currency == null ? amount : amount + " " + currency;
             // A struck-through price is the old one, beside the discounted price.
-            if (w.m_CrossOut != null && w.m_CrossOut.activeInHierarchy) s += ", old price";
+            if (w.m_CrossOut != null && w.m_CrossOut.activeInHierarchy) s = Loc.T("{0}, old price", s);
             return s;
         }
 

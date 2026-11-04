@@ -134,7 +134,7 @@ namespace GwentAccess.Ui
                         b.AddLabel(ControlId.Structural("quests:slot:" + i), () => string.Join(", ", CrimsonNodes.Texts(wait)));
                     continue;
                 }
-                AddQuest(b, i, q, at + " of " + shown);
+                AddQuest(b, i, q, Loc.T("{0} of {1}", at, shown));
             }
             b.EndGroup();
         }
@@ -203,7 +203,7 @@ namespace GwentAccess.Ui
         {
             var m = q.Quest;
             if (m == null) return null;
-            return m.IsCompleted ? GameText.Get("daily_quest_completed", "Completed") : "progress " + m.CurrentValue + " of " + m.CompleteValue; // drawn "1/3"
+            return m.IsCompleted ? GameText.Get("daily_quest_completed", "Completed") : Loc.T("progress {0} of {1}", m.CurrentValue, m.CompleteValue); // drawn "1/3"
         }
 
         /// <summary>
