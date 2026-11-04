@@ -381,7 +381,7 @@ namespace GwentAccess.Ui
                         if (n != null) { Say(GraphAnnouncer.LeafText(n), interrupt: true); Spoken(n); }
                         return;
                     case KeyGraph.TreeMove.EmptyGroup:
-                        Say("Empty.", interrupt: true);
+                        Say(Loc.T("Empty."), interrupt: true);
                         return;
                     case KeyGraph.TreeMove.Descended:
                     case KeyGraph.TreeMove.Ascended:
@@ -419,7 +419,7 @@ namespace GwentAccess.Ui
             var node = _graph.CurrentNode;
             if (node == null) return;
             if (node.Vtable.OnTooltip != null) _graph.Tooltip();
-            else Say("No details.", interrupt: true);
+            else Say(Loc.T("No details."), interrupt: true);
         }
 
         // Run a node hook; then speak the (possibly re-resolved) node's state line as synchronous feedback.
@@ -437,7 +437,7 @@ namespace GwentAccess.Ui
             bool done = false;
             try { done = _screen.Back(); }
             catch (Exception e) { ScreenManager.LogOnce(_screen, "Back", e); }
-            if (!done) Say("Nothing to go back to here.", interrupt: true);
+            if (!done) Say(Loc.T("Nothing to go back to here."), interrupt: true);
         }
 
         private static void SpeakState()
@@ -518,7 +518,7 @@ namespace GwentAccess.Ui
         /// <summary>F9: the focused control with its full context, after the screen's name when asked.</summary>
         public static void SayWhere(bool withScreen)
         {
-            if (_graph == null || !_graph.Rerender()) { if (withScreen) Say("Nothing to read here.", interrupt: true); return; }
+            if (_graph == null || !_graph.Rerender()) { if (withScreen) Say(Loc.T("Nothing to read here."), interrupt: true); return; }
             var node = _graph.CurrentNode;
             if (node == null) return;
             string name = withScreen ? _screen?.ScreenName : null;

@@ -45,7 +45,8 @@ namespace GwentAccess.Ui
         private sealed class Row
         {
             public string Key;
-            public string Name;
+            public string English;
+            public string Name => Loc.T(English);
             public bool Mine;
             public ELocation Where;
             public bool Scored;
@@ -54,13 +55,13 @@ namespace GwentAccess.Ui
         // Top of the screen to the bottom.
         private static readonly Row[] Rows =
         {
-            new Row { Key = "opp-leader", Name = "Opponent's leader", Mine = false, Where = ELocation.Leader },
-            new Row { Key = "opp-ranged", Name = "Opponent's ranged row", Mine = false, Where = ELocation.Ranged, Scored = true },
-            new Row { Key = "opp-melee", Name = "Opponent's melee row", Mine = false, Where = ELocation.Melee, Scored = true },
-            new Row { Key = "my-melee", Name = "Your melee row", Mine = true, Where = ELocation.Melee, Scored = true },
-            new Row { Key = "my-ranged", Name = "Your ranged row", Mine = true, Where = ELocation.Ranged, Scored = true },
-            new Row { Key = "hand", Name = "Your hand", Mine = true, Where = ELocation.Hand },
-            new Row { Key = "my-leader", Name = "Your leader", Mine = true, Where = ELocation.Leader },
+            new Row { Key = "opp-leader", English = Loc.Mark("Opponent's leader"), Mine = false, Where = ELocation.Leader },
+            new Row { Key = "opp-ranged", English = Loc.Mark("Opponent's ranged row"), Mine = false, Where = ELocation.Ranged, Scored = true },
+            new Row { Key = "opp-melee", English = Loc.Mark("Opponent's melee row"), Mine = false, Where = ELocation.Melee, Scored = true },
+            new Row { Key = "my-melee", English = Loc.Mark("Your melee row"), Mine = true, Where = ELocation.Melee, Scored = true },
+            new Row { Key = "my-ranged", English = Loc.Mark("Your ranged row"), Mine = true, Where = ELocation.Ranged, Scored = true },
+            new Row { Key = "hand", English = Loc.Mark("Your hand"), Mine = true, Where = ELocation.Hand },
+            new Row { Key = "my-leader", English = Loc.Mark("Your leader"), Mine = true, Where = ELocation.Leader },
         };
 
         // This frame's nodes by key: the card behind it, the board row it sits in, the row's location, and for
@@ -186,7 +187,7 @@ namespace GwentAccess.Ui
                     var id = ControlId.Structural(row.Where == ELocation.Leader ? LeaderKey(row.Key) : "battle:empty:" + row.Key);
                     b.AddItem(id, new NodeVtable
                     {
-                        Announcements = new[] { NodeAnnouncement.Static("empty") },
+                        Announcements = new[] { NodeAnnouncement.Static(Loc.T("empty")) },
                         OnActivate = () => EnterOnRow(loc),
                     });
                     rowIds.Add(id);
@@ -295,10 +296,10 @@ namespace GwentAccess.Ui
         /// icon) and "full" once the row holds as many units as it can (9; the game takes no more).</summary>
         private static string RowDetail(List<Card> cards, Location loc)
         {
-            var parts = new List<string> { "score " + Score(cards) };
+            var parts = new List<string> { Loc.T("score {0}", Score(cards)) };
             string effects = RowEffects(loc);
             if (effects != null) parts.Add(effects);
-            try { if (loc != null && loc.IsFull()) parts.Add("full"); } catch { }
+            try { if (loc != null && loc.IsFull()) parts.Add(Loc.T("full")); } catch { }
             return string.Join(", ", parts);
         }
 
@@ -317,7 +318,7 @@ namespace GwentAccess.Ui
             int turns = -1;
             try { int t = loc.AbilityData.Timer.Value; if (t > 0 && t != AEntityTimer.NO_TIMER) turns = t; } catch { }
             string text = string.Join(", ", names);
-            return turns > 0 ? text + ", " + (turns == 1 ? "1 turn left" : turns + " turns left") : text;
+            return turns > 0 ? text + ", " + Loc.P(turns, "{0} turn left", "{0} turns left") : text;
         }
 
         /// <summary>A card's line on the board. A leader card is led by the character standing beside it
@@ -344,8 +345,8 @@ namespace GwentAccess.Ui
                     // While the game asks for targets the valid ones glow and the rest dim: the glow is said on
                     // landing, the dimmed say nothing. Not live: the request's own "Choose a target" covers
                     // the moment it opens under the cursor.
-                    new NodeAnnouncement(() => _plays.Targets != null && !_plays.IsChosen(card) && _plays.IsTarget(card) ? "valid target" : null),
-                    new NodeAnnouncement(() => _plays.IsChosen(card) ? "chosen" : null, live: true, kind: AnnouncementKinds.Selected),
+                    new NodeAnnouncement(() => _plays.Targets != null && !_plays.IsChosen(card) && _plays.IsTarget(card) ? Loc.T("valid target") : null),
+                    new NodeAnnouncement(() => _plays.IsChosen(card) ? Loc.T("chosen") : null, live: true, kind: AnnouncementKinds.Selected),
                 },
                 OnActivate = () => EnterOnCard(card, loc),
                 OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
@@ -417,10 +418,10 @@ namespace GwentAccess.Ui
 
         private static string GapText(List<Card> cards, int i, PlayerManager pm)
         {
-            if (cards.Count == 0) return "empty row";
-            if (i == 0) return "before " + CardReader.Name(cards[0], pm);
-            if (i == cards.Count) return "after " + CardReader.Name(cards[cards.Count - 1], pm);
-            return "between " + CardReader.Name(cards[i - 1], pm) + " and " + CardReader.Name(cards[i], pm);
+            if (cards.Count == 0) return Loc.T("empty row");
+            if (i == 0) return Loc.T("before {0}", CardReader.Name(cards[0], pm));
+            if (i == cards.Count) return Loc.T("after {0}", CardReader.Name(cards[cards.Count - 1], pm));
+            return Loc.T("between {0} and {1}", CardReader.Name(cards[i - 1], pm), CardReader.Name(cards[i], pm));
         }
 
         // ---- the request being answered: say what the game asks, land on a sensible spot ----
@@ -450,16 +451,16 @@ namespace GwentAccess.Ui
             if (_plays.Targets != null)
             {
                 int max = _plays.MaxTargets;
-                Speech.Say("Choose " + (max > 1 ? "up to " + max + " targets" : "a target") + " for " + name + ".", true);
+                Speech.Say(max > 1 ? Loc.P(max, "Choose up to {0} target for {1}.", "Choose up to {0} targets for {1}.", name) : Loc.T("Choose a target for {0}.", name), true);
                 LandOnCycle();
             }
             else if (_plays.Rows != null)
             {
-                Speech.Say("Choose a row for " + name + ".", true);
+                Speech.Say(Loc.T("Choose a row for {0}.", name), true);
                 LandOnCycle();
             }
             else if (_plays.Placing != null)
-                Speech.Say("Place " + name + ".", true);
+                Speech.Say(Loc.T("Place {0}.", name), true);
             else if (_plays.Confirming != null)
                 SayConfirm();
         }
@@ -467,13 +468,13 @@ namespace GwentAccess.Ui
         private string RequesterName()
         {
             var requester = _plays.Requester();
-            return requester != null ? CardReader.Name(requester, _gc.PlayerManager) : "the card";
+            return requester != null ? CardReader.Name(requester, _gc.PlayerManager) : Loc.T("the card");
         }
 
         private void SayConfirm()
         {
             _noticedConfirm = true;
-            Speech.Say("Play " + RequesterName() + "? Enter plays it, Backspace puts it back.", true);
+            Speech.Say(Loc.T("Play {0}? Enter plays it, Backspace puts it back.", RequesterName()), true);
         }
 
         // Onto the first valid option, unless the cursor already sits on one.
@@ -585,7 +586,7 @@ namespace GwentAccess.Ui
             }
             if (_enterAt < 0 || now - _enterAt < 1.5f) return;
             _enterAt = -1;
-            if (PlayState() == _enterBefore) Speech.Say("Not available right now.", true);
+            if (PlayState() == _enterBefore) Speech.Say(Loc.T("Not available right now."), true);
         }
 
 
@@ -623,23 +624,23 @@ namespace GwentAccess.Ui
         {
             if (_plays.Targets != null)
             {
-                if (BattleInput.MouseFlow && _plays.IsTarget(card)) { if (!BattleInput.PickTarget(card)) Speech.Say("Not available right now.", true); return; }
-                Speech.Say("Not a valid target.", true); return;
+                if (BattleInput.MouseFlow && _plays.IsTarget(card)) { if (!BattleInput.PickTarget(card)) Speech.Say(Loc.T("Not available right now."), true); return; }
+                Speech.Say(Loc.T("Not a valid target."), true); return;
             }
             if (_plays.Rows != null)
             {
-                if (BattleInput.MouseFlow && loc != null && _plays.IsTargetRow(loc)) { if (!BattleInput.PickRow(loc)) Speech.Say("Not available right now.", true); return; }
-                Speech.Say("Not a valid row.", true); return;
+                if (BattleInput.MouseFlow && loc != null && _plays.IsTargetRow(loc)) { if (!BattleInput.PickRow(loc)) Speech.Say(Loc.T("Not available right now."), true); return; }
+                Speech.Say(Loc.T("Not a valid row."), true); return;
             }
-            if (!Mine(card)) { Speech.Say(_plays.MyTurn ? "Nothing to use." : "Not your turn.", true); return; }
-            if (KeyboardOrder(card)) { if (!BattleInput.Tap(card)) Speech.Say("Not available right now.", true); return; }
-            Speech.Say(_plays.WhyNot(card) ?? "Nothing to use.", true);
+            if (!Mine(card)) { Speech.Say(_plays.MyTurn ? Loc.T("Nothing to use.") : Loc.T("Not your turn."), true); return; }
+            if (KeyboardOrder(card)) { if (!BattleInput.Tap(card)) Speech.Say(Loc.T("Not available right now."), true); return; }
+            Speech.Say(_plays.WhyNot(card) ?? Loc.T("Nothing to use."), true);
         }
 
         private void EnterOnRow(Location loc)
         {
-            if (_plays.Rows != null && BattleInput.MouseFlow && _plays.IsTargetRow(loc)) { if (!BattleInput.PickRow(loc)) Speech.Say("Not available right now.", true); return; }
-            if (_plays.Rows != null) Speech.Say("Not a valid row.", true);
+            if (_plays.Rows != null && BattleInput.MouseFlow && _plays.IsTargetRow(loc)) { if (!BattleInput.PickRow(loc)) Speech.Say(Loc.T("Not available right now."), true); return; }
+            if (_plays.Rows != null) Speech.Say(Loc.T("Not a valid row."), true);
         }
 
         // ---- E: the coin, held as the game holds it ----
@@ -659,34 +660,34 @@ namespace GwentAccess.Ui
         {
             if (_plays.Targets != null || _plays.Rows != null)
             {
-                if (_plays.MaxTargets <= 1) { Speech.Say("Choose with Enter, or Backspace to cancel.", true); return; }
-                if (_plays.Chosen < _plays.MinTargets) { Speech.Say("Choose at least " + _plays.MinTargets + ".", true); return; }
-                if (!BattleInput.FinishTargets()) Speech.Say("Can't finish yet.", true);
+                if (_plays.MaxTargets <= 1) { Speech.Say(Loc.T("Choose with Enter, or Backspace to cancel."), true); return; }
+                if (_plays.Chosen < _plays.MinTargets) { Speech.Say(Loc.T("Choose at least {0}.", _plays.MinTargets), true); return; }
+                if (!BattleInput.FinishTargets()) Speech.Say(Loc.T("Can't finish yet."), true);
                 return;
             }
-            if (_plays.Placing != null) { Speech.Say("Place the card first, or Backspace to put it back.", true); return; }
-            if (_plays.Confirming != null) { Speech.Say("Enter plays the card, Backspace puts it back.", true); return; }
-            if (!_plays.MyTurn) { Speech.Say("Not your turn.", true); return; }
+            if (_plays.Placing != null) { Speech.Say(Loc.T("Place the card first, or Backspace to put it back."), true); return; }
+            if (_plays.Confirming != null) { Speech.Say(Loc.T("Enter plays the card, Backspace puts it back."), true); return; }
+            if (!_plays.MyTurn) { Speech.Say(Loc.T("Not your turn."), true); return; }
             var mode = BattleInput.CoinMode;
             string said;
             switch (mode)
             {
                 case UIBoardPassWidget.EButtonMode.Pass:
-                    said = "Hold to pass." + ScoreLine();
+                    said = Loc.T("Hold to pass.") + ScoreLine();
                     break;
                 case UIBoardPassWidget.EButtonMode.EndTurn:
                     // The game's end-turn hold has no duration (the coin is a plain click); a blind player can't
                     // see the coin they're about to press, so the mod holds it as long as the pass: the click is
                     // only sent once E has been held that long.
                     _endTurnSince = Time.realtimeSinceStartup;
-                    Speech.Say("Hold to end the turn." + (_plays.OrdersReady() ? " You still have orders ready." : ""), true);
+                    Speech.Say(Loc.T("Hold to end the turn.") + (_plays.OrdersReady() ? " " + Loc.T("You still have orders ready.") : ""), true);
                     return;
                 default:
-                    Speech.Say("Can't end the turn now.", true);
+                    Speech.Say(Loc.T("Can't end the turn now."), true);
                     return;
             }
             ReleaseCoin();
-            if (!BattleInput.PressCoin()) { Speech.Say("Couldn't press the button.", true); return; }
+            if (!BattleInput.PressCoin()) { Speech.Say(Loc.T("Couldn't press the button."), true); return; }
             _holdingCoin = true;
             Speech.Say(said, true);
         }
@@ -700,8 +701,8 @@ namespace GwentAccess.Ui
                 var me = _gc.PlayerManager.LocalUser;
                 var opp = me.OpponentPlayer;
                 int a = me.CurrentScore, b = opp.CurrentScore;
-                string lead = a > b ? "You're ahead" : a < b ? "You're behind" : "You're tied";
-                return " " + lead + ", " + a + " to " + b + (opp.HasPassed ? ", opponent has passed." : ", opponent hasn't passed.");
+                string lead = a > b ? Loc.T("You're ahead") : a < b ? Loc.T("You're behind") : Loc.T("You're tied");
+                return " " + (opp.HasPassed ? Loc.T("{0}, {1} to {2}, opponent has passed.", lead, a, b) : Loc.T("{0}, {1} to {2}, opponent hasn't passed.", lead, a, b));
             }
             catch { return ""; }
         }
@@ -747,10 +748,10 @@ namespace GwentAccess.Ui
         private void Cancel()
         {
             var req = _plays.Pending;
-            if (req == null && BattleInput.Mode == EBattleNavigationMode.Normal) { Speech.Say("Nothing to cancel.", true); return; }
+            if (req == null && BattleInput.Mode == EBattleNavigationMode.Normal) { Speech.Say(Loc.T("Nothing to cancel."), true); return; }
             bool can = true;
             try { if (req != null) can = req.CanCancel; } catch { }
-            if (!can) { Speech.Say("This can't be cancelled.", true); return; }
+            if (!can) { Speech.Say(Loc.T("This can't be cancelled."), true); return; }
             // Said once the game has left the play or targeting: some steps ignore its B (a multi-charge order
             // asking for its next target), and "Cancelled." was said for those too.
             if (BattleInput.Back()) { _cancelMode = BattleInput.Mode; _cancelAt = Time.realtimeSinceStartup; }
@@ -762,10 +763,10 @@ namespace GwentAccess.Ui
         private void WatchCancel()
         {
             if (_cancelAt < 0) return;
-            if (BattleInput.Mode != _cancelMode) { _cancelAt = -1; Speech.Say("Cancelled.", true); return; }
+            if (BattleInput.Mode != _cancelMode) { _cancelAt = -1; Speech.Say(Loc.T("Cancelled."), true); return; }
             if (Time.realtimeSinceStartup - _cancelAt < 0.8f) return;
             _cancelAt = -1;
-            Speech.Say("This can't be cancelled now.", true);
+            Speech.Say(Loc.T("This can't be cancelled now."), true);
         }
 
         // ---- Tab: the next valid play, target or row ----
@@ -774,9 +775,9 @@ namespace GwentAccess.Ui
         {
             if (_cycle.Count == 0)
             {
-                Speech.Say(_plays.Targets != null ? "No valid targets." : _plays.Rows != null ? "No valid rows."
-                    : _plays.Placing != null ? "Choose a spot with the arrows."
-                    : _plays.Confirming != null ? "Enter plays the card, Backspace puts it back." : _plays.MyTurn ? "No valid plays." : "Not your turn.", true);
+                Speech.Say(_plays.Targets != null ? Loc.T("No valid targets.") : _plays.Rows != null ? Loc.T("No valid rows.")
+                    : _plays.Placing != null ? Loc.T("Choose a spot with the arrows.")
+                    : _plays.Confirming != null ? Loc.T("Enter plays the card, Backspace puts it back.") : _plays.MyTurn ? Loc.T("No valid plays.") : Loc.T("Not your turn."), true);
                 return;
             }
             var cur = GraphNavigator.CurrentNode?.Id;
@@ -809,27 +810,27 @@ namespace GwentAccess.Ui
                 _cardKeys = new CardKeys(FocusedCard, Players, always: true, noCard: GraphNavigator.SayWhere);
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
-                    new ScreenKey { Key = KeyCode.Tab, Run = () => { if (!ShowChoices()) Cycle(1); }, Hint = "Tab, next valid play or target; with the choices hidden, shows them again" },
-                    new ScreenKey { Key = KeyCode.Tab, Shift = true, Run = () => Cycle(-1), Hint = "Shift Tab, previous valid play or target" },
-                    new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = "Backspace, cancel" },
-                    new ScreenKey { Key = KeyCode.E, Run = PressE, Hint = "E, end turn or pass" },
-                    new ScreenKey { Key = KeyCode.C, Run = () => JumpTo("hand"), Hint = "C, your hand" },
-                    new ScreenKey { Key = KeyCode.C, Shift = true, Run = SayOpponentHand, Hint = "Shift C, opponent's hand size" },
-                    new ScreenKey { Key = KeyCode.B, Run = () => JumpTo("my-melee"), Hint = "B, your melee row" },
-                    new ScreenKey { Key = KeyCode.B, Shift = true, Run = () => JumpTo("my-ranged"), Hint = "Shift B, your ranged row" },
-                    new ScreenKey { Key = KeyCode.G, Run = () => JumpTo("opp-melee"), Hint = "G, opponent's melee row" },
-                    new ScreenKey { Key = KeyCode.G, Shift = true, Run = () => JumpTo("opp-ranged"), Hint = "Shift G, opponent's ranged row" },
-                    new ScreenKey { Key = KeyCode.V, Run = () => JumpTo("my-leader"), Hint = "V, your leader" },
-                    new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = "F, opponent's leader" },
-                    new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = "A, score" },
-                    new ScreenKey { Key = KeyCode.T, Run = SayTurn, Hint = "T, whose turn it is" },
-                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = "Shift T, time left in the turn" },
-                    new ScreenKey { Key = KeyCode.O, Run = LogScreen.Toggle, Hint = "O, battle log: everything said this match, newest first" },
-                    new ScreenKey { Key = KeyCode.D, Run = () => PileScreen.Open(deck: true, mine: true), Hint = "D, your deck" },
-                    new ScreenKey { Key = KeyCode.Y, Run = () => PileScreen.Open(deck: false, mine: true), Hint = "Y, your graveyard" },
-                    new ScreenKey { Key = KeyCode.Y, Shift = true, Run = () => PileScreen.Open(deck: false, mine: false), Hint = "Shift Y, opponent's graveyard" },
+                    new ScreenKey { Key = KeyCode.Tab, Run = () => { if (!ShowChoices()) Cycle(1); }, Hint = Loc.T("Tab, next valid play or target; with the choices hidden, shows them again") },
+                    new ScreenKey { Key = KeyCode.Tab, Shift = true, Run = () => Cycle(-1), Hint = Loc.T("Shift Tab, previous valid play or target") },
+                    new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = Loc.T("Backspace, cancel") },
+                    new ScreenKey { Key = KeyCode.E, Run = PressE, Hint = Loc.T("E, end turn or pass") },
+                    new ScreenKey { Key = KeyCode.C, Run = () => JumpTo("hand"), Hint = Loc.T("C, your hand") },
+                    new ScreenKey { Key = KeyCode.C, Shift = true, Run = SayOpponentHand, Hint = Loc.T("Shift C, opponent's hand size") },
+                    new ScreenKey { Key = KeyCode.B, Run = () => JumpTo("my-melee"), Hint = Loc.T("B, your melee row") },
+                    new ScreenKey { Key = KeyCode.B, Shift = true, Run = () => JumpTo("my-ranged"), Hint = Loc.T("Shift B, your ranged row") },
+                    new ScreenKey { Key = KeyCode.G, Run = () => JumpTo("opp-melee"), Hint = Loc.T("G, opponent's melee row") },
+                    new ScreenKey { Key = KeyCode.G, Shift = true, Run = () => JumpTo("opp-ranged"), Hint = Loc.T("Shift G, opponent's ranged row") },
+                    new ScreenKey { Key = KeyCode.V, Run = () => JumpTo("my-leader"), Hint = Loc.T("V, your leader") },
+                    new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = Loc.T("F, opponent's leader") },
+                    new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = Loc.T("A, score") },
+                    new ScreenKey { Key = KeyCode.T, Run = SayTurn, Hint = Loc.T("T, whose turn it is") },
+                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = Loc.T("Shift T, time left in the turn") },
+                    new ScreenKey { Key = KeyCode.O, Run = LogScreen.Toggle, Hint = Loc.T("O, battle log: everything said this match, newest first") },
+                    new ScreenKey { Key = KeyCode.D, Run = () => PileScreen.Open(deck: true, mine: true), Hint = Loc.T("D, your deck") },
+                    new ScreenKey { Key = KeyCode.Y, Run = () => PileScreen.Open(deck: false, mine: true), Hint = Loc.T("Y, your graveyard") },
+                    new ScreenKey { Key = KeyCode.Y, Shift = true, Run = () => PileScreen.Open(deck: false, mine: false), Hint = Loc.T("Shift Y, opponent's graveyard") },
 #if GWENT
-                    new ScreenKey { Key = KeyCode.M, Run = EmoteScreen.Open, Hint = "M, emotes" },
+                    new ScreenKey { Key = KeyCode.M, Run = EmoteScreen.Open, Hint = Loc.T("M, emotes") },
 #endif
                 };
                 _keys.AddRange(RowKeys(() => _gc, JumpTo));
@@ -855,8 +856,8 @@ namespace GwentAccess.Ui
                 string name = row.Name.ToLowerInvariant();
                 keys.Add(jump != null
                     ? new ScreenKey { Key = key, Run = () => jump(row.Key), Hint = (i + 1) + ", " + name }
-                    : new ScreenKey { Key = key, Run = () => SayRow(gc(), row), Hint = (i + 1) + ", read " + name });
-                keys.Add(new ScreenKey { Key = key, Shift = true, Run = () => SayRow(gc(), row), Hint = "Shift " + (i + 1) + ", read " + name });
+                    : new ScreenKey { Key = key, Run = () => SayRow(gc(), row), Hint = Loc.T("{0}, read {1}", i + 1, name) });
+                keys.Add(new ScreenKey { Key = key, Shift = true, Run = () => SayRow(gc(), row), Hint = Loc.T("Shift {0}, read {1}", i + 1, name) });
             }
             return keys;
         }
@@ -869,10 +870,10 @@ namespace GwentAccess.Ui
             var who = row.Mine ? Battle.Me(gc) : Battle.Them(gc);
             var cards = Battle.Cards(gc, who, row.Where);
             string head = row.Name + ", " + RowDetail(cards, RowLocation(gc, row));
-            if (cards.Count == 0) { Speech.Say(head + ", empty", true); return; }
+            if (cards.Count == 0) { Speech.Say(head + ", " + Loc.T("empty"), true); return; }
             var labels = new List<string>();
             foreach (var c in cards) labels.Add(Label(c, gc.PlayerManager));
-            Speech.Say(head + ", " + (cards.Count == 1 ? "1 card" : cards.Count + " cards") + ": " + string.Join("; ", labels), true);
+            Speech.Say(head + ", " + Loc.P(cards.Count, "{0} card: {1}", "{0} cards: {1}", string.Join("; ", labels)), true);
         }
 
         private static Location RowLocation(GameController gc, Row row)
@@ -895,7 +896,7 @@ namespace GwentAccess.Ui
                 var here = (string)GraphNavigator.CurrentNode?.Id.StructuralKey;
                 bool full = false;
                 try { full = target != null && _gc != null && RowLocation(_gc, target)?.IsFull() == true; } catch { }
-                if (lastGap == null) Speech.Say("Can't place in " + name?.ToLowerInvariant() + (full ? ", full." : "."), true);
+                if (lastGap == null) Speech.Say(full ? Loc.T("Can't place in {0}, full.", name?.ToLowerInvariant()) : Loc.T("Can't place in {0}.", name?.ToLowerInvariant()), true);
                 // Already in that row's gaps: the row again, with what it shows (score, effect, full), as B or
                 // Shift+B to another row says it; not just its name.
                 else if (here != null && here.StartsWith(prefix, StringComparison.Ordinal))
@@ -917,7 +918,7 @@ namespace GwentAccess.Ui
                 // A board row also says what the row shows (score, effect, full), as landing in it does.
                 if (here != null && here.Scored && _gc != null)
                     name += ", " + RowDetail(Battle.Cards(_gc, here.Mine ? Battle.Me(_gc) : Battle.Them(_gc), here.Where), RowLocation(_gc, here));
-                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players()) : "empty"), true);
+                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players()) : Loc.T("empty")), true);
                 return;
             }
             // The card last visited in that row, if it is still there: a card played from the hand keeps its
@@ -941,9 +942,9 @@ namespace GwentAccess.Ui
             if (_gc == null) return;
             // The counter on the opponent's panel ("3/10": cards in hand of the limit) when it is drawn.
             string shown = PanelText(false, "RightSideVerticalGroup/HandCountView/Hand Icon/Hand Card Number");
-            if (shown != null && shown.Contains(" of ")) { Speech.Say("Opponent's hand, " + shown + " cards", true); return; }
+            if (shown != null && shown.Contains(" of ")) { Speech.Say(Loc.T("Opponent's hand, {0} cards", shown), true); return; }
             int n = Battle.HandCount(_gc, Battle.Them(_gc));
-            Speech.Say("Opponent's hand, " + (n == 1 ? "1 card" : n + " cards"), true);
+            Speech.Say(Loc.P(n, "Opponent's hand, {0} card", "Opponent's hand, {0} cards"), true);
         }
 
         // The player panels beside the board (UIBoardPlayerControl under the battle dialogue's PlayerViewAnchors:
@@ -997,8 +998,8 @@ namespace GwentAccess.Ui
             try
             {
                 var me = gc.PlayerManager.LocalUser;
-                if (me.HasPassed) parts.Add("You have passed.");
-                if (me.OpponentPlayer.HasPassed) parts.Add("Opponent has passed.");
+                if (me.HasPassed) parts.Add(Loc.T("You have passed."));
+                if (me.OpponentPlayer.HasPassed) parts.Add(Loc.T("Opponent has passed."));
             }
             catch { }
             Speech.Say(string.Join(" ", parts), true);
@@ -1011,10 +1012,10 @@ namespace GwentAccess.Ui
             var gc = _gc;
             if (gc == null) return;
             float mine = TurnTimer.SecondsLeft(gc);
-            if (mine >= 0) { Speech.Say(Mathf.CeilToInt(mine) + " seconds left in your turn.", true); return; }
+            if (mine >= 0) { Speech.Say(Loc.P(Mathf.CeilToInt(mine), "{0} second left in your turn.", "{0} seconds left in your turn."), true); return; }
             float theirs = TurnTimer.OpponentSecondsLeft(gc);
-            if (theirs >= 0) { Speech.Say(Mathf.CeilToInt(theirs) + " seconds left in the opponent's turn.", true); return; }
-            Speech.Say(_plays.MyTurn ? "No turn timer." : "Opponent's turn, no timer.", true);
+            if (theirs >= 0) { Speech.Say(Loc.P(Mathf.CeilToInt(theirs), "{0} second left in the opponent's turn.", "{0} seconds left in the opponent's turn."), true); return; }
+            Speech.Say(_plays.MyTurn ? Loc.T("No turn timer.") : Loc.T("Opponent's turn, no timer."), true);
         }
 
         private void SayScore()

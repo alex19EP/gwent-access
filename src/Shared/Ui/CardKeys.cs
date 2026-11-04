@@ -46,17 +46,17 @@ namespace GwentAccess.Ui
             {
                 var keys = new List<ScreenKey>
                 {
-                    new ScreenKey { Key = KeyCode.DownArrow, Run = () => StepLine(1), When = Reads, Hint = "Down, next line of the card" },
-                    new ScreenKey { Key = KeyCode.UpArrow, Run = () => StepLine(-1), When = Reads, Hint = "Up, previous line of the card" },
-                    new ScreenKey { Key = KeyCode.I, Run = SayKeywords, Hint = "I, what the card's keywords mean" },
-                    new ScreenKey { Key = KeyCode.K, Run = SayStats, Hint = "K, card kind and base power" },
+                    new ScreenKey { Key = KeyCode.DownArrow, Run = () => StepLine(1), When = Reads, Hint = Loc.T("Down, next line of the card") },
+                    new ScreenKey { Key = KeyCode.UpArrow, Run = () => StepLine(-1), When = Reads, Hint = Loc.T("Up, previous line of the card") },
+                    new ScreenKey { Key = KeyCode.I, Run = SayKeywords, Hint = Loc.T("I, what the card's keywords mean") },
+                    new ScreenKey { Key = KeyCode.K, Run = SayStats, Hint = Loc.T("K, card kind and base power") },
                 };
                 if (_always)
                 {
                     // Only on a card, or on a spot among the cards that has none (the board's empty rows and
                     // placement gaps, the screen that says where such a spot is): elsewhere (the mulligan's
                     // buttons) Home/End keep their list meaning. One hint for the pair: the help lists each once.
-                    const string rowEnds = "Home, End: first and last card in the row";
+                    string rowEnds = Loc.T("Home, End: first and last card in the row");
                     Func<bool> inRow = () => _noCard != null || _focused() != null;
                     keys.Add(new ScreenKey { Key = KeyCode.Home, Run = () => GraphNavigator.RowEdge(first: true), When = inRow, Hint = rowEnds });
                     keys.Add(new ScreenKey { Key = KeyCode.End, Run = () => GraphNavigator.RowEdge(first: false), When = inRow, Hint = rowEnds });
@@ -75,15 +75,15 @@ namespace GwentAccess.Ui
             var card = _focused();
             if (card == null)
             {
-                if (_noCard != null) _noCard(); else Speech.Say("No card.", true);
+                if (_noCard != null) _noCard(); else Speech.Say(Loc.T("No card."), true);
                 return;
             }
             if (_lineCard == null || _lineCard.Id != card.Id) { _lineCard = card; _line = 0; }
             var lines = CardReader.Lines(card, _players(), _preview);
             int next = _line + dir;
             // Past either end says so (Accessible Arena's "End of card"), instead of silence.
-            if (next < 0) { Speech.Say("Beginning of card", true); return; }
-            if (next >= lines.Count) { Speech.Say("End of card", true); return; }
+            if (next < 0) { Speech.Say(Loc.T("Beginning of card"), true); return; }
+            if (next >= lines.Count) { Speech.Say(Loc.T("End of card"), true); return; }
             _line = next;
             Speech.Say(lines[next].Text, true);
         }
@@ -99,14 +99,14 @@ namespace GwentAccess.Ui
                 if (_line < lines.Count && lines[_line].Keywords.Count > 0) only = lines[_line].Keywords;
             }
             var explained = CardReader.Explanations(card, _players(), only, _preview);
-            Speech.Say(explained.Count > 0 ? string.Join(" ", explained) : "No keywords.", true);
+            Speech.Say(explained.Count > 0 ? string.Join(" ", explained) : Loc.T("No keywords."), true);
         }
 
         private void SayStats()
         {
             var card = _focused();
             if (card == null) return;
-            Speech.Say(CardReader.Hidden(card, _players(), _preview) ? "hidden card" : CardReader.Stats(card), true);
+            Speech.Say(CardReader.Hidden(card, _players(), _preview) ? Loc.T("hidden card") : CardReader.Stats(card), true);
         }
     }
 }
