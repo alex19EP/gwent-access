@@ -23,6 +23,9 @@ namespace GwentAccess.Ui
         public override int Layer => 1;
         public override bool ReturnsToOpener => false;
 
+        // A pile of one card still says "1 of 1", as every other pile says its position.
+        public override bool PositionOfOne => true;
+
         private enum Pile { None, Deck, Graveyard }
 
         private Pile _open;
