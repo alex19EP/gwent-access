@@ -59,6 +59,10 @@ namespace GwentAccess.Ui
         /// <summary>Held down now (pressed this frame or earlier and not released).</summary>
         public static bool Held(KeyCode k) => _kb != null && _kb.GetKey(k);
 
+        /// <summary>Whether the keyboard could be read this frame (the game in front): a frame it couldn't is
+        /// not a key let go.</summary>
+        public static bool Readable => _kb != null;
+
         /// <summary>Any key pressed this frame.</summary>
         public static bool AnyDown()
         {

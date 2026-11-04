@@ -109,7 +109,9 @@ namespace GwentAccess.Ui
 
         public override void Tick()
         {
-            if (_pressed != null && !Keys.Held(KeyCode.Return) && !Keys.Held(KeyCode.KeypadEnter)) Release(keyUp: true);
+            // A frame the keyboard can't be read (the window's focus flickering) is not Enter let go: a hold
+            // was cut at 0.06 by one.
+            if (_pressed != null && Keys.Readable && !Keys.Held(KeyCode.Return) && !Keys.Held(KeyCode.KeypadEnter)) Release(keyUp: true);
         }
 
         // Moving off a pressed reward lets go of it, as dragging the pointer off does; the base raises the hover.
