@@ -81,10 +81,13 @@ namespace GwentAccess
                 var v = d.GetValidation();
                 int maxProv = 150;
                 try { var l = d.LeaderAbilityCard; if (l != null) maxProv += l.Template.Provision; } catch { }
-                return new[] { v.TotalCardCount + " cards, minimum 25", v.UnitCardCount + " units, minimum 13", "provisions " + v.ProvisionUsed + " of " + maxProv };
+                return new[] { Count(v.TotalCardCount, "card") + ", minimum 25", Count(v.UnitCardCount, "unit") + ", minimum 13", "provisions " + v.ProvisionUsed + " of " + maxProv };
             }
             catch (Exception e) { Plugin.LogInfo("Deck stats failed: " + e.Message); return null; }
         }
+
+        /// <summary>"1 card", "25 cards".</summary>
+        internal static string Count(int n, string word) => n + " " + word + (n == 1 ? "" : "s");
 
         public static void Announce(string verb, CollectionCard cc)
         {
