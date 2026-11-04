@@ -67,6 +67,15 @@ namespace GwentAccess.Ui
             base.OnCursorMoved(node);
         }
 
+        // A page opened from elsewhere (the event window's Go to the Shop) has the game's selection parked on the
+        // user agreement link at the bottom: the cursor isn't pulled there, and starts on the products.
+        public override AControl GameSelection()
+        {
+            var sel = base.GameSelection();
+            try { if (sel != null && sel.TryCast<UIVanityInventoryEulaLink>() != null) return null; } catch { }
+            return sel;
+        }
+
 
         public override void Build(GraphBuilder b)
         {
