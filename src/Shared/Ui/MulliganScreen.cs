@@ -33,15 +33,17 @@ namespace GwentAccess.Ui
                 if (gc == null) return "Mulligan";
                 // The first mulligan comes before the game starts round 1 (its index is still -1 then), so the
                 // match opening is told by the match, not the round number.
-                string round = "", leaders = "";
+                string round = "", leaders = "", hint = "";
                 // Between rounds the index still names the round just played (round 2's mulligan reads index 0).
                 try { var rm = gc.RoundManager; round = ", round " + Math.Max(rm.CurrentRoundIndex + (rm.HasInitialMulliganFinished() ? 2 : 1), 1); } catch { }
                 if (gc.Pointer != _leadersSaidIn)
                 {
                     _leadersSaidIn = gc.Pointer;
                     leaders = Leaders(gc);
+                    // The keys once a match, with the leaders; later rounds' mulligans are just the round and swaps.
+                    hint = " Enter swaps a card, E keeps the rest.";
                 }
-                return leaders + "Mulligan" + round + ", " + Swaps(Left(gc)) + " left. Enter swaps a card, E keeps the rest.";
+                return leaders + "Mulligan" + round + ", " + Swaps(Left(gc)) + " left." + hint;
             }
         }
 

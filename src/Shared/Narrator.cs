@@ -218,6 +218,12 @@ namespace GwentAccess
         /// <summary>A round started: its deal follows (<see cref="Dealing"/>).</summary>
         internal static void Deal() => _dealAt = Time.realtimeSinceStartup;
 
+        private static bool _dealNext;
+
+        /// <summary>A round ended: the next draws are the next round's deal, which comes before its mulligan
+        /// and its round banner (seen in a practice match: round 2's deal said as three lines).</summary>
+        internal static void DealNext() => _dealNext = true;
+
         /// <summary>A turn started: any deal is over, and its draws are said before the turn's banner.</summary>
         internal static void EndDeal() => _dealAt = -1;
 
@@ -225,6 +231,7 @@ namespace GwentAccess
         internal static void Drawn(Card card, EPlayerId who)
         {
             try { if (Battle.Controller()?.Pointer != TurnsStartedIn) return; } catch { return; }
+            if (_dealNext) { _dealNext = false; Deal(); } // the next round's hand, dealt before its mulligan
             if (Mine(who)) _myDraws.Add(CardName(card));
             else _theirDraws++;
             _drawAt = Time.realtimeSinceStartup;
@@ -236,6 +243,8 @@ namespace GwentAccess
         {
             FlushSeen(true);
             FlushGathered();
+            // A deal is over once the mulligan it leads to opens: its draws are said then, as one line.
+            if (_drawAt >= 0 && Dealing && InMulligan()) FlushDraws();
             float wait = Dealing ? 2.5f : 1.2f;
             if (_drawAt >= 0 && Time.realtimeSinceStartup - _drawAt >= wait) FlushDraws();
         }
@@ -973,6 +982,7 @@ namespace GwentAccess
                 : winner == Battle.Them(gc) ? GameText.Get("gwent_message_round_lost_main", "Round lost.")
                 : GameText.Get("gwent_message_round_draw_main", "Round drawn.");
             Narrator.Say(Narrator.Sentence(title) + " " + Narrator.Scores() + ".");
+            Narrator.DealNext();
         });
     }
 
