@@ -293,18 +293,22 @@ namespace GwentAccess.Ui
 
         /// <summary>Logs each key pressed while a graph screen has the navigator, with its modifiers, whether the
         /// screen left it to the game, and the node it was pressed on, so a log reads as the session went.
-        /// Escape is always the game's (Back) and logs as such.</summary>
+        /// Escape is always the game's (Back) and logs as such. Each key logs at most once a frame: a screen can
+        /// bind one key several times (C and Shift+C), and a key it binds can also be a navigation key.</summary>
         private static void LogKeys()
         {
+            _logged.Clear();
             foreach (var k in NavKeys) LogKey(k, _screen.LeavesToGame(k));
-            foreach (var k in _screen.ExtraKeys)
-                if (Array.IndexOf(NavKeys, k.Key) < 0) LogKey(k.Key, false);
+            foreach (var k in _screen.ExtraKeys) LogKey(k.Key, false);
             LogKey(KeyCode.Escape, true);
         }
 
+        // The keys logged this frame.
+        private static readonly HashSet<KeyCode> _logged = new HashSet<KeyCode>();
+
         private static void LogKey(KeyCode k, bool game)
         {
-            if (!Keys.Down(k)) return;
+            if (!Keys.Down(k) || !_logged.Add(k)) return;
             string mods = (Keys.Ctrl ? "Ctrl+" : "") + (Keys.Shift ? "Shift+" : "") + (Keys.Alt ? "Alt+" : "");
             string at = null;
             try

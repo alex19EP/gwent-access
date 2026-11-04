@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Access.Core.Graph;
 using CrimsonUI;
 using GwentUnity.UI.PlayerProfile;
+using Il2CppInterop.Runtime;
 using Modules.Achievements.Entities;
 using UnityEngine;
 
@@ -405,8 +406,7 @@ namespace GwentAccess.Ui
                 else if (pa.IsUnlocked)
                 {
                     parts.Add(GameText.Get("daily_quest_completed", "Completed"));
-                    var date = pa.DateUnlocked;
-                    if (date != null && date.HasValue) parts.Add(date.Value.ToLocalTime().ToString("dd.MM.yyyy"));
+                    parts.Add(DateUnlocked(a, e));
                 }
                 else
                 {
@@ -417,6 +417,51 @@ namespace GwentAccess.Ui
                 return Joined(parts);
             }
             catch (Exception ex) { Plugin.LogInfo("[profile] state failed: " + ex.Message); return null; }
+        }
+
+        /// <summary>
+        /// The day the contract was done, in the game's own short-date format (<c>ToLocalizedShortDateString</c>),
+        /// or null. Read straight from the achievement's <c>&lt;DateUnlocked&gt;k__BackingField</c>, because the
+        /// interop's <c>DateUnlocked</c> (the property and the field accessor alike) misreads a
+        /// <c>Nullable&lt;DateTime&gt;</c>: il2cpp boxes a nullable as its bare DateTime (or null), and the
+        /// interop wraps that box as if it held the whole nullable, so HasValue reads a byte of the ticks and
+        /// Value the 8 bytes past the box: a different garbage date on every read ("01.01.0001",
+        /// "22.03.4393"), which the live state then re-spoke every frame. The field holds the real nullable in
+        /// place: hasValue, then the DateTime 8 bytes on (mscorlib's layout).
+        /// </summary>
+        private static unsafe string DateUnlocked(IAchievement a, Contract e)
+        {
+            var pub = a.TryCast<PublicAchievement>();
+            if (pub == null) return null;
+            if (_dateField == IntPtr.Zero)
+                _dateField = IL2CPP.GetIl2CppField(Il2CppClassPointerStore<PublicAchievement>.NativeClassPtr, "<DateUnlocked>k__BackingField");
+            if (_dateField == IntPtr.Zero) return null;
+            byte* field = (byte*)pub.Pointer + IL2CPP.il2cpp_field_get_offset(_dateField);
+            if (*field == 0) return null;
+            var date = *(Il2CppSystem.DateTime*)(field + 8);
+            string said = UiText.NullIfEmpty(date.ToLocalTime().ToLocalizedShortDateString());
+            CheckDrawnDate(e, said);
+            return said;
+        }
+
+        private static IntPtr _dateField;
+
+        // The card in view draws the date itself; a difference from the date said is logged once, so the format
+        // can be matched to it.
+        private static readonly HashSet<string> _datesChecked = new HashSet<string>();
+
+        private static void CheckDrawnDate(Contract e, string said)
+        {
+            try
+            {
+                var label = Card(e)?.m_DateText;
+                if (!CrimsonNodes.Shown(label)) return;
+                string drawn = CrimsonNodes.Text(label);
+                if (string.IsNullOrEmpty(drawn) || !_datesChecked.Add(drawn)) return;
+                if (said == null || drawn.IndexOf(said, StringComparison.Ordinal) < 0)
+                    Plugin.LogInfo("[profile] contract date drawn '" + drawn + "', said '" + said + "'");
+            }
+            catch { }
         }
 
         private static string Reward(Contract e)
