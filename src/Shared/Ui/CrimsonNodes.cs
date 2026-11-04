@@ -212,6 +212,9 @@ namespace GwentAccess.Ui
                     // Avatars / Borders / Titles, the contracts' categories) is a tab, whatever group holds it.
                     if (c.GetIl2CppType().Name.EndsWith("MenuItem", StringComparison.Ordinal)) return Loc.T("tab");
                     var group = t.GetComponentInParent<ToggleGroup>();
+                    // A group of one is no choice among others: the game wraps lone toggles (Draft's Show deck,
+                    // Abandon, Options) each in its own radio group.
+                    if (group != null && group.GetToggleCount() < 2) group = null;
                     if (group != null && group.m_ToggleMode == ToggleGroup.ToggleGroupMode.Radio)
                     {
                         string n = (c.gameObject.name + " " + c.GetIl2CppType().Name).ToLowerInvariant();
