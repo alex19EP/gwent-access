@@ -47,7 +47,9 @@ namespace GwentAccess
                 {
                     FlushSeen(false);
                     FlushGathered();
-                    if (!Dealing) FlushDraws();
+                    // A deal is over once its mulligan opens: its draws come before the mulligan's banner
+                    // ("Opponent is replacing cards" was said before them in a ranked match).
+                    if (!Dealing || _drawAt >= 0 && InMulligan()) FlushDraws();
                 }
                 finally { _flushing = false; }
             }
@@ -864,9 +866,20 @@ namespace GwentAccess
         static void Postfix(BattleHistory __instance, EPlayerId __0, Card __1) => Narrator.Guard("play", () =>
         {
             if (!Narrator.Real(__instance, out _) || Narrator.Mine(__0) || __1 == null) return;
+            // A Disloyal card the opponent plays onto your side is reported played twice (seen in a ranked
+            // match: Duchess' Informant read two times): one card's play is said once.
+            int id = -1;
+            try { id = __1.Id; } catch { }
+            float now = Time.realtimeSinceStartup;
+            if (id == _lastId && now - _lastAt < 2f) return;
+            _lastId = id;
+            _lastAt = now;
             if (!CardReader.Hidden(__1, Narrator.Players())) { Say(__1); return; }
             Narrator.WhenSeen(__1, Say, settled: FaceDownOnRow, unseen: SayAmbush);
         });
+
+        private static int _lastId = -1;
+        private static float _lastAt = -100f;
 
         private static void Say(Card card)
         {
