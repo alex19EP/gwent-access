@@ -85,11 +85,14 @@ namespace GwentAccess.Ui
         {
             _gc = Battle.Controller();
             if (_gc == null) return false;
+            // A choice has its own screen, unless its panel is hidden to look at the board: the hidden panel
+            // keeps the input layer, so the board is this screen's whatever layer is on top.
+            var choice = Plays.Read(_gc).Choice;
+            if (choice != null) return ChoiceScreen.IsHidden(choice);
             var layer = CrimsonInputManager.Instance?.ActiveLayer;
             if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base) return false;
             if (!HasBattlePanel(layer)) return false;
-            if (BeforeTheDeal(_gc)) return false;
-            return Plays.Read(_gc).Choice == null; // a choice has its own screen
+            return !BeforeTheDeal(_gc);
         }
 
         // The board shows before the opening hand is dealt; with nothing in hand the cursor would land on the
@@ -763,6 +766,15 @@ namespace GwentAccess.Ui
 
         // ---- keys ----
 
+        /// <summary>Tab while a choice's panel is hidden to look at the board: brings it back.</summary>
+        private bool ShowChoices()
+        {
+            var choice = _gc != null ? Plays.Read(_gc).Choice : null;
+            if (!ChoiceScreen.IsHidden(choice)) return false;
+            ChoiceScreen.ToggleHidden(choice);
+            return true;
+        }
+
         private CardKeys _cardKeys;
         private List<ScreenKey> _keys;
 
@@ -776,7 +788,7 @@ namespace GwentAccess.Ui
                 _cardKeys = new CardKeys(FocusedCard, Players, always: true, noCard: GraphNavigator.SayWhere);
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
-                    new ScreenKey { Key = KeyCode.Tab, Run = () => Cycle(1), Hint = "Tab, next valid play or target" },
+                    new ScreenKey { Key = KeyCode.Tab, Run = () => { if (!ShowChoices()) Cycle(1); }, Hint = "Tab, next valid play or target; with the choices hidden, shows them again" },
                     new ScreenKey { Key = KeyCode.Tab, Shift = true, Run = () => Cycle(-1), Hint = "Shift Tab, previous valid play or target" },
                     new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = "Backspace, cancel" },
                     new ScreenKey { Key = KeyCode.E, Run = PressE, Hint = "E, end turn or pass" },

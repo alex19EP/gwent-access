@@ -29,7 +29,55 @@ namespace GwentAccess.Ui
             _gc = Battle.Controller();
             if (_gc == null) return false;
             _req = Plays.Read(_gc).Choice;
-            return _req != null;
+            return _req != null && !IsHidden(_req);
+        }
+
+        // ---- hiding the panel to look at the board ----
+
+        /// <summary>Whether <paramref name="req"/>'s panel is hidden to show the board: the panel's own "Hide
+        /// cards" button tucked it away (its Visibility Hidden) and the board's "Show cards" button is up. The
+        /// battle screen has the cursor meanwhile. Both are checked: a panel is also Hidden for a moment as a
+        /// choice opens, with no "Show cards" button.</summary>
+        internal static bool IsHidden(RequestCardChoicesAction req)
+        {
+            if (req == null) return false;
+            try
+            {
+                var panel = Handler()?.m_BattleChoicePanel;
+                if (panel == null || panel.Visibility != CrimsonUIBehaviour.EVisibility.Hidden) return false;
+                var show = ShowButton();
+                return show != null && show.gameObject.activeInHierarchy;
+            }
+            catch { return false; }
+        }
+
+        private static UIBattlePanel _battlePanel;
+
+        // The board's "Show cards" button (UIBattlePanel.m_ShowChoicePanelButton), which brings a hidden choice back.
+        private static ButtonControl ShowButton()
+        {
+            if (_battlePanel == null) _battlePanel = UnityEngine.Object.FindObjectOfType<UIBattlePanel>();
+            return _battlePanel?.m_ShowChoicePanelButton;
+        }
+
+        /// <summary>Tab: hides the choice panel to look at the board, or brings it back, by clicking the button a
+        /// sighted player clicks ("Hide cards" on the panel, "Show cards" on the board), and says which, as
+        /// Hearthstone Access does ("Choices hidden." / "Choices shown."). The panel's handler toggle
+        /// (HandleHideTogglePressed) did not hide it in a practice match; the button does.</summary>
+        internal static void ToggleHidden(RequestCardChoicesAction req)
+        {
+            if (req == null) return;
+            bool hide = !IsHidden(req);
+            ButtonControl button = null;
+            try { button = hide ? Handler()?.m_BattleChoicePanel?.m_IconHideButtonControl : ShowButton(); } catch { }
+            if (button == null || !Navigator.MouseClick(button))
+            {
+                Plugin.LogInfo("[choice] " + (hide ? "hide" : "show") + " button not found");
+                return;
+            }
+            Plugin.LogInfo("[choice] " + (hide ? "hidden" : "shown"));
+            _quietReturn = !hide;
+            Speech.Say(hide ? "Choices hidden." : "Choices shown.", true);
         }
 
         public override string ScreenName
@@ -40,10 +88,12 @@ namespace GwentAccess.Ui
                 string what = Title(_req.ChoiceType);
                 Card requester = null;
                 try { requester = _gc.CardManager.GetCard(_req.RequesterId); } catch { }
-                if (requester != null) what += ", for " + CardReader.Name(requester, _gc.PlayerManager);
+                // Back from Tab's hide the player hears "Choices shown." and the card, not the title again.
+                if (_quietReturn) return "";
+                if (requester != null) what += " for " + CardReader.Name(requester, _gc.PlayerManager);
                 int max = 1;
                 try { max = _req.MaxChoices; } catch { }
-                return what + (max > 1 ? ". Pick up to " + max + ", E when done." : ".");
+                return what + (max > 1 ? ", pick up to " + max + ", E when done" : "");
             }
         }
 
@@ -71,11 +121,11 @@ namespace GwentAccess.Ui
         {
             var req = _req;
             if (req == null || _gc == null) return;
-            // The offered cards are created for the choice and sit where the board's visibility rule reports
-            // them hidden from you, yet the choice panel shows them face up: they are checked by the game's
-            // preview rule instead (CardReader.Hidden with preview), so a card the panel shows face down
-            // reads "hidden card".
-            var pm = _gc.PlayerManager;
+            // A choice is the local player's own (Plays reads only their requests), and the panel shows its
+            // chooser every offered card face up: cards made for the choice sit in the spawning pool, where every
+            // visibility rule the game has (IsVisibleToLocal, IsVisibleToLocalPreview) reads them hidden (seen
+            // in a practice match, Imperial Diplomacy's three), so no match check is made here.
+            PlayerManager pm = null;
             _cards.Clear();
             var offered = new List<(Card Card, bool Enabled)>();
             try
@@ -85,7 +135,6 @@ namespace GwentAccess.Ui
             }
             catch (Exception e) { Plugin.LogInfo("[choice] read failed: " + e.Message); }
             if (offered.Count == 0) return;
-            LogHidden(req, offered, pm);
 
             b.BeginStop("choices");
             b.PushContext("Choices");
@@ -98,29 +147,17 @@ namespace GwentAccess.Ui
                 {
                     Announcements = new[]
                     {
-                        new NodeAnnouncement(() => CardReader.Summary(card, pm, preview: true), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => enabled ? (Chosen(card) ? "chosen" : null) : "unavailable", live: true, kind: AnnouncementKinds.Selected),
                     },
                     OnActivate = () => Pick(card, enabled),
-                    OnTooltip = () => Speech.Say(CardReader.Whole(card, pm, preview: true), true),
+                    OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
                 });
             }
             b.EndRow();
+            // Shown again after Tab hid it: the cursor goes back to the card it was on.
+            if (_lastCard != null && _cards.ContainsKey(_lastCard)) b.SetStart(ControlId.Structural(_lastCard));
             b.PopContext();
-        }
-
-        private int _loggedReq = -1;
-
-        // Once per choice, the log says how many offered cards read face down: a choice the panel shows face
-        // up that logs them all hidden means the preview rule doesn't cover it.
-        private void LogHidden(RequestCardChoicesAction req, List<(Card Card, bool Enabled)> offered, PlayerManager pm)
-        {
-            int id = -1;
-            try { id = req.Id; } catch { }
-            if (id == _loggedReq) return;
-            _loggedReq = id;
-            int hidden = offered.FindAll(o => CardReader.Hidden(o.Card, pm, preview: true)).Count;
-            Plugin.LogInfo("[choice] " + offered.Count + " offered, " + hidden + " read as hidden");
         }
 
         private bool Chosen(Card card)
@@ -170,7 +207,26 @@ namespace GwentAccess.Ui
         // ---- keys ----
 
         public override AControl GameSelection() => null;
-        public override void OnCursorMoved(GraphNode node) => _cardKeys?.Reset();
+        public override void OnCursorMoved(GraphNode node)
+        {
+            _cardKeys?.Reset();
+            if (node?.Id.StructuralKey is string key && _cards.ContainsKey(key)) _lastCard = key;
+        }
+
+        // The card the cursor was last on, so a choice shown again after Tab comes back to it.
+        private static string _lastCard;
+
+        // Set when Tab shows the choices again: the title stays quiet once, so the player hears "Choices
+        // shown." and then the card they were on (Hearthstone Access's way), not the title again.
+        private static bool _quietReturn;
+
+        public override void OnPop() => _quietReturn = false; // the choice went; the next one is news
+
+        public override bool QuietLanding(GraphNode node)
+        {
+            _quietReturn = false; // the title was skipped; the card is said, as a reminder of where you are
+            return false;
+        }
 
         private CardKeys _cardKeys;
         private List<ScreenKey> _keys;
@@ -180,10 +236,11 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager, always: true, preview: true); // as in Build
+                _cardKeys = new CardKeys(FocusedCard, () => null, always: true); // as in Build: the chooser sees every offered card
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, done choosing" },
+                    new ScreenKey { Key = KeyCode.Tab, Run = () => ToggleHidden(_req), Hint = "Tab, hide the choices to look at the board, Tab again to show them" },
                     new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = "Backspace, cancel" },
                     new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = "A, score" },
                 };
