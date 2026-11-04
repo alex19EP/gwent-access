@@ -69,7 +69,7 @@ namespace GwentAccess.Ui
 
         /// <summary>A player's plate as drawn: name, title, then the badges beside them, each named as the
         /// main menu's profile banner names it ("Rank, 30").</summary>
-        private static string Plate(UIBasePlayerInfo info)
+        internal static string Plate(UIBasePlayerInfo info)
         {
             if (!CrimsonNodes.Shown(info)) return null;
             var parts = new List<string>();

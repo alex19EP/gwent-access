@@ -96,7 +96,9 @@ namespace GwentAccess.Ui
                 // The second panel is the opponent's, as its place on screen shows; an AI opponent's panel draws
                 // no name, only its title, which alone didn't say whose it was.
                 bool opponent = info == panel.m_P2Info;
-                System.Func<string> text = () => opponent ? "Opponent, " + PlayerText(widget) : PlayerText(widget);
+                System.Func<string> text = () => opponent
+                    ? GameText.Capitalized(GameText.Get("input_go_first_opponent", "Opponent")) + ", " + PlayerText(widget)
+                    : PlayerText(widget);
                 if (CrimsonNodes.Selectable(button))
                     b.AddItem(last = CrimsonNodes.Id(button), CrimsonNodes.Button(button, text));
                 else
@@ -185,11 +187,14 @@ namespace GwentAccess.Ui
             catch { return null; }
         }
 
-        // A player's card: their name and title (an AI opponent's name is blank, so only its title shows).
+        // A player's card: their name and title (an AI opponent's name is blank, so only its title shows), then
+        // its badges named as the Versus banner names them ("Current Rank 30"): the badge's bare number beside
+        // the name read as if it were part of the title. The card's plain texts if it has no plate.
         private static string PlayerText(UIBattleResultsPlayerInfoWidget info)
         {
             try
             {
+                if (VersusScreen.Plate(info.m_BasePlayerInfoInstance) is string plate) return plate;
                 var parts = CrimsonNodes.Texts(info);
                 return parts.Count > 0 ? string.Join(", ", parts) : null;
             }
