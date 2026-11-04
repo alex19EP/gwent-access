@@ -32,14 +32,102 @@ namespace GwentAccess
     /// </summary>
     internal static class Narrator
     {
+        private static bool _flushing;
+
         internal static void Say(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
-            // Draws gathered so far come first, in the order they happened — but not a round's deal still
-            // going on, which is said whole once it is over.
-            if (!Dealing) FlushDraws();
+            // What was gathered so far comes first, in the order it happened: an opponent's card that has just
+            // turned face up (its play line before its effects), lines gathered over the frame, the draws — but
+            // not a round's deal still going on, which is said whole once it is over.
+            if (!_flushing)
+            {
+                _flushing = true;
+                try
+                {
+                    FlushSeen(false);
+                    FlushGathered();
+                    if (!Dealing) FlushDraws();
+                }
+                finally { _flushing = false; }
+            }
             Speech.Say(text, false);
             Ui.LogScreen.Add(text); // kept for the battle log (O)
+        }
+
+        // ---- lines gathered over a frame ----
+
+        private static readonly List<(string label, List<string> items)> _gathered = new List<(string, List<string>)>();
+
+        /// <summary>One item of a line said once the frame is over: several cards whose order came off cooldown
+        /// at the turn's start are one line, "Order ready: your Brokvar Hunter, opponent's Ard Feainn Tortoise."
+        /// The same item twice in a frame (a card with two views raising the same event) is kept once.</summary>
+        internal static void Gather(string label, string item)
+        {
+            if (string.IsNullOrEmpty(item)) return;
+            foreach (var g in _gathered)
+                if (g.label == label)
+                {
+                    if (!g.items.Contains(item)) g.items.Add(item);
+                    return;
+                }
+            _gathered.Add((label, new List<string> { item }));
+        }
+
+        private static void FlushGathered()
+        {
+            if (_gathered.Count == 0) return;
+            var lines = new List<(string label, List<string> items)>(_gathered);
+            _gathered.Clear();
+            foreach (var (label, items) in lines) SayEffect(null, label, null, items);
+        }
+
+        // ---- cards waiting to be seen ----
+
+        private sealed class Awaited
+        {
+            public Card Card;
+            public float At;
+            public Action<Card> Seen;
+            public Func<Card, bool> Settled;
+            public Action<Card> Unseen;
+        }
+
+        private static readonly List<Awaited> _awaiting = new List<Awaited>();
+
+        /// <summary>
+        /// Says something about <paramref name="card"/> once the local player can see its face. The opponent's
+        /// special is still face down when the game reports it played, and a flipped Ambush can report its flip
+        /// a moment before its face shows; naming it then would only say "hidden card". <paramref name="settled"/>
+        /// tells when the card has come to rest still face down (an Ambush on its row), for
+        /// <paramref name="unseen"/> to say that much; a card that neither shows nor settles in three seconds
+        /// is dropped.
+        /// </summary>
+        internal static void WhenSeen(Card card, Action<Card> seen, Func<Card, bool> settled = null, Action<Card> unseen = null)
+        {
+            if (card == null) return;
+            _awaiting.Add(new Awaited { Card = card, At = Time.realtimeSinceStartup, Seen = seen, Settled = settled, Unseen = unseen });
+        }
+
+        private static void FlushSeen(bool timeouts)
+        {
+            for (int i = 0; i < _awaiting.Count;)
+            {
+                var w = _awaiting[i];
+                bool hidden = CardReader.Hidden(w.Card, Players());
+                bool settled = false;
+                if (hidden && w.Settled != null) try { settled = w.Settled(w.Card); } catch { }
+                bool stale = timeouts && Time.realtimeSinceStartup - w.At > 3f;
+                if (hidden && !settled && !stale) { i++; continue; }
+                _awaiting.RemoveAt(i);
+                try
+                {
+                    if (!hidden) w.Seen(w.Card);
+                    else if (settled) w.Unseen?.Invoke(w.Card);
+                    else Plugin.LogInfo("[narr] card never shown, not said");
+                }
+                catch (Exception e) { Plugin.LogInfo("[narr] awaited card failed: " + e.Message); }
+            }
         }
 
         /// <summary>A game banner as a sentence: the translation strings mostly carry no closing stop ("Your
@@ -142,10 +230,12 @@ namespace GwentAccess
             _drawAt = Time.realtimeSinceStartup;
         }
 
-        /// <summary>Per frame: says the gathered draws once a burst is over (a round's deal waits longer: its
-        /// cards fly in one by one).</summary>
+        /// <summary>Per frame: says what was gathered over the last frame, cards that have turned face up, and
+        /// the draws once a burst is over (a round's deal waits longer: its cards fly in one by one).</summary>
         public static void Tick()
         {
+            FlushSeen(true);
+            FlushGathered();
             float wait = Dealing ? 2.5f : 1.2f;
             if (_drawAt >= 0 && Time.realtimeSinceStartup - _drawAt >= wait) FlushDraws();
         }
@@ -510,7 +600,8 @@ namespace GwentAccess
     /// <summary>A status put on or taken off: "Tourney Joust: shield on your Ard Feainn Heavy Cavalry, power 2,
     /// armor 2." Removal is worded with the game's "purify": "… purify shield from …"; a purify that takes
     /// every status off (one combined token) is just the game's word: "Imperial Diviner: purify opponent's
-    /// Ducal Guard, power 4."</summary>
+    /// Ducal Guard, power 4." An Ambush coming off is its card flipping face up, said by
+    /// <see cref="NarrateAmbushFlip"/>.</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnCardStatusAttack))]
     internal static class NarrateStatusAttack
     {
@@ -520,6 +611,7 @@ namespace GwentAccess
             if (a == null) return;
             var token = a.DeltaStatus;
             if (token == 0) try { if (a.ChangedStatuses != null && a.ChangedStatuses.Count > 0) token = a.ChangedStatuses[0]; } catch { }
+            if (token == ECardToken.Ambush) return;
             bool remove = a.DeltaOperation == ETokenOp.Remove;
             string label = Narrator.StatusName(token);
             string source = Narrator.Source(a.Attacker);
@@ -643,7 +735,8 @@ namespace GwentAccess
     /// <summary>
     /// Every card movement the board animates, after the game moved the card (its position is the new one):
     /// summoned or resurrected onto the board, moved to another row, seized, returned to hand or deck,
-    /// discarded, drawn. Plays (from the hand or the play stack), spawns, mulligan swaps and deaths are
+    /// discarded, drawn, revealed ("Revealed from hand: opponent's Nekker Warrior.", gathered over the frame
+    /// so a reveal of several cards is one line). Plays (from the hand or the play stack), spawns, mulligan swaps and deaths are
     /// spoken elsewhere or by the screen in front, so they're left out here. Draws come in bursts — two or
     /// three at a round start — and are gathered into one line (<see cref="Narrator.Tick"/>).
     /// </summary>
@@ -661,7 +754,15 @@ namespace GwentAccess
             ELocation a = from.Location, b = to.Location;
             if (a == b && from.PlayerId == to.PlayerId) return;
             if (Narrator.InMulligan() || a == ELocation.MulliganStack || b == ELocation.MulliganStack) return;
-            // Plays, specials resolving, spawns and reveals have their own lines.
+            // A card shown to both players flies to the reveal spot over the board, from a deck or a hand.
+            if (b == ELocation.RevealStack)
+            {
+                if (CardReader.Hidden(card, Narrator.Players())) return;
+                string shown = "Revealed" + (a == ELocation.Hand ? " from hand" : a == ELocation.Deck ? " from deck" : "");
+                Narrator.Gather(shown, Narrator.Owned(card));
+                return;
+            }
+            // Plays, specials resolving, spawns and coming back from the reveal spot have their own lines or none.
             if ((a & (ELocation.Hand | ELocation.PlayStack | ELocation.EventExecuting | ELocation.SpawningPool | ELocation.RevealStack | ELocation.Void)) != 0
                 && !(a == ELocation.Hand && (b == ELocation.Graveyard || b == ELocation.Deck))) return;
             if ((b & (ELocation.PlayStack | ELocation.EventExecuting | ELocation.Void | ELocation.Leader)) != 0) return;
@@ -728,21 +829,28 @@ namespace GwentAccess
 
     // ---- plays, turns, passes, rounds: the real match's history ----
 
-    /// <summary>The opponent's play, as the card lands: "Противник: Ледяной великан 7, Вражеский рукопашный
-    /// ряд." Your own plays aren't repeated — you just made them — but their effects are spoken.</summary>
+    /// <summary>
+    /// The opponent's play, as the card lands: "Противник: Ледяной великан 7, Вражеский рукопашный ряд." Your
+    /// own plays aren't repeated — you just made them — but their effects are spoken.
+    ///
+    /// A special is still face down when the game reports it played, and turns over a moment later as it
+    /// resolves: its line waits until its face shows (<see cref="Narrator.WhenSeen"/>), so it is never just
+    /// "hidden card". An Ambush stays face down on its row; a sighted player sees a card back land there, and
+    /// that is what is said: "Opponent: Ambush, enemy melee row."
+    /// </summary>
     [HarmonyPatch(typeof(BattleHistory), nameof(BattleHistory.OnPlayedCardHandler))]
     internal static class NarratePlay
     {
         static void Postfix(BattleHistory __instance, EPlayerId __0, Card __1) => Narrator.Guard("play", () =>
         {
             if (!Narrator.Real(__instance, out _) || Narrator.Mine(__0) || __1 == null) return;
-            string what = Narrator.WithPower(__1);
-            try
-            {
-                string row = Narrator.RowName(__1.Position.PlayerId, __1.Position.Location);
-                if (row != null) what += ", " + row;
-            }
-            catch { }
+            if (!CardReader.Hidden(__1, Narrator.Players())) { Say(__1); return; }
+            Narrator.WhenSeen(__1, Say, settled: FaceDownOnRow, unseen: SayAmbush);
+        });
+
+        private static void Say(Card card)
+        {
+            string what = Narrator.WithPower(card) + Row(card);
             // What the card does, as the game shows it in the card's tooltip when the opponent plays it (its
             // gameplay option "Display tooltips for cards played by opponent"); Hearthstone Access and Accessible
             // Arena read it too. Off with the mod's option Battle.OpponentCardText.
@@ -750,9 +858,31 @@ namespace GwentAccess
 #if GWENT
             if (ModConfig.OpponentCardText)
 #endif
-                try { text = CardReader.Abilities(__1, Battle.Controller()?.PlayerManager); } catch { }
+                try { text = CardReader.Abilities(card, Battle.Controller()?.PlayerManager); } catch { }
             Narrator.Say(Narrator.Opponent() + ": " + what + "." + (text.Length > 0 ? " " + text : ""));
-        });
+        }
+
+        /// <summary>", Вражеский рукопашный ряд": the row the card is on, if it is on one.</summary>
+        private static string Row(Card card)
+        {
+            try
+            {
+                string row = Narrator.RowName(card.Position.PlayerId, card.Position.Location);
+                if (row != null) return ", " + row;
+            }
+            catch { }
+            return "";
+        }
+
+        /// <summary>A face-down card come to rest on a row: an Ambush.</summary>
+        private static bool FaceDownOnRow(Card card)
+        {
+            var at = card.Position.Location;
+            return (at == ELocation.Melee || at == ELocation.Ranged) && card.Data.Statuses.Contains(ECardToken.Ambush);
+        }
+
+        private static void SayAmbush(Card card) =>
+            Narrator.Say(Narrator.Opponent() + ": " + GameText.Term("keyword_ambush", "Ambush") + Row(card) + ".");
     }
 
     /// <summary>The opponent using an order — a unit's, a stratagem's or the leader's: "Противник: Приказ:
