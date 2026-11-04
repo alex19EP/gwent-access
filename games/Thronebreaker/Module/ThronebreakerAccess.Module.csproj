@@ -17,6 +17,7 @@
     <Compile Remove="..\..\..\src\Shared\CardReader.cs" />
     <Compile Remove="..\..\..\src\Shared\CardText.cs" />
     <Compile Remove="..\..\..\src\Shared\Narrator.cs" />
+    <Compile Remove="..\..\..\src\Shared\NarrateBoardState.cs" />
     <Compile Remove="..\..\..\src\Shared\Plays.cs" />
     <Compile Remove="..\..\..\src\Shared\TutorialTrace.cs" />
     <Compile Remove="..\..\..\src\Shared\Ui\BattleInput.cs" />
