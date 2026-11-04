@@ -95,6 +95,7 @@ namespace GwentAccess.Ui
             "UIResultBannerPanel", // the results screen that follows names itself by the same banner
             "TauntSelectorView", // the emote wheel: EmoteScreen once it has opened
             "IntroPanel", // the Versus banner: VersusScreen
+            "UIShopProductPreviewPanel", // ProductPreviewScreen
         };
 
         // Panels a dedicated screen reads once they finish opening: the fallback would read their placeholders
