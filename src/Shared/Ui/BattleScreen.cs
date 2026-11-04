@@ -162,7 +162,7 @@ namespace GwentAccess.Ui
                 Location loc = null;
                 try { loc = gc.BoardManager.GetLocation(who, row.Where); } catch { }
                 // A leader row also says whose it is, as the player panel beside it shows: name and title.
-                b.PushContext(row.Name, row.Scored ? "score " + Score(cards) : row.Where == ELocation.Leader ? PlayerTag(row.Mine) : null);
+                b.PushContext(row.Name, row.Scored ? RowDetail(cards, loc) : row.Where == ELocation.Leader ? PlayerTag(row.Mine) : null);
                 b.StartRow();
                 var rowIds = new List<ControlId>();
                 if (cards.Count == 0)
@@ -274,6 +274,36 @@ namespace GwentAccess.Ui
             return total;
         }
 
+        /// <summary>What a board row shows beside its cards: "score 12, Frost, 2 turns left, full". The score,
+        /// the effect lying on the row (a hazard or a boon: the row's graphic, with the turns left on its timer
+        /// icon) and "full" once the row holds as many units as it can (9; the game takes no more).</summary>
+        private static string RowDetail(List<Card> cards, Location loc)
+        {
+            var parts = new List<string> { "score " + Score(cards) };
+            string effects = RowEffects(loc);
+            if (effects != null) parts.Add(effects);
+            try { if (loc != null && loc.IsFull()) parts.Add("full"); } catch { }
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>The row's effects in the game's words, with the turns left when the effect's icon counts
+        /// them: "Frost, 2 turns left". Null when the row has none.</summary>
+        internal static string RowEffects(Location loc)
+        {
+            if (loc == null) return null;
+            ELocationToken status = 0;
+            try { status = loc.Status.Value; } catch { }
+            if (status == 0) return null;
+            var names = new List<string>();
+            foreach (ELocationToken one in Enum.GetValues(typeof(ELocationToken)))
+                if (one != 0 && (status & one) == one) names.Add(Narrator.RowEffectName(one));
+            if (names.Count == 0) return null;
+            int turns = -1;
+            try { int t = loc.AbilityData.Timer.Value; if (t > 0 && t != AEntityTimer.NO_TIMER) turns = t; } catch { }
+            string text = string.Join(", ", names);
+            return turns > 0 ? text + ", " + (turns == 1 ? "1 turn left" : turns + " turns left") : text;
+        }
+
         /// <summary>A card's line on the board. A leader card is led by the character standing beside it
         /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both.</summary>
         private static string Label(Card card, PlayerManager pm)
@@ -335,7 +365,7 @@ namespace GwentAccess.Ui
                 if (anyValid ? !_plays.MayPlaceIn(loc) : !row.Mine) continue;
                 try { if (loc.RemainingCapacity <= 0) continue; } catch { }
                 var cards = Battle.Cards(gc, who, row.Where);
-                b.PushContext(row.Name, "score " + Score(cards));
+                b.PushContext(row.Name, RowDetail(cards, loc));
                 b.StartRow();
                 var rowIds = new List<ControlId>();
                 for (int i = 0; i <= cards.Count; i++)
@@ -765,13 +795,7 @@ namespace GwentAccess.Ui
                     new ScreenKey { Key = KeyCode.M, Run = EmoteScreen.Open, Hint = "M, emotes" },
 #endif
                 };
-                for (int i = 0; i < NumberRows.Length; i++)
-                {
-                    var row = Array.Find(Rows, r => r.Key == NumberRows[i]);
-                    var key = KeyCode.Alpha1 + i;
-                    _keys.Add(new ScreenKey { Key = key, Run = () => JumpTo(row.Key), Hint = (i + 1) + ", " + row.Name.ToLowerInvariant() });
-                    _keys.Add(new ScreenKey { Key = key, Shift = true, Run = () => SayRow(row), Hint = "Shift " + (i + 1) + ", read " + row.Name.ToLowerInvariant() });
-                }
+                _keys.AddRange(RowKeys(() => _gc, JumpTo));
                 return _keys;
             }
         }
@@ -780,18 +804,44 @@ namespace GwentAccess.Ui
         // already know: your melee, your ranged, the opponent's melee, the opponent's ranged.
         private static readonly string[] NumberRows = { "my-melee", "my-ranged", "opp-melee", "opp-ranged" };
 
-        /// <summary>A whole row read at once without moving the cursor: "Your ranged row, score 12, 2 cards:
-        /// …; …".</summary>
-        private void SayRow(Row row)
+        /// <summary>The number row's keys over the board rows: Shift+1 to 4 read a row without moving; the plain
+        /// number jumps to it with <paramref name="jump"/>, or, where the board can't be moved over (a choice
+        /// open on top of it: <see cref="ChoiceScreen"/>), reads it too — a sighted player looks at the board
+        /// before picking.</summary>
+        internal static List<ScreenKey> RowKeys(Func<GameController> gc, Action<string> jump)
         {
-            var gc = _gc;
+            var keys = new List<ScreenKey>();
+            for (int i = 0; i < NumberRows.Length; i++)
+            {
+                var row = Array.Find(Rows, r => r.Key == NumberRows[i]);
+                var key = KeyCode.Alpha1 + i;
+                string name = row.Name.ToLowerInvariant();
+                keys.Add(jump != null
+                    ? new ScreenKey { Key = key, Run = () => jump(row.Key), Hint = (i + 1) + ", " + name }
+                    : new ScreenKey { Key = key, Run = () => SayRow(gc(), row), Hint = (i + 1) + ", read " + name });
+                keys.Add(new ScreenKey { Key = key, Shift = true, Run = () => SayRow(gc(), row), Hint = "Shift " + (i + 1) + ", read " + name });
+            }
+            return keys;
+        }
+
+        /// <summary>A whole row read at once without moving the cursor: "Your ranged row, score 12, Frost, 2
+        /// turns left, 2 cards: …; …".</summary>
+        private static void SayRow(GameController gc, Row row)
+        {
             if (gc == null) return;
-            var cards = Battle.Cards(gc, row.Mine ? Battle.Me(gc) : Battle.Them(gc), row.Where);
-            string head = row.Name + ", score " + Score(cards);
+            var who = row.Mine ? Battle.Me(gc) : Battle.Them(gc);
+            var cards = Battle.Cards(gc, who, row.Where);
+            string head = row.Name + ", " + RowDetail(cards, RowLocation(gc, row));
             if (cards.Count == 0) { Speech.Say(head + ", empty", true); return; }
             var labels = new List<string>();
             foreach (var c in cards) labels.Add(Label(c, gc.PlayerManager));
             Speech.Say(head + ", " + (cards.Count == 1 ? "1 card" : cards.Count + " cards") + ": " + string.Join("; ", labels), true);
+        }
+
+        private static Location RowLocation(GameController gc, Row row)
+        {
+            try { return gc.BoardManager.GetLocation(row.Mine ? Battle.Me(gc) : Battle.Them(gc), row.Where); }
+            catch { return null; }
         }
 
         private void JumpTo(string row)
@@ -803,9 +853,12 @@ namespace GwentAccess.Ui
                 string lastGap = null;
                 foreach (var key in _gaps.Keys)
                     if (key.StartsWith(prefix, StringComparison.Ordinal)) lastGap = key;
-                string name = Array.Find(Rows, r => r.Key == row)?.Name;
+                var target = Array.Find(Rows, r => r.Key == row);
+                string name = target?.Name;
                 var here = (string)GraphNavigator.CurrentNode?.Id.StructuralKey;
-                if (lastGap == null) Speech.Say("Can't place in " + name?.ToLowerInvariant() + ".", true);
+                bool full = false;
+                try { full = target != null && _gc != null && RowLocation(_gc, target)?.IsFull() == true; } catch { }
+                if (lastGap == null) Speech.Say("Can't place in " + name?.ToLowerInvariant() + (full ? ", full." : "."), true);
                 else if (here != null && here.StartsWith(prefix, StringComparison.Ordinal)) Speech.Say(name, true);
                 else GraphNavigator.FocusNode(ControlId.Structural(lastGap));
                 return;
@@ -816,7 +869,11 @@ namespace GwentAccess.Ui
             if (node != null && _rowOf.TryGetValue((string)node.Id.StructuralKey, out var at) && at == row)
             {
                 var card = FocusedCard();
-                string name = Array.Find(Rows, r => r.Key == row)?.Name;
+                var here = Array.Find(Rows, r => r.Key == row);
+                string name = here?.Name;
+                // A board row also says what the row shows (score, effect, full), as landing in it does.
+                if (here != null && here.Scored && _gc != null)
+                    name += ", " + RowDetail(Battle.Cards(_gc, here.Mine ? Battle.Me(_gc) : Battle.Them(_gc), here.Where), RowLocation(_gc, here));
                 Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players()) : "empty"), true);
                 return;
             }
