@@ -68,6 +68,7 @@ A background thread polls the F keys that must work even when no screen holds th
 
 - Code comments are explanatory XML-doc style and cite spec sections; match that density.
 - Speech reuses the game's own translation strings (`GameText.Get`, the game's translation table looked up by key at runtime) wherever one exists, enriched only with what a sighted player can see (e.g. the scores beside the board). Mod-authored English is the fallback for things the game has no string for.
+- Mod-authored English goes through `Loc.T("… {0} …", args)` (`src/Shared/Loc.cs`, keyed by the English, gettext style; `Loc.P(n, one, other)` for counts, `Loc.Mark` for English kept in static tables), never string concatenation of English fragments, so translators can reorder whole sentences. The tables are `assets/lang/<game language code>.json`, deployed to the plugin's `lang\` folder; `just strings` (scripts/extract-strings.py) regenerates `en.json` and reports what each language lacks. Run it and commit `en.json` after adding or changing a line. `GameText.Get` fallbacks and log lines stay plain English.
 - Logs (`BepInEx\LogOutput.log`) record every spoken line and hotkey. Check `just log` / `just speech` to verify behavior. The game's own log, `%USERPROFILE%\AppData\LocalLow\CDProjektRED\Gwent\GwentClient-*.log`, shows the new-player flow's steps.
 - Options: `BepInEx\config\gwentaccess.cfg` (`ModConfig`, reread when it changes); Gwent-only entries are under `#if GWENT`.
 - `just stage` copies a rebuilt module without loading it; F11 in a Debug build loads it.
