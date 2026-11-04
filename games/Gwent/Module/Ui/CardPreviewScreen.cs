@@ -155,13 +155,13 @@ namespace GwentAccess.Ui
 
         // ---- previous / next card ----
 
-        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys;
-
-        private static readonly ScreenKey[] _keys =
+        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new[]
         {
-            new ScreenKey { Key = KeyCode.LeftArrow, Run = () => Step(-1), Hint = "Left, previous card" },
-            new ScreenKey { Key = KeyCode.RightArrow, Run = () => Step(1), Hint = "Right, next card" },
+            new ScreenKey { Key = KeyCode.LeftArrow, Run = () => Step(-1), Hint = Loc.T("Left, previous card") },
+            new ScreenKey { Key = KeyCode.RightArrow, Run = () => Step(1), Hint = Loc.T("Right, next card") },
         };
+
+        private static ScreenKey[] _keys;
 
         private static void Step(int dir)
         {
