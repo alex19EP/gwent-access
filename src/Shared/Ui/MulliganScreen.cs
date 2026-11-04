@@ -9,7 +9,7 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// The mulligan at the start of each round: your hand as one row of cards (read like on the board:
-    /// Ctrl+Up/Down, I, K, Space), Enter swaps the focused card, E keeps the rest and ends your mulligan through
+    /// Up/Down, I, K, Space), Enter swaps the focused card, E keeps the rest and ends your mulligan through
     /// the panel's own finish button (held while E is); Tab
     /// reaches the panel's own buttons (finish, hide cards), which the game itself only offers on glyph keys.
     ///
@@ -96,7 +96,7 @@ namespace GwentAccess.Ui
                     _cards[(string)id.StructuralKey] = card;
                     b.AddItem(id, new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => CardReader.WithAbilities(card, pm), kind: AnnouncementKinds.Label) },
+                        Announcements = new[] { new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label) },
                         OnActivate = () => Swap(card),
                         OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
                     });
@@ -277,9 +277,17 @@ namespace GwentAccess.Ui
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, keep the rest and finish" },
                     new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = "A, score" },
+                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = "Shift T, time left to swap" },
                 };
                 return _keys;
             }
+        }
+
+        // Shift+T: the mulligan's countdown, as on the board (TurnTimer warns at 20 and 8 seconds too).
+        private void SayTimer()
+        {
+            float secs = TurnTimer.MulliganSecondsLeft(_gc ?? Battle.Controller());
+            Speech.Say(secs < 0 ? "No mulligan timer." : Mathf.CeilToInt(secs) + " seconds left to swap.", true);
         }
 
         public override void OnCursorMoved(GraphNode node)
