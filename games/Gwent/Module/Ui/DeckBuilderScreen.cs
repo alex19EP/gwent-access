@@ -52,15 +52,17 @@ namespace GwentAccess.Ui
                 if (starter && noSave != null && noSave.gameObject.activeInHierarchy) { Plugin.LogInfo("[deck builder] back: starter, no save"); Navigator.ClickControl(noSave); return true; }
             }
             catch { }
-            // The deck list: the panel's own Back handler, as its Exit button calls it. The bar's back-key entry
-            // was clicked but ignored after a search (Backspace did nothing and said nothing).
+            // The deck list: its Exit, the last button of its bar, clicked as the mouse does. Neither the bar's
+            // back-key entry nor the panel's HandleBackButtonClicked left the deck builder (Backspace did nothing
+            // and said nothing); the Exit button's click does.
             try
             {
                 var p = Panel();
-                if (p != null)
+                var bar = p != null ? CrimsonNodes.BarButtons(p) : null;
+                var exit = bar != null && bar.Count > 0 ? bar[bar.Count - 1].TryCast<ButtonControl>() : null;
+                if (exit != null && Navigator.MouseClick(exit))
                 {
-                    Plugin.LogInfo("[deck builder] back through the panel's handler");
-                    p.HandleBackButtonClicked();
+                    Plugin.LogInfo("[deck builder] back: " + CrimsonNodes.Label(exit));
                     return true;
                 }
             }
