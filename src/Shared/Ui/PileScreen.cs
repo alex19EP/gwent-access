@@ -67,9 +67,9 @@ namespace GwentAccess.Ui
             {
                 string title = null;
                 try { title = UiText.Clean(Panel(_open)?.m_Title?.Text?.text); } catch { }
-                if (string.IsNullOrEmpty(title)) title = _open == Pile.Deck ? "Your deck" : "Graveyard";
+                if (string.IsNullOrEmpty(title)) title = _open == Pile.Deck ? Loc.T("Your deck") : Loc.T("Graveyard");
                 int n = Cards().Count;
-                return title + ", " + (n == 0 ? "empty" : n == 1 ? "1 card" : n + " cards");
+                return title + ", " + (n == 0 ? Loc.T("empty") : Loc.P(n, "{0} card", "{0} cards"));
             }
         }
 
@@ -99,7 +99,7 @@ namespace GwentAccess.Ui
             b.BeginStop("pile");
             if (cards.Count == 0)
             {
-                b.AddLabel(ControlId.Structural("pile:empty"), () => "Empty");
+                b.AddLabel(ControlId.Structural("pile:empty"), () => Loc.T("Empty"));
                 return;
             }
             b.StartRow();
@@ -128,18 +128,18 @@ namespace GwentAccess.Ui
                 // An empty graveyard opens nothing, for a sighted player too: say what they see.
                 if (!deck && Battle.Cards(gc, who, ELocation.Graveyard).Count == 0)
                 {
-                    Speech.Say(mine ? "Your graveyard is empty." : "Opponent's graveyard is empty.", true);
+                    Speech.Say(mine ? Loc.T("Your graveyard is empty.") : Loc.T("Opponent's graveyard is empty."), true);
                     return;
                 }
                 var h = TurnHandler();
-                if (h == null) { Speech.Say("Can't open that now.", true); return; }
+                if (h == null) { Speech.Say(Loc.T("Can't open that now."), true); return; }
                 if (deck) h.OpenDeck(who, false);
                 else h.OpenGraveyard(who, false);
                 _askedAt = Time.realtimeSinceStartup;
                 _askedDeck = deck; _askedWho = who; _forced = false;
                 Plugin.LogInfo("[pile] open " + (deck ? "deck" : "graveyard") + " of " + who + " via " + h.GetIl2CppType().Name);
             }
-            catch (Exception e) { Plugin.LogInfo("[pile] open failed: " + e); Speech.Say("Couldn't open it.", true); }
+            catch (Exception e) { Plugin.LogInfo("[pile] open failed: " + e); Speech.Say(Loc.T("Couldn't open it."), true); }
         }
 
         // When D or Y last asked the game to open a pile; the game refuses silently (the tutorial's input locks,
@@ -170,7 +170,7 @@ namespace GwentAccess.Ui
             }
             if (waited < 1.5f) return;
             _askedAt = -1;
-            Speech.Say("Not available right now.", true);
+            Speech.Say(Loc.T("Not available right now."), true);
         }
 
         private static bool _askedDeck, _forced;
@@ -229,8 +229,8 @@ namespace GwentAccess.Ui
                 _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager, always: true, preview: true); // as in Build
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
-                    new ScreenKey { Key = KeyCode.Backspace, Run = Close, Hint = "Backspace, close" },
-                    new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = "A, score" },
+                    new ScreenKey { Key = KeyCode.Backspace, Run = Close, Hint = Loc.T("Backspace, close") },
+                    new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = Loc.T("A, score") },
                 };
                 return _keys;
             }
