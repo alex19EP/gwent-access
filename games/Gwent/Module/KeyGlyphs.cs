@@ -46,7 +46,7 @@ namespace GwentAccess
         {
             // "You can see your unplayed cards in your deck and destroyed cards in your graveyard. Take a look by
             // using [Preview]": the deck and graveyard on the board, which the mod opens with D and Y.
-            ["TEXT.tut001_firstbattle_flowchart.6"] = new Dictionary<string, string> { ["Action_Preview"] = "D for your deck, or Y for your graveyard" },
+            ["TEXT.tut001_firstbattle_flowchart.6"] = new Dictionary<string, string> { ["Action_Preview"] = Loc.Mark("D for your deck, or Y for your graveyard") },
         };
 
         // Sentences that name an on-screen button instead of drawing a key glyph ("Hold "Pass""): in keyboard mode
@@ -54,14 +54,14 @@ namespace GwentAccess
         private static readonly Dictionary<string, string> AddAfter = new Dictionary<string, string>
         {
             // "Your opponent used strong cards. Hold "Pass" to pass this round now and save your strength for later."
-            ["TEXT.tut001_fourthbattle_flowchart.2"] = "Hold E to pass.",
+            ["TEXT.tut001_fourthbattle_flowchart.2"] = Loc.Mark("Hold E to pass."),
         };
 
         /// <summary>The mod's key for a sentence that names a game button rather than a key, or null.</summary>
         public static string KeyNote(string locKey)
         {
             if (ControllerMode.Force || string.IsNullOrEmpty(locKey)) return null;
-            return AddAfter.TryGetValue(locKey, out var note) ? note : null;
+            return AddAfter.TryGetValue(locKey, out var note) ? Loc.T(note) : null;
         }
 
         /// <summary>A tutorial text, cleaned with its glyphs named, plus the mod's key when it names a game
@@ -76,13 +76,13 @@ namespace GwentAccess
         // The mod's keyboard key for a glyph, wherever it appears.
         private static readonly Dictionary<string, string> ModKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Action_Select"] = "Enter",
-            ["keycode_LC"] = "Enter",
-            ["A"] = "Enter",
-            ["B"] = "Escape",
-            ["keycode_Esc"] = "Escape",
-            ["Action_Preview"] = "Space",
-            ["keycode_RC"] = "Space",
+            ["Action_Select"] = Loc.Mark("Enter"),
+            ["keycode_LC"] = Loc.Mark("Enter"),
+            ["A"] = Loc.Mark("Enter"),
+            ["B"] = Loc.Mark("Escape"),
+            ["keycode_Esc"] = Loc.Mark("Escape"),
+            ["Action_Preview"] = Loc.Mark("Space"),
+            ["keycode_RC"] = Loc.Mark("Space"),
         };
 
         private static string Words(string asset, string name)
@@ -92,8 +92,8 @@ namespace GwentAccess
             if (string.IsNullOrEmpty(asset) || asset[0] != '[' || string.IsNullOrEmpty(name)) return null;
             if (!ControllerMode.Force)
             {
-                if (_context != null && BySentence.TryGetValue(_context, out var keys) && keys.TryGetValue(name, out var k)) return k;
-                if (ModKeys.TryGetValue(name, out var mod)) return mod;
+                if (_context != null && BySentence.TryGetValue(_context, out var keys) && keys.TryGetValue(name, out var k)) return Loc.T(k);
+                if (ModKeys.TryGetValue(name, out var mod)) return Loc.T(mod);
             }
             string game = GameKey(asset, name);
             if (!ControllerMode.Force) Plugin.LogInfo("[glyph] no mod key for " + name + (_context != null ? " in " + _context : "") + "; said the game's: " + game);
@@ -141,14 +141,14 @@ namespace GwentAccess
                 string k = s.Substring(8);
                 switch (k.ToUpperInvariant())
                 {
-                    case "LC": return "left click";
-                    case "RC": return "right click";
-                    case "MC": return "middle click";
-                    case "ESC": return "Escape";
+                    case "LC": return Loc.T("left click");
+                    case "RC": return Loc.T("right click");
+                    case "MC": return Loc.T("middle click");
+                    case "ESC": return Loc.T("Escape");
                 }
                 return k.Replace('_', ' ');
             }
-            if (s.Length <= 2 || s == "LB" || s == "RB" || s == "LT" || s == "RT") return s + " button";
+            if (s.Length <= 2 || s == "LB" || s == "RB" || s == "LT" || s == "RT") return Loc.T("{0} button", s);
             if (s.StartsWith("Action_", StringComparison.Ordinal)) s = s.Substring(7);
             return s.Replace('_', ' ');
         }

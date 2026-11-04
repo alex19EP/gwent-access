@@ -83,7 +83,7 @@ namespace GwentAccess.Ui
                     {
                         new NodeAnnouncement(() => Text(element.m_StrategyName), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => CrimsonNodes.Shown(element.m_RecomendedText) ? GoText(element.m_RecomendedText) : null, kind: AnnouncementKinds.Value),
-                        new NodeAnnouncement(() => CrimsonNodes.Shown(element.m_SelectedBackground) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => CrimsonNodes.Shown(element.m_SelectedBackground) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                         new NodeAnnouncement(() => Text(element.m_StrategyDescription), kind: AnnouncementKinds.Tooltip),
                     },
                     OnActivate = () => Navigator.ClickControl(button),
@@ -163,7 +163,7 @@ namespace GwentAccess.Ui
                 var v = CrimsonNodes.Button(control);
                 var anns = new List<NodeAnnouncement>(v.Announcements)
                 {
-                    new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "checked" : "not checked", live: true, kind: AnnouncementKinds.Value),
+                    new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("checked") : Loc.T("not checked"), live: true, kind: AnnouncementKinds.Value),
                 };
                 v.Announcements = anns;
                 b.AddItem(CrimsonNodes.Id(control), v);

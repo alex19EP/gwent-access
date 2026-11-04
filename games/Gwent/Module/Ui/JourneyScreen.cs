@@ -74,7 +74,7 @@ namespace GwentAccess.Ui
             var pr = mc.m_Progress;
             if (!CrimsonNodes.Shown(pr)) return;
             b.BeginStop("journey:progress");
-            b.AddLabel(ControlId.Structural("journey:level"), () => UiText.Join("Journey level " + CrimsonNodes.Text(pr.m_JourneyLevel?.m_Level), Crowns(pr)));
+            b.AddLabel(ControlId.Structural("journey:level"), () => UiText.Join(Loc.T("Journey level {0}", CrimsonNodes.Text(pr.m_JourneyLevel?.m_Level)), Crowns(pr)));
             foreach (var r in mc.m_ResourceInfoBar?.GetComponentsInChildren<UIResourceInfo>(false) ?? new UIResourceInfo[0])
             {
                 var info = r;
@@ -98,7 +98,7 @@ namespace GwentAccess.Ui
             EIRewardSubType.Scraps => Currency.Of(Modules.Common.EVirtualCurrencyType.Scraps),
             EIRewardSubType.Ore => Currency.Of(Modules.Common.EVirtualCurrencyType.Gold),
             EIRewardSubType.Powder => Currency.Of(Modules.Common.EVirtualCurrencyType.Powder),
-            EIRewardSubType.KegOrPack or EIRewardSubType.Keg => Currency.Kegs() ?? "Kegs",
+            EIRewardSubType.KegOrPack or EIRewardSubType.Keg => Currency.Kegs() ?? Loc.T("Kegs"),
             _ => type.ToString(),
         };
 
@@ -125,7 +125,7 @@ namespace GwentAccess.Ui
                 b.StartRow("journey:step:" + number);
                 var std = ControlId.Structural("journey:step:" + number + ":standard");
                 if (step.IsCurrentStep) b.SetStart(std);
-                string position = (i + 1) + " of " + count;
+                string position = Loc.T("{0} of {1}", i + 1, count);
                 b.AddItem(std, Reward(step, false, standard, position));
                 b.AddItem(ControlId.Structural("journey:step:" + number + ":premium"), Reward(step, true, premium, position));
                 if (live.TryGetValue(number, out var view))
@@ -159,13 +159,24 @@ namespace GwentAccess.Ui
         private static string RewardLine(UIJourneyStepData step, bool premium, string header)
         {
             var data = premium ? step.ExtendedRewardData : step.StandardRewardData;
-            string reward = RewardText.Of(data?.Rewards) ?? "Reward";
-            return premium ? UiText.Join(header.Length > 0 ? header : "Premium", reward) : UiText.Join("Step " + step.StepNumber, reward);
+            string reward = RewardText.Of(data?.Rewards) ?? Loc.T("Reward");
+            return premium ? UiText.Join(header.Length > 0 ? header : Loc.T("Premium"), reward) : UiText.Join(Loc.T("Step {0}", step.StepNumber), reward);
         }
 
         private static string State(UIJourneyRewardData data)
         {
-            try { return data?.RewardState.ToString().ToLowerInvariant(); } catch { return null; }
+            try
+            {
+                if (data == null) return null;
+                return data.RewardState switch
+                {
+                    EJourneyRewardState.Locked => Loc.T("locked"),
+                    EJourneyRewardState.ReadyToClaim => Loc.T("ready to claim"),
+                    EJourneyRewardState.Claimed => Loc.T("claimed"),
+                    var other => other.ToString().ToLowerInvariant(),
+                };
+            }
+            catch { return null; }
         }
 
         // A special step's Fast Travel button, as drawn: "Fast Travel, $4.99"; the scraps one shows its cost as a
@@ -239,7 +250,7 @@ namespace GwentAccess.Ui
                     return;
                 }
             }
-            Speech.Say("Not available right now.", true);
+            Speech.Say(Loc.T("Not available right now."), true);
         }
 
         private float _previewAt = -1;

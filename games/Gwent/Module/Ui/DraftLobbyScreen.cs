@@ -77,7 +77,7 @@ namespace GwentAccess.Ui
                     if (t != null)
                         v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                         {
-                            new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? "on" : null, live: true, kind: AnnouncementKinds.Selected),
+                            new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? Loc.T("on") : null, live: true, kind: AnnouncementKinds.Selected),
                         };
                     b.AddItem(CrimsonNodes.Id(c), v);
                 }
@@ -155,15 +155,15 @@ namespace GwentAccess.Ui
                 {
                     switch (states[i])
                     {
-                        case EWheelPartState.Win: said.Add("won"); break;
-                        case EWheelPartState.Lost: said.Add("lost"); break;
-                        case EWheelPartState.Draw: said.Add("drawn"); break;
-                        case EWheelPartState.Next: said.Add("next"); break;
+                        case EWheelPartState.Win: said.Add(Loc.T("won")); break;
+                        case EWheelPartState.Lost: said.Add(Loc.T("lost")); break;
+                        case EWheelPartState.Draw: said.Add(Loc.T("drawn")); break;
+                        case EWheelPartState.Next: said.Add(Loc.T("next")); break;
                         default: open++; break;
                     }
                 }
                 string games = said.Count > 0 ? GameText.Capitalized(string.Join(", ", said)) : null;
-                return UiText.Join("Wheel", games, open > 0 ? open + " still to play" : null);
+                return UiText.Join(Loc.T("Wheel"), games, open > 0 ? Loc.T("{0} still to play", open) : null);
             }
             catch (Exception e) { Plugin.LogInfo("[draft] wheel read failed: " + e.Message); return null; }
         }
@@ -217,7 +217,7 @@ namespace GwentAccess.Ui
                 }
             }
             string text = UiText.Join(amount.Length > 0 ? amount : null, what);
-            return text.Length > 0 ? text : "Reward";
+            return text.Length > 0 ? text : Loc.T("Reward");
         }
 
         // ---- helpers ----

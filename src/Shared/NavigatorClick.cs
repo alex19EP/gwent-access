@@ -70,12 +70,12 @@ namespace GwentAccess
                     b.Click();
                     return;
                 }
-                Speech.Say("Can't click this item. Try Enter.", true);
+                Speech.Say(Loc.T("Can't click this item. Try Enter."), true);
             }
             catch (Exception e)
             {
                 Plugin.LogInfo("Navigator click failed: " + e);
-                Speech.Say("Click failed.", true);
+                Speech.Say(Loc.T("Click failed."), true);
             }
         }
 

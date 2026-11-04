@@ -133,8 +133,8 @@ namespace GwentAccess.Ui
             var keg = Keg();
             var card = c.CardInstance;
             if (keg == null || card == null) return "";
-            if (Stacked(keg, index)) return "stack of 3 face-down cards";
-            if (!Revealed(keg, index)) return "face-down card";
+            if (Stacked(keg, index)) return Loc.T("stack of 3 face-down cards");
+            if (!Revealed(keg, index)) return Loc.T("face-down card");
             string rarity = Rarity(c);
             string summary = CardReader.Summary(card);
             return rarity == null ? summary : summary + ", " + rarity;

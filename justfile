@@ -60,6 +60,10 @@ build:
 prism *args:
     pwsh -NoProfile -File '{{repo}}\scripts\build-prism.ps1' {{args}}
 
+# Find the mod's translatable lines (Loc.T/P/Mark) into assets/lang/en.json and report what each language lacks
+strings *args:
+    python '{{repo}}\scripts\extract-strings.py' {{args}}
+
 # Run the graph kernel unit tests (no game needed)
 test:
     dotnet test '{{repo}}\tests\Access.Core.Tests\Access.Core.Tests.csproj'

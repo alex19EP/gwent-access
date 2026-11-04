@@ -46,7 +46,7 @@ namespace GwentAccess
         {
             Force = !Force;
             Apply();
-            Speech.Say(Force ? "Controller mode on." : "Controller mode off. Mouse and keyboard interface.", true);
+            Speech.Say(Force ? Loc.T("Controller mode on.") : Loc.T("Controller mode off. Mouse and keyboard interface."), true);
             Plugin.LogInfo("Controller mode forced: " + Force);
         }
 
@@ -80,7 +80,7 @@ namespace GwentAccess
             Force = connected.Value;
             Apply();
             Plugin.LogInfo("Controller " + (connected.Value ? "connected" : "not connected") + "; controller mode forced: " + Force);
-            if (!first) Speech.Say(Force ? "Controller connected. Controller mode on." : "Controller disconnected. Mouse and keyboard interface.", true);
+            if (!first) Speech.Say(Force ? Loc.T("Controller connected. Controller mode on.") : Loc.T("Controller disconnected. Mouse and keyboard interface."), true);
         }
 
         /// <summary>The mod switched off: stop forcing the controller interface; the game picks its own mode.</summary>

@@ -144,12 +144,12 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(label, kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => Enabled(gg) ? null : _goodGameSent ? "sent" : "unavailable",
+                        new NodeAnnouncement(() => Enabled(gg) ? null : _goodGameSent ? Loc.T("sent") : Loc.T("unavailable"),
                             live: true, kind: AnnouncementKinds.Enabled),
                     },
                     OnActivate = () =>
                     {
-                        if (!Enabled(gg)) { Speech.Say("Not available right now.", true); return; }
+                        if (!Enabled(gg)) { Speech.Say(Loc.T("Not available right now."), true); return; }
                         _goodGameSent = true;
                         Navigator.ClickControl(gg);
                     },

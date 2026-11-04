@@ -33,20 +33,20 @@ namespace GwentAccess.Exploration
         {
             switch (t)
             {
-                case AInteractionZone.EInteractionType.GeneralLoot: return "loot";
-                case AInteractionZone.EInteractionType.TreasureChest: return "treasure chest";
-                case AInteractionZone.EInteractionType.HiddenTreasure: return "hidden treasure";
-                case AInteractionZone.EInteractionType.Shrine: return "shrine";
-                case AInteractionZone.EInteractionType.Recruits: return "recruits";
-                case AInteractionZone.EInteractionType.MainQuest: return "main quest";
-                case AInteractionZone.EInteractionType.SideQuest: return "side quest";
-                case AInteractionZone.EInteractionType.MinorQuest: return "point of interest";
-                case AInteractionZone.EInteractionType.Battle: return "battle";
-                case AInteractionZone.EInteractionType.PuzzleBattle: return "puzzle";
-                case AInteractionZone.EInteractionType.Dialogue: return "person";
-                case AInteractionZone.EInteractionType.MessageBoard: return "message board";
-                case AInteractionZone.EInteractionType.EasterEgg: return "curiosity";
-                case AInteractionZone.EInteractionType.FastTravel: return "signpost";
+                case AInteractionZone.EInteractionType.GeneralLoot: return Loc.T("loot");
+                case AInteractionZone.EInteractionType.TreasureChest: return Loc.T("treasure chest");
+                case AInteractionZone.EInteractionType.HiddenTreasure: return Loc.T("hidden treasure");
+                case AInteractionZone.EInteractionType.Shrine: return Loc.T("shrine");
+                case AInteractionZone.EInteractionType.Recruits: return Loc.T("recruits");
+                case AInteractionZone.EInteractionType.MainQuest: return Loc.T("main quest");
+                case AInteractionZone.EInteractionType.SideQuest: return Loc.T("side quest");
+                case AInteractionZone.EInteractionType.MinorQuest: return Loc.T("point of interest");
+                case AInteractionZone.EInteractionType.Battle: return Loc.T("battle");
+                case AInteractionZone.EInteractionType.PuzzleBattle: return Loc.T("puzzle");
+                case AInteractionZone.EInteractionType.Dialogue: return Loc.T("person");
+                case AInteractionZone.EInteractionType.MessageBoard: return Loc.T("message board");
+                case AInteractionZone.EInteractionType.EasterEgg: return Loc.T("curiosity");
+                case AInteractionZone.EInteractionType.FastTravel: return Loc.T("signpost");
                 default: return t.ToString();
             }
         }
@@ -55,27 +55,29 @@ namespace GwentAccess.Exploration
         {
             switch (c)
             {
-                case Category.Quests: return "quests";
-                case Category.People: return "people";
-                case Category.Loot: return "loot";
-                default: return "places";
+                case Category.Quests: return Loc.T("quests");
+                case Category.People: return Loc.T("people");
+                case Category.Loot: return Loc.T("loot");
+                default: return Loc.T("places");
             }
         }
 
         private static readonly string[] Compass =
-            { "north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west" };
+            { Loc.Mark("north"), Loc.Mark("north-east"), Loc.Mark("east"), Loc.Mark("south-east"), Loc.Mark("south"), Loc.Mark("south-west"), Loc.Mark("west"), Loc.Mark("north-west") };
 
         /// <summary>"12 metres, north-east, 8 north 9 east"; "here" when within a metre.</summary>
         public static string Where(Vector3 from, Vector3 to)
         {
             float dx = to.x - from.x, dz = to.z - from.z;
             float dist = Mathf.Sqrt(dx * dx + dz * dz);
-            if (dist < 1f) return "here";
+            if (dist < 1f) return Loc.T("here");
             int m = Mathf.RoundToInt(dist);
-            string s = m + (m == 1 ? " metre, " : " metres, ") + Direction(dx, dz);
+            string s = Loc.P(m, "{0} metre, {1}", "{0} metres, {1}", Direction(dx, dz));
             int n = Mathf.RoundToInt(Math.Abs(dz)), e = Mathf.RoundToInt(Math.Abs(dx));
             if (n >= 1 && e >= 1 && !IsCardinal(dx, dz))
-                s += ", " + n + (dz >= 0 ? " north " : " south ") + e + (dx >= 0 ? " east" : " west");
+                s += ", " + (dz >= 0
+                    ? (dx >= 0 ? Loc.T("{0} north {1} east", n, e) : Loc.T("{0} north {1} west", n, e))
+                    : (dx >= 0 ? Loc.T("{0} south {1} east", n, e) : Loc.T("{0} south {1} west", n, e)));
             return s;
         }
 
@@ -83,7 +85,7 @@ namespace GwentAccess.Exploration
         {
             float deg = Mathf.Atan2(dx, dz) * Mathf.Rad2Deg; // 0 = north, 90 = east
             if (deg < 0) deg += 360f;
-            return Compass[(int)Mathf.Round(deg / 45f) % 8];
+            return Loc.T(Compass[(int)Mathf.Round(deg / 45f) % 8]);
         }
 
         private static bool IsCardinal(float dx, float dz)

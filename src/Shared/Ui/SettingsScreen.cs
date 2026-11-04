@@ -21,7 +21,7 @@ namespace GwentAccess.Ui
     internal sealed class SettingsScreen : Screen
     {
         public override string Key => "settings";
-        public override string ScreenName => "Settings";
+        public override string ScreenName => Loc.T("Settings");
         public override int Layer => 1;
 
         public override bool IsActive() => Panel() != null;
@@ -51,7 +51,7 @@ namespace GwentAccess.Ui
             if (categories.Count > 0)
             {
                 b.BeginStop("categories");
-                b.PushContext("Categories");
+                b.PushContext(Loc.T("Categories"));
                 foreach (var c in categories) b.AddItem(CrimsonNodes.Id(c), Category(c, categories));
                 b.PopContext();
             }
@@ -65,7 +65,7 @@ namespace GwentAccess.Ui
                 b.BeginStop("options");
                 if (rows.Count > 0)
                 {
-                    b.PushContext("Options");
+                    b.PushContext(Loc.T("Options"));
                     foreach (var e in rows) { var id = RowId(e); _optionKeys.Add((string)id.StructuralKey); b.AddItem(id, Row(e)); }
                     b.PopContext();
                 }
@@ -109,7 +109,7 @@ namespace GwentAccess.Ui
             foreach (var kv in _categoryIds)
                 if (kv.Key == _opened || kv.Value.TryCast<ToggleButtonControl>()?.IsToggled == true) { target = kv.Value; if (kv.Key == _opened) break; }
             if (target == null) foreach (var kv in _categoryIds) { target = kv.Value; break; }
-            if (target == null || !GraphNavigator.FocusNode(CrimsonNodes.Id(target))) Speech.Say("Categories", true);
+            if (target == null || !GraphNavigator.FocusNode(CrimsonNodes.Id(target))) Speech.Say(Loc.T("Categories"), true);
         }
 
         private List<ScreenKey> _optionKeysList;
@@ -123,7 +123,7 @@ namespace GwentAccess.Ui
                 if (!InOptions()) return System.Array.Empty<ScreenKey>();
                 return _optionKeysList ??= new List<ScreenKey>
                 {
-                    new ScreenKey { Key = UnityEngine.KeyCode.Escape, Run = BackToCategories, Hint = "Escape or Backspace, back to the categories" },
+                    new ScreenKey { Key = UnityEngine.KeyCode.Escape, Run = BackToCategories, Hint = Loc.T("Escape or Backspace, back to the categories") },
                     new ScreenKey { Key = UnityEngine.KeyCode.Backspace, Run = BackToCategories, Hint = null },
                 };
             }
@@ -165,7 +165,7 @@ namespace GwentAccess.Ui
             v.Announcements = new[]
             {
                 v.Announcements[0],
-                new NodeAnnouncement(() => Selected(toggle, key, all) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                new NodeAnnouncement(() => Selected(toggle, key, all) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
             };
             return v;
         }
@@ -200,7 +200,7 @@ namespace GwentAccess.Ui
                 {
                     new NodeAnnouncement(() => Title(e), kind: AnnouncementKinds.Label),
                     new NodeAnnouncement(() => Value(sw), live: true, kind: AnnouncementKinds.Value),
-                    new NodeAnnouncement(() => Enabled(sw) ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+                    new NodeAnnouncement(() => Enabled(sw) ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
                 },
                 OnAdjust = (dir, large) =>
                 {
@@ -208,7 +208,7 @@ namespace GwentAccess.Ui
                     if (dir > 0) sw.SelectNextValue();
                     else sw.SelectPreviousValue();
                 },
-                StateText = () => Enabled(sw) ? Value(sw) : "unavailable",
+                StateText = () => Enabled(sw) ? Value(sw) : Loc.T("unavailable"),
                 OnTooltip = () =>
                 {
                     var info = Info(sw);

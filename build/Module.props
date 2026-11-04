@@ -39,6 +39,8 @@
   <ItemGroup>
     <!-- The sound stems (WrathAccess's recordings, via RTAccess: THIRD-PARTY-NOTICES.md), deployed to <plugin>\audio. -->
     <AudioAsset Include="$(MSBuildThisFileDirectory)..\assets\audio\**\*.wav" />
+    <!-- The mod's own speech in other languages (src/Shared/Loc.cs), deployed to <plugin>\lang. -->
+    <LangAsset Include="$(MSBuildThisFileDirectory)..\assets\lang\*.json" />
   </ItemGroup>
   <!-- -p:Deploy=true (game closed: the host deploys too) or -p:DeployModule=true (game running: module only).
        Copies under the stable file name into Module\, which BepInEx never locks. -->
@@ -48,6 +50,7 @@
     <!-- Unchanged files are skipped: NAudio.dll is locked once the game has loaded it. -->
     <Copy SourceFiles="$(NuGetPackageRoot)naudio\1.10.0\lib\netcoreapp3.0\NAudio.dll" DestinationFolder="$(PluginDeployDir)" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(AudioAsset)" DestinationFiles="@(AudioAsset->'$(PluginDeployDir)\audio\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(LangAsset)" DestinationFolder="$(PluginDeployDir)\lang" SkipUnchangedFiles="true" />
     <Message Text="Deployed module $(AssemblyName) to $(PluginDeployDir)\Module" Importance="high" />
   </Target>
 </Project>

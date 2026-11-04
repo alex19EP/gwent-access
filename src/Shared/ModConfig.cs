@@ -22,6 +22,12 @@ namespace GwentAccess
         /// <summary>The mod's own sounds (earcons, object cues), 0..1; 0 silences them.</summary>
         public static float SoundVolume => Math.Clamp(_soundVolume?.Value ?? 70, 0, 100) / 100f;
 
+        private static ConfigEntry<string> _language;
+
+        /// <summary>The language of the mod's own speech (<see cref="Loc"/>): "auto" follows the game's, or a
+        /// file name under lang\ ("de-de", "ru-ru"), "en" for English.</summary>
+        public static string Language => _language?.Value;
+
 #if THRONEBREAKER
         private static ConfigEntry<bool> _readSubtitles;
         private static ConfigEntry<bool> _screenCues;
@@ -54,6 +60,8 @@ namespace GwentAccess
                 _file = new ConfigFile(path, true);
                 _soundVolume = _file.Bind("Sound", "Volume", 70,
                     "Volume of the mod's own sounds, 0 to 100 (0 turns them off). The game's volume settings don't change it.");
+                _language = _file.Bind("Speech", "Language", "auto",
+                    "Language of the mod's own speech (the game's text always comes in the game's language). auto: the game's language. Or a file name from the plugin's lang folder without .json, such as de-de or ru-ru; en for English.");
 #if THRONEBREAKER
                 _readSubtitles = _file.Bind("Speech", "ReadSubtitles", true,
                     "Speak cutscene subtitles and dialogue lines as they appear. Off: the game's voice acting speaks them; a dialogue line is still read when you move to it or press Space.");

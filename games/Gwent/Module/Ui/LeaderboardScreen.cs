@@ -46,11 +46,11 @@ namespace GwentAccess.Ui
         public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new List<ScreenKey>
         {
             new ScreenKey { Key = KeyCode.PageDown, Run = () => Turn(p => p.m_NextPage, p => p.HandleInputNextPage()),
-                Hint = "Page Down, next page" },
+                Hint = Loc.T("Page Down, next page") },
             new ScreenKey { Key = KeyCode.PageUp, Run = () => Turn(p => p.m_PreviousPage, p => p.HandleInputPreviousPage()),
-                Hint = "Page Up, previous page" },
+                Hint = Loc.T("Page Up, previous page") },
             new ScreenKey { Key = KeyCode.Home, Ctrl = true, Run = () => Turn(p => p.m_TopPage, p => p.HandleInputTopPage()),
-                Hint = "Control+Home, " + GameText.Get("input_leaderboards_top_player", "Top Players") },
+                Hint = Loc.T("Control+Home, {0}", GameText.Get("input_leaderboards_top_player", "Top Players")) },
         };
         private List<ScreenKey> _keys;
 
@@ -74,7 +74,7 @@ namespace GwentAccess.Ui
                         if (t != null)
                             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                             {
-                                new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                                new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                             };
                         b.AddItem(CrimsonNodes.Id(c), v);
                     }
@@ -83,7 +83,7 @@ namespace GwentAccess.Ui
 
             var table = p.m_RankTableView;
             b.BeginStop("lb:table");
-            if (CrimsonNodes.Shown(p.m_LoadingSpinner)) b.AddLabel(ControlId.Structural("lb:loading"), () => "Loading");
+            if (CrimsonNodes.Shown(p.m_LoadingSpinner)) b.AddLabel(ControlId.Structural("lb:loading"), () => Loc.T("Loading"));
             var rows = table?.m_Rows;
             int page = Page(p);
             for (int i = 0; rows != null && i < rows.Length; i++)
@@ -183,7 +183,7 @@ namespace GwentAccess.Ui
                 if (button != null && !CrimsonNodes.Shown(button))
                 {
                     // The game hides Page Up on the first page and Page Down on the last.
-                    Speech.Say("No more pages.", true);
+                    Speech.Say(Loc.T("No more pages."), true);
                     return;
                 }
                 _turnedFrom = Page(p);

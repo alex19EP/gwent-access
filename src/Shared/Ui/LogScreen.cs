@@ -52,7 +52,7 @@ namespace GwentAccess.Ui
         {
             if (!_open) return;
             _open = false;
-            Speech.Say("Log closed.", true);
+            Speech.Say(Loc.T("Log closed."), true);
         }
 
         public override bool IsActive()
@@ -63,7 +63,7 @@ namespace GwentAccess.Ui
 
         public override void OnPop() => _open = false;
 
-        public override string ScreenName => _lines.Count == 0 ? "Battle log, nothing yet." : "Battle log, " + _lines.Count + " lines, newest first.";
+        public override string ScreenName => _lines.Count == 0 ? Loc.T("Battle log, nothing yet.") : Loc.P(_lines.Count, "Battle log, {0} line, newest first.", "Battle log, {0} lines, newest first.");
 
         public override void Build(GraphBuilder b)
         {
@@ -71,7 +71,7 @@ namespace GwentAccess.Ui
             b.BeginStop("log");
             if (_lines.Count == 0)
             {
-                b.AddLabel(ControlId.Structural("log:empty"), () => "Nothing yet");
+                b.AddLabel(ControlId.Structural("log:empty"), () => Loc.T("Nothing yet"));
                 return;
             }
             // Newest first; keyed from the oldest so a line keeps its id as new ones arrive.
@@ -94,9 +94,9 @@ namespace GwentAccess.Ui
         private List<ScreenKey> _keys;
         public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new List<ScreenKey>
         {
-            new ScreenKey { Key = KeyCode.O, Run = Close, Hint = "O, close the log" },
-            new ScreenKey { Key = KeyCode.Escape, Run = Close, Hint = "Escape, close the log" },
-            new ScreenKey { Key = KeyCode.Backspace, Run = Close, Hint = "Backspace, close the log" },
+            new ScreenKey { Key = KeyCode.O, Run = Close, Hint = Loc.T("O, close the log") },
+            new ScreenKey { Key = KeyCode.Escape, Run = Close, Hint = Loc.T("Escape, close the log") },
+            new ScreenKey { Key = KeyCode.Backspace, Run = Close, Hint = Loc.T("Backspace, close the log") },
         };
     }
 }

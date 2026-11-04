@@ -19,10 +19,11 @@ namespace GwentAccess
             Speech.Observer = Dev.DevServer.TapSpeech; // before the first Say, so /speech sees it
 #endif
             ModConfig.Load();
+            Loc.Refresh(); // the mod's language, before the first line (English if the game hasn't set one yet)
             Audio.NAudioResolver.Register(); // before anything touches the mixer
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
-                Speech.Say(first ? "Thronebreaker Access loaded." : "Thronebreaker Access reloaded.");
+                Speech.Say(first ? Loc.T("{0} loaded.", Plugin.Name) : Loc.T("{0} reloaded.", Plugin.Name));
 
             _harmony = new HarmonyLib.Harmony(Plugin.Guid + ".gen" + ModuleLoader.Generation);
             int ok = 0, bad = 0;
@@ -46,6 +47,7 @@ namespace GwentAccess
         public void Tick()
         {
             ModConfig.Tick();
+            Loc.Tick();
             Ui.CutsceneScreen.SpeakSubtitles();
             Ui.ScreenManager.Tick();
             Ui.GraphNavigator.Tick(); // reads the keyboard (Keys.Update) first

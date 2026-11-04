@@ -21,14 +21,14 @@ namespace GwentAccess
         /// <summary>What to say for a selected control. Switcher rows become "Setting name: value".</summary>
         private static readonly Dictionary<string, string> ValuePrefixes = new Dictionary<string, string>
         {
-            { "Gold", "Ore" },
-            { "Gems", "Meteorite powder" },
-            { "Scraps", "Scraps" },
-            { "RewardPoints", "Reward points" },
-            { "KegAndPacks", "Kegs" },
-            { "CardCount", "Cards in deck" },
-            { "UnitCount", "Units in deck" },
-            { "ProvisionCount", "Provisions" },
+            { "Gold", Loc.Mark("Ore") },
+            { "Gems", Loc.Mark("Meteorite powder") },
+            { "Scraps", Loc.Mark("Scraps") },
+            { "RewardPoints", Loc.Mark("Reward points") },
+            { "KegAndPacks", Loc.Mark("Kegs") },
+            { "CardCount", Loc.Mark("Cards in deck") },
+            { "UnitCount", Loc.Mark("Units in deck") },
+            { "ProvisionCount", Loc.Mark("Provisions") },
         };
 
         public static string DescribeSelection(AControl c)
@@ -36,29 +36,29 @@ namespace GwentAccess
             string objName = c.gameObject.name.Replace("(Clone)", "");
             string typeName = "";
             try { typeName = c.GetIl2CppType().Name; } catch { }
-            if (ValuePrefixes.TryGetValue(objName, out var prefix)) return prefix + ": " + Describe(c);
-            if (typeName == "UIPlayerLevel") return "Level " + Describe(c);
-            if (typeName == "UIJourneyLevel") return "Journey level " + Describe(c);
-            if (typeName == "UIOuroborosLevelView") return "Season cycle level " + Describe(c);
+            if (ValuePrefixes.TryGetValue(objName, out var prefix)) return Loc.T(prefix) + ": " + Describe(c);
+            if (typeName == "UIPlayerLevel") return Loc.T("Level {0}", Describe(c));
+            if (typeName == "UIJourneyLevel") return Loc.T("Journey level {0}", Describe(c));
+            if (typeName == "UIOuroborosLevelView") return Loc.T("Season cycle level {0}", Describe(c));
             // Shop: say which currency a price is in.
             if (objName == "Button_ShopBuy")
             {
                 string t = Describe(c);
-                if (t.Contains("$") || t.Contains("€") || t.Contains("£") || t.ToLowerInvariant().Contains("steam")) return t + ". Real money";
+                if (t.Contains("$") || t.Contains("€") || t.Contains("£") || t.ToLowerInvariant().Contains("steam")) return Loc.T("{0}. Real money", t);
                 return t;
             }
             if ((objName == "ButtonControlLeft" || objName == "ButtonControlRight") && UiText.DebugPath(c).Contains("QuantityControl"))
-                return objName == "ButtonControlLeft" ? "Fewer" : "More";
+                return objName == "ButtonControlLeft" ? Loc.T("Fewer") : Loc.T("More");
             if (objName == "ProfileButton" && c.transform.parent != null && c.transform.parent.gameObject.name.StartsWith("PlayerRecordRow"))
             {
                 var parts = new List<string>();
                 var seen = new HashSet<string>();
                 foreach (var t in c.transform.parent.GetComponentsInChildren<TMPro.TMP_Text>(false)) Add(parts, seen, t.text);
                 parts.Remove("Profile");
-                if (parts.Count >= 4) return "Rank " + parts[0] + ", " + string.Join(", ", parts.Skip(3)) + ", MMR " + parts[1] + ", level " + parts[2] + ". Enter for profile";
+                if (parts.Count >= 4) return Loc.T("Rank {0}, {1}, MMR {2}, level {3}. Enter for profile", parts[0], string.Join(", ", parts.Skip(3)), parts[1], parts[2]);
                 return string.Join(", ", parts);
             }
-            if (KnownNames.TryGetValue(objName, out var known)) return known;
+            if (KnownNames.TryGetValue(objName, out var known)) return Loc.T(known);
             string setting = SettingText(c);
             if (setting != null) return setting;
 #if GWENT
@@ -76,12 +76,12 @@ namespace GwentAccess
                 try
                 {
                     var dc = c.TryCast<GwentVisuals.UIDeckCardButtonControl>() ?? c.GetComponentInParent<GwentVisuals.UIDeckCardButtonControl>();
-                    if (dc != null) { extra = dc.Count > 1 ? ", " + dc.Count + " copies in deck" : ", in deck"; }
+                    if (dc != null) { extra = dc.Count > 1 ? ", " + Loc.P(dc.Count, "{0} copy in deck", "{0} copies in deck") : ", " + Loc.T("in deck"); }
                     else if (DeckBuilder.Active)
                     {
                         var cc = DeckBuilder.CollectionCardOf(c, out _);
                         var d = DeckBuilder.Deck();
-                        if (cc != null && d != null) { int n = d.GetCardCount(cc); int own = cc.GetInstanceCount(); extra = (n > 0 ? ", " + n + " in deck" : "") + ", you own " + own; }
+                        if (cc != null && d != null) { int n = d.GetCardCount(cc); int own = cc.GetInstanceCount(); extra = (n > 0 ? ", " + Loc.T("{0} in deck", n) : "") + ", " + Loc.T("you own {0}", own); }
                     }
                 }
                 catch { }
@@ -91,14 +91,14 @@ namespace GwentAccess
             if (node != null) return node;
 
             if (typeName == "SocialButton")
-                return SocialIconsPatch.Names.TryGetValue(c.Pointer, out var sn) ? sn : "Social panel button " + (c.transform.GetSiblingIndex() + 1);
+                return SocialIconsPatch.Names.TryGetValue(c.Pointer, out var sn) ? sn : Loc.T("Social panel button {0}", c.transform.GetSiblingIndex() + 1);
 #endif
             string value = Describe(c);
             if (value == "Button Control" || value == "Toggle Button Control")
             {
                 // Unlabeled button: try the parent object's name for a hint.
                 string pn = c.transform.parent != null ? FriendlyName(c.transform.parent.gameObject.name) : "";
-                value = pn.Length > 0 ? pn + " button" : "Unlabeled button";
+                value = pn.Length > 0 ? Loc.T("{0} button", pn) : Loc.T("Unlabeled button");
             }
             Switcher sw = null;
             try { sw = c.GetComponentInParent<Switcher>(); } catch { }
@@ -125,7 +125,7 @@ namespace GwentAccess
             string value = "";
             try { if (sw != null) value = Describe(sw, 3); } catch { }
             if (value.Length == 0) try { value = entry.GetCurrentOption() ?? ""; } catch { }
-            return title + ": " + value + ". Left or right arrow to change";
+            return Loc.T("{0}: {1}. Left or right arrow to change", title, value);
         }
 
         /// <summary>Text in a switcher's row that isn't part of the switcher itself (the setting's name).</summary>
@@ -260,7 +260,7 @@ namespace GwentAccess
                     if (l.Contains("button-") || l.Contains("idle") || l.Contains("hovered") || l.Contains("frame") || l.Contains("bg") || l.Contains("background") || l.Contains("glow") || l.Contains("shadow") || l.Contains("highlight") || l.Contains("mask") || l.StartsWith("ui_"))
                         continue;
                     string pretty = Prettify(n.Replace("icon", "").Replace("Icon", "").Replace("ico_", ""));
-                    if (pretty.StartsWith("reward page tab")) pretty = "Reward book tab: " + pretty.Substring("reward page tab".Length).Trim();
+                    if (pretty.StartsWith("reward page tab")) pretty = Loc.T("Reward book tab: {0}", pretty.Substring("reward page tab".Length).Trim());
                     return pretty;
                 }
             }
@@ -270,23 +270,23 @@ namespace GwentAccess
 
         private static readonly Dictionary<string, string> KnownNames = new Dictionary<string, string>
         {
-            { "FTUXSettings", "Settings" },
-            { "ButtonLeaderboards", "Leaderboards" },
-            { "ButtonRewards", "Rewards" },
-            { "WelcomeScreen", "Welcome screen and tutorials" },
-            { "ButtonQuit", "Quit game" },
-            { "ButtonFactionInfo", "Faction info" },
-            { "ButtonSettings", "Settings" },
-            { "ProfileButton", "Profile" },
-            { "CosmeticsButton", "Cosmetics" },
-            { "PlayerTitleButton", "Player title" },
-            { "Collider", "News" },
-            { "SkinImage", "Leader skin preview" },
+            { "FTUXSettings", Loc.Mark("Settings") },
+            { "ButtonLeaderboards", Loc.Mark("Leaderboards") },
+            { "ButtonRewards", Loc.Mark("Rewards") },
+            { "WelcomeScreen", Loc.Mark("Welcome screen and tutorials") },
+            { "ButtonQuit", Loc.Mark("Quit game") },
+            { "ButtonFactionInfo", Loc.Mark("Faction info") },
+            { "ButtonSettings", Loc.Mark("Settings") },
+            { "ProfileButton", Loc.Mark("Profile") },
+            { "CosmeticsButton", Loc.Mark("Cosmetics") },
+            { "PlayerTitleButton", Loc.Mark("Player title") },
+            { "Collider", Loc.Mark("News") },
+            { "SkinImage", Loc.Mark("Leader skin preview") },
         };
 
         public static string FriendlyName(string name)
         {
-            if (name != null && KnownNames.TryGetValue(name.Replace("(Clone)", ""), out var n)) return n;
+            if (name != null && KnownNames.TryGetValue(name.Replace("(Clone)", ""), out var n)) return Loc.T(n);
             string p = Prettify(name);
             if (p.StartsWith("FTUX")) p = p.Substring(4).Trim();
             return p;

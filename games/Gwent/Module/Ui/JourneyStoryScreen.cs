@@ -71,7 +71,7 @@ namespace GwentAccess.Ui
                     var v = CrimsonNodes.Button(tab);
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
-                        new NodeAnnouncement(() => CrimsonNodes.Toggled(tab) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => CrimsonNodes.Toggled(tab) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                     };
                     b.AddItem(CrimsonNodes.Id(tab), v);
                 }
@@ -154,7 +154,7 @@ namespace GwentAccess.Ui
             var v = CrimsonNodes.Button(button);
             v.OnActivate = () =>
             {
-                if (!button.IsEnabled) { Speech.Say("Not available right now.", true); return; }
+                if (!button.IsEnabled) { Speech.Say(Loc.T("Not available right now."), true); return; }
                 var s = Story();
                 _turnedFrom = s != null ? string.Join(" ", Paragraphs(s)) + "|" + Page(s) : null;
                 Navigator.MouseClick(button);

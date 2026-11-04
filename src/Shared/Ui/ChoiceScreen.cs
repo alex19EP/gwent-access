@@ -77,37 +77,37 @@ namespace GwentAccess.Ui
             }
             Plugin.LogInfo("[choice] " + (hide ? "hidden" : "shown"));
             _quietReturn = !hide;
-            Speech.Say(hide ? "Choices hidden." : "Choices shown.", true);
+            Speech.Say(hide ? Loc.T("Choices hidden.") : Loc.T("Choices shown."), true);
         }
 
         public override string ScreenName
         {
             get
             {
-                if (_req == null) return "Choose a card";
+                if (_req == null) return Loc.T("Choose a card");
                 string what = Title(_req.ChoiceType);
                 Card requester = null;
                 try { requester = _gc.CardManager.GetCard(_req.RequesterId); } catch { }
                 // Back from Tab's hide the player hears "Choices shown." and the card, not the title again.
                 if (_quietReturn) return "";
-                if (requester != null) what += " for " + CardReader.Name(requester, _gc.PlayerManager);
+                if (requester != null) what = Loc.T("{0} for {1}", what, CardReader.Name(requester, _gc.PlayerManager));
                 int max = 1;
                 try { max = _req.MaxChoices; } catch { }
-                return what + (max > 1 ? ", pick up to " + max + ", E when done" : "");
+                return max > 1 ? Loc.T("{0}, pick up to {1}, E when done", what, max) : what;
             }
         }
 
         private static string Title(ERequestChoiceType t) => t switch
         {
-            ERequestChoiceType.CardToPlay => "Choose a card to play",
-            ERequestChoiceType.CardToMove => "Choose a card to move",
-            ERequestChoiceType.CardToDiscard => "Choose a card to discard",
-            ERequestChoiceType.CardToPutBackInDeck => "Choose a card to put back in your deck",
-            ERequestChoiceType.CardToDraw => "Choose a card to draw",
-            ERequestChoiceType.CardToSpawn => "Choose a card to spawn",
-            ERequestChoiceType.CardToCopy => "Choose a card to copy",
-            ERequestChoiceType.CardToReveal => "Choose a card to reveal",
-            _ => "Choose a card",
+            ERequestChoiceType.CardToPlay => Loc.T("Choose a card to play"),
+            ERequestChoiceType.CardToMove => Loc.T("Choose a card to move"),
+            ERequestChoiceType.CardToDiscard => Loc.T("Choose a card to discard"),
+            ERequestChoiceType.CardToPutBackInDeck => Loc.T("Choose a card to put back in your deck"),
+            ERequestChoiceType.CardToDraw => Loc.T("Choose a card to draw"),
+            ERequestChoiceType.CardToSpawn => Loc.T("Choose a card to spawn"),
+            ERequestChoiceType.CardToCopy => Loc.T("Choose a card to copy"),
+            ERequestChoiceType.CardToReveal => Loc.T("Choose a card to reveal"),
+            _ => Loc.T("Choose a card"),
         };
 
         private static SelectChoicesHandlerComponent Handler()
@@ -137,7 +137,7 @@ namespace GwentAccess.Ui
             if (offered.Count == 0) return;
 
             b.BeginStop("choices");
-            b.PushContext("Choices");
+            b.PushContext(Loc.T("Choices"));
             b.StartRow();
             foreach (var (card, enabled) in offered)
             {
@@ -148,7 +148,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => enabled ? (Chosen(card) ? "chosen" : null) : "unavailable", live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => enabled ? (Chosen(card) ? Loc.T("chosen") : null) : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Selected),
                     },
                     OnActivate = () => Pick(card, enabled),
                     OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
@@ -190,9 +190,9 @@ namespace GwentAccess.Ui
 
         private void Pick(Card card, bool enabled)
         {
-            if (!enabled) { Speech.Say("Unavailable.", true); return; }
+            if (!enabled) { Speech.Say(Loc.T("Unavailable."), true); return; }
             var h = Handler();
-            if (h == null) { Speech.Say("Couldn't pick.", true); return; }
+            if (h == null) { Speech.Say(Loc.T("Couldn't pick."), true); return; }
             try
             {
                 int max = _req.MaxChoices;
@@ -203,7 +203,7 @@ namespace GwentAccess.Ui
                 try { _answeredFrom = card.Position.Location; } catch { AnsweredCard = null; }
                 Plugin.LogInfo("[choice] pick " + card.Id);
             }
-            catch (Exception e) { Plugin.LogInfo("[choice] pick failed: " + e); Speech.Say("Couldn't pick.", true); }
+            catch (Exception e) { Plugin.LogInfo("[choice] pick failed: " + e); Speech.Say(Loc.T("Couldn't pick."), true); }
         }
 
         private void Finish()
@@ -211,16 +211,16 @@ namespace GwentAccess.Ui
             var h = Handler();
             if (h == null) return;
             try { h.HandleFinishBtnClicked(); AnsweredAt = Time.realtimeSinceStartup; AnsweredCard = null; Plugin.LogInfo("[choice] finish"); }
-            catch (Exception e) { Plugin.LogInfo("[choice] finish failed: " + e); Speech.Say("Couldn't finish.", true); }
+            catch (Exception e) { Plugin.LogInfo("[choice] finish failed: " + e); Speech.Say(Loc.T("Couldn't finish."), true); }
         }
 
         private void Cancel()
         {
             bool can = false;
             try { can = _req.CanCancel; } catch { }
-            if (!can) { Speech.Say("This can't be cancelled.", true); return; }
+            if (!can) { Speech.Say(Loc.T("This can't be cancelled."), true); return; }
             var h = Handler();
-            try { h?.HandleCancelBtnClicked(); Speech.Say("Cancelled.", true); }
+            try { h?.HandleCancelBtnClicked(); Speech.Say(Loc.T("Cancelled."), true); }
             catch (Exception e) { Plugin.LogInfo("[choice] cancel failed: " + e); }
         }
 
@@ -266,10 +266,10 @@ namespace GwentAccess.Ui
                 _cardKeys = new CardKeys(FocusedCard, () => null, always: true); // as in Build: the chooser sees every offered card
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
-                    new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, done choosing" },
-                    new ScreenKey { Key = KeyCode.Tab, Run = () => ToggleHidden(_req), Hint = "Tab, hide the choices to look at the board, Tab again to show them" },
-                    new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = "Backspace, cancel" },
-                    new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = "A, score" },
+                    new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = Loc.T("E, done choosing") },
+                    new ScreenKey { Key = KeyCode.Tab, Run = () => ToggleHidden(_req), Hint = Loc.T("Tab, hide the choices to look at the board, Tab again to show them") },
+                    new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = Loc.T("Backspace, cancel") },
+                    new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = Loc.T("A, score") },
                 };
                 _keys.AddRange(BattleScreen.RowKeys(() => _gc, jump: null));
                 return _keys;

@@ -262,14 +262,14 @@ namespace GwentAccess.Ui
                 {
                     var button = intro.m_ContinueBinding?.Button;
                     if (button != null) Navigator.ClickControl(button);
-                    else Speech.Say("No continue here.", true);
+                    else Speech.Say(Loc.T("No continue here."), true);
                     return;
                 }
                 var round = panel.TryCast<UIRoundTutorialPopupPanel>();
                 if (round != null) { round.HandleContinue(); return; }
-                Speech.Say("No continue here.", true);
+                Speech.Say(Loc.T("No continue here."), true);
             }
-            catch (System.Exception e) { Plugin.LogInfo("[tutorial] continue failed: " + e); Speech.Say("Couldn't continue.", true); }
+            catch (System.Exception e) { Plugin.LogInfo("[tutorial] continue failed: " + e); Speech.Say(Loc.T("Couldn't continue."), true); }
         }
 
         public override AControl GameSelection() => null;

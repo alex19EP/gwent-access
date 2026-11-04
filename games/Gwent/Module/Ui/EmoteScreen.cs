@@ -27,7 +27,7 @@ namespace GwentAccess.Ui
         public override string Key => "emotes";
         public override int Layer => 1; // over the battle board, like the mulligan and a choice
 
-        public override string ScreenName => "Emotes";
+        public override string ScreenName => Loc.T("Emotes");
 
         public override bool IsActive() => View() != null;
 
@@ -72,7 +72,7 @@ namespace GwentAccess.Ui
 
         // ---- opening (battle key M) ----
 
-        private const string Unavailable = "Emotes unavailable right now.";
+        private static string Unavailable => Loc.T("Emotes unavailable right now.");
 
         // When M clicked the zone: the wheel should be up shortly after; if not, the game refused silently.
         private static float _openAt = -1;
@@ -144,7 +144,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => SlotLabel(slot), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => Interactable(slot) ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+                        new NodeAnnouncement(() => Interactable(slot) ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
                     },
                     OnActivate = () => Send(slot),
                 });
@@ -160,7 +160,7 @@ namespace GwentAccess.Ui
                     // A toggle speaks one line, the new label in the game's words ("Unmute opponent" once muted);
                     // the state word is read with it when the item is reached, not again on the toggle.
                     new NodeAnnouncement(() => MuteLabel(tm), live: true, kind: AnnouncementKinds.Label),
-                    new NodeAnnouncement(() => Muted(tm) ? "muted" : null, kind: AnnouncementKinds.Value),
+                    new NodeAnnouncement(() => Muted(tm) ? Loc.T("muted") : null, kind: AnnouncementKinds.Value),
                 },
                 OnActivate = () => ToggleMute(v),
             });

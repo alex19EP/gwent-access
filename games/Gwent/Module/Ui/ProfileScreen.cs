@@ -32,7 +32,7 @@ namespace GwentAccess.Ui
     {
         public override string Key => "profile";
         public override int Layer => 1;
-        public override string ScreenName => "Profile";
+        public override string ScreenName => Loc.T("Profile");
 
         // Active once the tabs are drawn (or after three seconds, for a window without them): the window's first
         // frames hold only its Exit/Back bar, and a cursor placed then stayed on Exit instead of the open tab.
@@ -92,7 +92,7 @@ namespace GwentAccess.Ui
             var items = menu.GetComponentsInChildren<UIProfileMenuItem>(false);
             if (items.Length == 0) return;
             b.BeginStop("tabs");
-            b.PushContext("Tabs");
+            b.PushContext(Loc.T("Tabs"));
             foreach (var it in items)
             {
                 used.Add(it.Pointer);
@@ -118,7 +118,7 @@ namespace GwentAccess.Ui
             if (box != null && c.TryCast<UIDropdownButton>() != null && UnderListItems(c.transform, box.transform))
                 v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                 {
-                    new NodeAnnouncement(() => SafeChosen(box, c) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                    new NodeAnnouncement(() => SafeChosen(box, c) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                 };
             var trinket = c.TryCast<UIATrinketItem>();
             if (trinket != null)
@@ -131,7 +131,7 @@ namespace GwentAccess.Ui
             if (t != null)
                 v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                 {
-                    new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                    new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                 };
             return v;
         }
@@ -177,7 +177,7 @@ namespace GwentAccess.Ui
                     var v = CrimsonNodes.Button(cosmetics, () => UiText.Clean(name?.text));
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
-                        new NodeAnnouncement(() => CrimsonNodes.TooltipText(cosmetics) ?? "avatar and border", kind: AnnouncementKinds.Role),
+                        new NodeAnnouncement(() => CrimsonNodes.TooltipText(cosmetics) ?? Loc.T("avatar and border"), kind: AnnouncementKinds.Role),
                     };
                     b.AddItem(CrimsonNodes.Id(cosmetics), v);
                 }
@@ -401,7 +401,7 @@ namespace GwentAccess.Ui
 
         private static string Name(Contract e)
         {
-            try { return UiText.NullIfEmpty(UiText.Clean(Public(e)?.Name)) ?? "Contract"; } catch { return "Contract"; }
+            try { return UiText.NullIfEmpty(UiText.Clean(Public(e)?.Name)) ?? Loc.T("Contract"); } catch { return Loc.T("Contract"); }
         }
 
         private static string Description(Contract e)
@@ -432,7 +432,7 @@ namespace GwentAccess.Ui
                 else
                 {
                     var pp = a.PointProgress;
-                    if (pp != null && pp.PointsRequired > 1) parts.Add(pp.PointsEarned + " of " + pp.PointsRequired); // drawn "2/5"
+                    if (pp != null && pp.PointsRequired > 1) parts.Add(Loc.T("{0} of {1}", pp.PointsEarned, pp.PointsRequired)); // drawn "2/5"
                 }
                 if (a.IsTracked) parts.Add(GameText.Get("achievements_tracking", "Tracked"));
                 return Joined(parts);
@@ -594,12 +594,11 @@ namespace GwentAccess.Ui
             else Navigator.MouseClick(card.m_MainButtonControl);
         }
 
-        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys;
-
-        private static readonly ScreenKey[] _keys =
+        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new[]
         {
-            new ScreenKey { Key = KeyCode.T, Run = Track, Hint = "T, track the contract" },
+            new ScreenKey { Key = KeyCode.T, Run = Track, Hint = Loc.T("T, track the contract") },
         };
+        private static ScreenKey[] _keys;
 
         // The card's track button ("Выбрать"), shown on contracts not yet done.
         private static void Track()

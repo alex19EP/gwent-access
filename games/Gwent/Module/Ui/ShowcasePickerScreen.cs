@@ -31,7 +31,7 @@ namespace GwentAccess.Ui
             {
                 var p = Picker();
                 string t = p != null ? CrimsonNodes.Text(p.m_Title) : "";
-                return t.Length > 0 ? t : "Showcase";
+                return t.Length > 0 ? t : Loc.T("Showcase");
             }
         }
 
@@ -100,7 +100,7 @@ namespace GwentAccess.Ui
                     var v = CrimsonNodes.Button(button, () => Entry(item));
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
-                        new NodeAnnouncement(() => CrimsonNodes.Shown(item.m_SelectedButton) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => CrimsonNodes.Shown(item.m_SelectedButton) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                     };
                     v.OnActivate = () => Navigator.MouseClick(button);
                     b.AddItem(CrimsonNodes.Id(button), v);
@@ -136,7 +136,7 @@ namespace GwentAccess.Ui
                 if (texts.Count == 0) texts.AddRange(CrimsonNodes.Texts(item));
             }
             catch { }
-            return texts.Count > 0 ? UiText.Join(texts.ToArray()) : "Contract";
+            return texts.Count > 0 ? UiText.Join(texts.ToArray()) : Loc.T("Contract");
         }
     }
 }

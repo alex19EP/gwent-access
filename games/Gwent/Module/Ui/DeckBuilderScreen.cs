@@ -148,7 +148,7 @@ namespace GwentAccess.Ui
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
                         new NodeAnnouncement(() => Invalid(deck), kind: AnnouncementKinds.Value),
-                        new NodeAnnouncement(() => ListShown(d) ? "options shown" : null, live: true, kind: AnnouncementKinds.Value),
+                        new NodeAnnouncement(() => ListShown(d) ? Loc.T("options shown") : null, live: true, kind: AnnouncementKinds.Value),
                     };
                 }
                 b.AddItem(CrimsonNodes.Id(c), v);
@@ -164,12 +164,12 @@ namespace GwentAccess.Ui
                 var v = button?.Deck?.GetValidation();
                 if (v == null || v.IsStarterDeck || v.IsDeckValid) return null;
                 var why = new List<string>();
-                if (!v.IsTotalCardCountCorrect) why.Add(DeckBuilder.Count(v.TotalCardCount, "card") + ", minimum 25");
-                if (!v.IsUnitCountCorrect) why.Add(DeckBuilder.Count(v.UnitCardCount, "unit") + ", minimum 13");
-                if (!v.IsProvisionUsageCorrect) why.Add("provisions " + v.ProvisionUsed + " over the limit");
-                if (!v.IsDeckFactionsCorrect) why.Add("cards of another faction");
-                if (!v.IsBronzeHighestCopyCountCorrect || !v.IsGoldHighestCopyCountCorrect || !v.IsSilverHighestCopyCountCorrect) why.Add("too many copies");
-                return "invalid" + (why.Count > 0 ? ": " + string.Join(", ", why) : "");
+                if (!v.IsTotalCardCountCorrect) why.Add(Loc.P(v.TotalCardCount, "{0} card, minimum 25", "{0} cards, minimum 25"));
+                if (!v.IsUnitCountCorrect) why.Add(Loc.P(v.UnitCardCount, "{0} unit, minimum 13", "{0} units, minimum 13"));
+                if (!v.IsProvisionUsageCorrect) why.Add(Loc.T("provisions {0} over the limit", v.ProvisionUsed));
+                if (!v.IsDeckFactionsCorrect) why.Add(Loc.T("cards of another faction"));
+                if (!v.IsBronzeHighestCopyCountCorrect || !v.IsGoldHighestCopyCountCorrect || !v.IsSilverHighestCopyCountCorrect) why.Add(Loc.T("too many copies"));
+                return why.Count > 0 ? Loc.T("invalid: {0}", string.Join(", ", why)) : Loc.T("invalid");
             }
             catch { return null; }
         }
@@ -205,7 +205,7 @@ namespace GwentAccess.Ui
             b.BeginStop("db:deck");
             string name = null;
             try { var d = DeckBuilder.Deck(); name = d == null ? null : UiText.Clean(d.LocalizedName ?? d.Name ?? ""); } catch { }
-            b.PushContext(string.IsNullOrEmpty(name) ? "Deck" : name);
+            b.PushContext(string.IsNullOrEmpty(name) ? Loc.T("Deck") : name);
             b.StartRow();
             foreach (var c in rows)
             {
@@ -222,7 +222,7 @@ namespace GwentAccess.Ui
         private static void BuildStats(GraphBuilder b)
         {
             b.BeginStop("db:stats");
-            b.PushContext("Deck stats");
+            b.PushContext(Loc.T("Deck stats"));
             for (int i = 0; i < 3; i++)
             {
                 int part = i;
@@ -275,7 +275,7 @@ namespace GwentAccess.Ui
             Refresh(grid);
             if (_cards.Count == 0) return;
             b.BeginStop("db:cards");
-            b.PushContext("Collection");
+            b.PushContext(Loc.T("Collection"));
             b.StartRow();
             foreach (var entry in _cards)
             {
@@ -286,12 +286,12 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => CardReader.Summary(card.Card), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => Premium(card) ? "premium" : null, kind: AnnouncementKinds.Value),
+                        new NodeAnnouncement(() => Premium(card) ? Loc.T("premium") : null, kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => Owned(card), live: true, kind: AnnouncementKinds.Value),
                         // Not live: adding or removing a copy is said whole by DeckBuilder.Announce ("Added X, 2 in
                         // deck. …"); live, "1 in deck" was said first and then again in that line.
                         new NodeAnnouncement(() => InDeck(card), kind: AnnouncementKinds.Value),
-                        new NodeAnnouncement(() => New(data) ? "new" : null, kind: AnnouncementKinds.Value),
+                        new NodeAnnouncement(() => New(data) ? Loc.T("new") : null, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => Click(data, false),
                     OnTooltip = () => Speech.Say(CardReader.Whole(card.Card), true),
@@ -309,7 +309,7 @@ namespace GwentAccess.Ui
                 var d = DeckBuilder.Deck();
                 if (d == null || DeckBuilder.Edit == null) return null;
                 int n = d.GetCardCount(cc);
-                return n > 0 ? n + " in deck" : null;
+                return n > 0 ? Loc.T("{0} in deck", n) : null;
             }
             catch { return null; }
         }
@@ -351,7 +351,7 @@ namespace GwentAccess.Ui
             try
             {
                 int n = cc.m_CollectionInstances?.Count ?? 0;
-                return n == 0 ? "not owned" : "x" + n;
+                return n == 0 ? Loc.T("not owned") : "x" + n;
             }
             catch { return null; }
         }
@@ -400,7 +400,7 @@ namespace GwentAccess.Ui
 
         // The card search box ("Поиск") at the head of the top filter bar. It isn't one of the bar's container
         // children, so the bar's leaves miss it; it is offered first in the filters stop.
-        private static readonly EditBox _search = new EditBox(SearchField, "Search");
+        private static readonly EditBox _search = new EditBox(SearchField, Loc.Mark("Search"));
 
         private static InputFieldControl SearchField()
         {
@@ -441,7 +441,7 @@ namespace GwentAccess.Ui
             if (Time.realtimeSinceStartup - _countChangedAt < 0.6f) return;
             _spokenCount = n;
             _countChangedAt = 0;
-            Speech.Say(n == 0 ? "no cards" : n == 1 ? "1 card" : n + " cards", false);
+            Speech.Say(n == 0 ? Loc.T("no cards") : Loc.P(n, "{0} card", "{0} cards"), false);
         }
 
         // ---- filters and bar ----
@@ -475,7 +475,7 @@ namespace GwentAccess.Ui
                 var head = CrimsonNodes.Button(c, () => AllTexts(c));
                 head.Announcements = new List<NodeAnnouncement>(head.Announcements)
                 {
-                    new NodeAnnouncement(() => DropdownOpen(dropdown) ? "expanded" : "collapsed", live: true, kind: AnnouncementKinds.Value),
+                    new NodeAnnouncement(() => DropdownOpen(dropdown) ? Loc.T("expanded") : Loc.T("collapsed"), live: true, kind: AnnouncementKinds.Value),
                 };
                 return head;
             }
@@ -484,7 +484,7 @@ namespace GwentAccess.Ui
             if (toggle == null) return v;
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
-                new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "checked" : "not checked", live: true, kind: AnnouncementKinds.Value),
+                new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("checked") : Loc.T("not checked"), live: true, kind: AnnouncementKinds.Value),
             };
             return v;
         }
@@ -524,15 +524,15 @@ namespace GwentAccess.Ui
                 _keyList = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     // Always claimed: off a card it must not fall through to Enter (NEW DECK, a filter...).
-                    new ScreenKey { Key = KeyCode.Return, Shift = true, Run = () => { if (FocusedCard() != null) Preview(); else Speech.Say("No card.", true); }, Hint = "Shift Enter, the card's preview" },
-                    new ScreenKey { Key = KeyCode.Return, Ctrl = true, Run = AddCopy, When = OnDeckRow, Hint = "Control Enter on a card of your deck, add another copy" },
-                    new ScreenKey { Key = KeyCode.PageDown, Run = () => MoveRow(1), Hint = "Page Down, next row of cards" },
-                    new ScreenKey { Key = KeyCode.PageUp, Run = () => MoveRow(-1), Hint = "Page Up, previous row of cards" },
-                    new ScreenKey { Key = KeyCode.PageDown, Ctrl = true, Run = () => JumpSection(1), Hint = "Control Page Down, next provision cost" },
-                    new ScreenKey { Key = KeyCode.PageUp, Ctrl = true, Run = () => JumpSection(-1), Hint = "Control Page Up, previous provision cost" },
-                    new ScreenKey { Key = KeyCode.RightArrow, Run = () => DeckOptions(true), When = OnDeck, Hint = "Right arrow on a deck, its options" },
+                    new ScreenKey { Key = KeyCode.Return, Shift = true, Run = () => { if (FocusedCard() != null) Preview(); else Speech.Say(Loc.T("No card."), true); }, Hint = Loc.T("Shift Enter, the card's preview") },
+                    new ScreenKey { Key = KeyCode.Return, Ctrl = true, Run = AddCopy, When = OnDeckRow, Hint = Loc.T("Control Enter on a card of your deck, add another copy") },
+                    new ScreenKey { Key = KeyCode.PageDown, Run = () => MoveRow(1), Hint = Loc.T("Page Down, next row of cards") },
+                    new ScreenKey { Key = KeyCode.PageUp, Run = () => MoveRow(-1), Hint = Loc.T("Page Up, previous row of cards") },
+                    new ScreenKey { Key = KeyCode.PageDown, Ctrl = true, Run = () => JumpSection(1), Hint = Loc.T("Control Page Down, next provision cost") },
+                    new ScreenKey { Key = KeyCode.PageUp, Ctrl = true, Run = () => JumpSection(-1), Hint = Loc.T("Control Page Up, previous provision cost") },
+                    new ScreenKey { Key = KeyCode.RightArrow, Run = () => DeckOptions(true), When = OnDeck, Hint = Loc.T("Right arrow on a deck, its options") },
                     new ScreenKey { Key = KeyCode.LeftArrow, Run = () => DeckOptions(false), When = OnDeck, Hint = null },
-                    new ScreenKey { Key = KeyCode.F, Ctrl = true, Run = FocusSearch, Hint = "Control F, search cards" },
+                    new ScreenKey { Key = KeyCode.F, Ctrl = true, Run = FocusSearch, Hint = Loc.T("Control F, search cards") },
                 };
                 return _keyList;
             }
@@ -573,13 +573,13 @@ namespace GwentAccess.Ui
         {
             var d = FocusedDeck();
             if (d == null) return;
-            if (ListShown(d) == show) { Speech.Say(show ? "options shown" : "options hidden", true); return; }
+            if (ListShown(d) == show) { Speech.Say(show ? Loc.T("options shown") : Loc.T("options hidden"), true); return; }
             var main = d.MainButton;
             // Back on the deck itself first (from one of its options), quietly: the change is what is said.
             if (GraphNavigator.CurrentNode?.Id.Reference is not AControl cur || cur.Pointer != main.Pointer)
                 GraphNavigator.FocusNode(CrimsonNodes.Id(main));
             Navigator.MouseClick(main, right: true);
-            if (!show) Speech.Say("options hidden", true); // showing is said by the deck's live "options shown"
+            if (!show) Speech.Say(Loc.T("options hidden"), true); // showing is said by the deck's live "options shown"
         }
 
         // Shift+Enter: the game's card preview (a grid card's right click; a deck row's).
@@ -610,11 +610,11 @@ namespace GwentAccess.Ui
                 {
                     int after = -1;
                     try { after = DeckBuilder.Deck()?.GetCardCount(cc) ?? -1; } catch { }
-                    if (after == before) Speech.Say("No more copies of this card can be added.", true);
+                    if (after == before) Speech.Say(Loc.T("No more copies of this card can be added."), true);
                 });
                 return;
             }
-            Speech.Say("Not in the collection as filtered.", true);
+            Speech.Say(Loc.T("Not in the collection as filtered."), true);
         }
 
         // Ctrl+Page Up/Down: the first card of the next or previous provision cost (the grid's own sections:
@@ -623,20 +623,20 @@ namespace GwentAccess.Ui
         {
             var cur = GraphNavigator.CurrentNode;
             int i = cur == null ? -1 : _cards.FindIndex(e => e.Id.Equals(cur.Id));
-            if (i < 0) { Speech.Say("Not on the collection.", true); return; }
+            if (i < 0) { Speech.Say(Loc.T("Not on the collection."), true); return; }
             int Cost(int k) { try { return _cards[k].Card.Template.Provision; } catch { return -1; } }
             int here = Cost(i), j = i;
             if (dir > 0) { while (j < _cards.Count && Cost(j) == here) j++; }
             else
             {
                 while (j >= 0 && Cost(j) == here) j--;      // into the previous section...
-                if (j < 0) { Speech.Say("First section", true); return; }
+                if (j < 0) { Speech.Say(Loc.T("First section"), true); return; }
                 int prev = Cost(j);
                 while (j > 0 && Cost(j - 1) == prev) j--;     // ...to its first card
             }
-            if (j >= _cards.Count) { Speech.Say("Last section", true); return; }
+            if (j >= _cards.Count) { Speech.Say(Loc.T("Last section"), true); return; }
             int cost = Cost(j);
-            Speech.Say(cost == 0 ? "Stratagems" : cost + " provisions", true);
+            Speech.Say(cost == 0 ? Loc.T("Stratagems") : Loc.P(cost, "{0} provision", "{0} provisions"), true);
             GraphNavigator.FocusNode(_cards[j].Id);
         }
 
@@ -644,7 +644,7 @@ namespace GwentAccess.Ui
         private static void FocusSearch()
         {
             var field = SearchField();
-            if (field == null) { Speech.Say("No search box here.", true); return; }
+            if (field == null) { Speech.Say(Loc.T("No search box here."), true); return; }
             GraphNavigator.FocusNode(CrimsonNodes.Id(field));
             try { field.ActivateInputField(); }
             catch (Exception e) { Plugin.LogInfo("[db] activate search failed: " + e.Message); }

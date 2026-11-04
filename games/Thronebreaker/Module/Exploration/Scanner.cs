@@ -25,18 +25,20 @@ namespace GwentAccess.Exploration
         private static Category _category = Category.Quests;
         private static int _selectedId;
 
-        public static readonly ScreenKey[] Keys =
+        private static ScreenKey[] _keys;
+
+        public static ScreenKey[] Keys => _keys ??= new[]
         {
-            new ScreenKey { Key = KeyCode.PageDown, Run = () => Step(+1), Hint = "PageDown, next thing" },
-            new ScreenKey { Key = KeyCode.PageUp, Run = () => Step(-1), Hint = "PageUp, previous thing" },
-            new ScreenKey { Key = KeyCode.PageDown, Ctrl = true, Run = () => StepCategory(+1), Hint = "Control PageDown, next kind" },
-            new ScreenKey { Key = KeyCode.PageUp, Ctrl = true, Run = () => StepCategory(-1), Hint = "Control PageUp, previous kind" },
-            new ScreenKey { Key = KeyCode.N, Run = () => Cycle(Category.People, +1), Hint = "N, nearest people" },
-            new ScreenKey { Key = KeyCode.N, Shift = true, Run = () => Cycle(Category.People, -1), Hint = "Shift N, people, farthest first" },
-            new ScreenKey { Key = KeyCode.O, Run = Repeat, Hint = "O, the selection again" },
-            new ScreenKey { Key = KeyCode.Backslash, Run = WalkToSelection, Hint = "Backslash, walk to the selection" },
-            new ScreenKey { Key = KeyCode.X, Run = WhereAmI, Hint = "X, where am I" },
-            new ScreenKey { Key = KeyCode.X, Shift = true, Run = Quest, Hint = "Shift X, current quest" },
+            new ScreenKey { Key = KeyCode.PageDown, Run = () => Step(+1), Hint = Loc.T("PageDown, next thing") },
+            new ScreenKey { Key = KeyCode.PageUp, Run = () => Step(-1), Hint = Loc.T("PageUp, previous thing") },
+            new ScreenKey { Key = KeyCode.PageDown, Ctrl = true, Run = () => StepCategory(+1), Hint = Loc.T("Control PageDown, next kind") },
+            new ScreenKey { Key = KeyCode.PageUp, Ctrl = true, Run = () => StepCategory(-1), Hint = Loc.T("Control PageUp, previous kind") },
+            new ScreenKey { Key = KeyCode.N, Run = () => Cycle(Category.People, +1), Hint = Loc.T("N, nearest people") },
+            new ScreenKey { Key = KeyCode.N, Shift = true, Run = () => Cycle(Category.People, -1), Hint = Loc.T("Shift N, people, farthest first") },
+            new ScreenKey { Key = KeyCode.O, Run = Repeat, Hint = Loc.T("O, the selection again") },
+            new ScreenKey { Key = KeyCode.Backslash, Run = WalkToSelection, Hint = Loc.T("Backslash, walk to the selection") },
+            new ScreenKey { Key = KeyCode.X, Run = WhereAmI, Hint = Loc.T("X, where am I") },
+            new ScreenKey { Key = KeyCode.X, Shift = true, Run = Quest, Hint = Loc.T("Shift X, current quest") },
         };
 
         // ---- lists ----
@@ -88,7 +90,7 @@ namespace GwentAccess.Exploration
                 Select(list, 0, WorldText.CategoryName(c) + ", " + list.Count);
                 return;
             }
-            Speech.Say("Nothing known nearby", true);
+            Speech.Say(Loc.T("Nothing known nearby"), true);
         }
 
         private static void Cycle(Category c, int dir)
@@ -99,15 +101,26 @@ namespace GwentAccess.Exploration
                 _selectedId = 0;
             }
             var list = List(c);
-            if (list.Count == 0) { Speech.Say("No " + WorldText.CategoryName(c) + " known", true); return; }
+            if (list.Count == 0) { Speech.Say(NoneKnown(c), true); return; }
             Step(dir);
+        }
+
+        private static string NoneKnown(Category c)
+        {
+            switch (c)
+            {
+                case Category.Quests: return Loc.T("No quests known");
+                case Category.People: return Loc.T("No people known");
+                case Category.Loot: return Loc.T("No loot known");
+                default: return Loc.T("No places known");
+            }
         }
 
         private static void Select(List<Entry> list, int i, string prefix)
         {
             var e = list[i];
             _selectedId = e.Item.Id;
-            string line = Describe(e.Item, e.Reachable) + ", " + (i + 1) + " of " + list.Count;
+            string line = Loc.T("{0}, {1} of {2}", Describe(e.Item, e.Reachable), i + 1, list.Count);
             Speech.Say(prefix != null ? prefix + ". " + line : line, true);
             World.PlayAt(e.Item, Sounds.Stem(e.Item.Type), 0.6f);
         }
@@ -115,7 +128,7 @@ namespace GwentAccess.Exploration
         private static string Describe(WorldItem it, bool reachable)
         {
             string s = it.Label;
-            if (!reachable) s += ", no path";
+            if (!reachable) s = Loc.T("{0}, no path", s);
             return s + ", " + WorldText.Where(World.PlayerPosition, it.Position);
         }
 
@@ -129,7 +142,7 @@ namespace GwentAccess.Exploration
         private static void Repeat()
         {
             var it = Selected();
-            if (it == null) { Speech.Say("Nothing selected", true); return; }
+            if (it == null) { Speech.Say(Loc.T("Nothing selected"), true); return; }
             Speech.Say(Describe(it, Reachable(it.Position, out _)), true);
             World.PlayAt(it, Sounds.Stem(it.Type), 0.6f);
         }
@@ -187,8 +200,8 @@ namespace GwentAccess.Exploration
         private static void WalkToSelection()
         {
             var it = Selected();
-            if (it == null) { Speech.Say("Nothing selected", true); return; }
-            if (!Reachable(it.Position, out var end)) { Speech.Say("No path to " + it.Label, true); return; }
+            if (it == null) { Speech.Say(Loc.T("Nothing selected"), true); return; }
+            if (!Reachable(it.Position, out var end)) { Speech.Say(Loc.T("No path to {0}", it.Label), true); return; }
             var player = World.Player;
             var loco = player?.Locomotion;
             if (loco == null) return;
@@ -197,7 +210,7 @@ namespace GwentAccess.Exploration
             _walkTarget = it;
             _lastPos = World.PlayerPosition;
             _stillSince = Time.unscaledTime;
-            Speech.Say("Walking to " + it.Label, true);
+            Speech.Say(Loc.T("Walking to {0}", it.Label), true);
             Plugin.LogInfo("[scanner] walk to " + it.Label + " " + end);
         }
 
@@ -215,7 +228,7 @@ namespace GwentAccess.Exploration
             if ((cur != null && cur.Id == target.Id) || dist < 1.5f)
             {
                 _walkTarget = null;
-                Speech.Say("At " + target.Label);
+                Speech.Say(Loc.T("At {0}", target.Label));
                 return;
             }
             if ((pos - _lastPos).sqrMagnitude > 0.01f)
@@ -227,7 +240,7 @@ namespace GwentAccess.Exploration
             if (Time.unscaledTime - _stillSince > 0.6f)
             {
                 _walkTarget = null;
-                Speech.Say("Stopped. " + target.Label + ", " + WorldText.Where(pos, target.Position));
+                Speech.Say(Loc.T("Stopped. {0}, {1}", target.Label, WorldText.Where(pos, target.Position)));
             }
         }
 
@@ -246,8 +259,8 @@ namespace GwentAccess.Exploration
             string place = PlaceName();
             if (place.Length > 0) parts.Add(place);
             var cur = World.Current();
-            if (cur != null) parts.Add("at " + cur.Label);
-            if (parts.Count == 0) parts.Add("Unknown place");
+            if (cur != null) parts.Add(Loc.T("at {0}", cur.Label));
+            if (parts.Count == 0) parts.Add(Loc.T("Unknown place"));
             Speech.Say(string.Join(", ", parts), true);
         }
 
@@ -291,7 +304,7 @@ namespace GwentAccess.Exploration
                     string s = UiText.Clean(t.text);
                     if (s.Length > 0 && !parts.Contains(s)) parts.Add(s);
                 }
-            Speech.Say(parts.Count > 0 ? string.Join(", ", parts) : "No quest shown", true);
+            Speech.Say(parts.Count > 0 ? string.Join(", ", parts) : Loc.T("No quest shown"), true);
         }
     }
 }

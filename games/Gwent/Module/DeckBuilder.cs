@@ -50,14 +50,14 @@ namespace GwentAccess
 
         private static string Name(CollectionCard cc)
         {
-            try { return UiText.Clean(Localization.LocalizationHelper.GetCardName(cc.Card)); } catch { return "Card"; }
+            try { return UiText.Clean(Localization.LocalizationHelper.GetCardName(cc.Card)); } catch { return Loc.T("Card"); }
         }
 
         /// <summary>One of the deck's totals (0 cards, 1 units, 2 provisions), for the deck stats stop.</summary>
         public static string StatPart(int part)
         {
             var parts = StatParts(Deck());
-            if (parts == null) return part == 0 && Deck() == null ? "No deck open" : null;
+            if (parts == null) return part == 0 && Deck() == null ? Loc.T("No deck open") : null;
             return parts[part];
         }
 
@@ -68,7 +68,7 @@ namespace GwentAccess
             if (d == null) return "";
             var parts = StatParts(d);
             if (parts != null) return string.Join("; ", parts);
-            try { return d.GetTotalCardCount(false, false) + " cards"; } catch { return ""; }
+            try { return Loc.P(d.GetTotalCardCount(false, false), "{0} card", "{0} cards"); } catch { return ""; }
         }
 
         // 25 and 13 are minimums, not totals: "22 of 13 units" read as an error. The provision limit is 150 plus
@@ -81,22 +81,22 @@ namespace GwentAccess
                 var v = d.GetValidation();
                 int maxProv = 150;
                 try { var l = d.LeaderAbilityCard; if (l != null) maxProv += l.Template.Provision; } catch { }
-                return new[] { Count(v.TotalCardCount, "card") + ", minimum 25", Count(v.UnitCardCount, "unit") + ", minimum 13", "provisions " + v.ProvisionUsed + " of " + maxProv };
+                return new[] { Loc.P(v.TotalCardCount, "{0} card, minimum 25", "{0} cards, minimum 25"), Loc.P(v.UnitCardCount, "{0} unit, minimum 13", "{0} units, minimum 13"), Loc.T("provisions {0} of {1}", v.ProvisionUsed, maxProv) };
             }
             catch (Exception e) { Plugin.LogInfo("Deck stats failed: " + e.Message); return null; }
         }
 
-        /// <summary>"1 card", "25 cards".</summary>
-        internal static string Count(int n, string word) => n + " " + word + (n == 1 ? "" : "s");
-
-        public static void Announce(string verb, CollectionCard cc)
+        public static void Announce(bool added, CollectionCard cc)
         {
             if (!Active || Time.realtimeSinceStartup - EnteredAt < 2f) return;
             var d = Deck();
             int n = 0; try { n = d.GetCardCount(cc); } catch { }
             string name = Name(cc);
             // Stats labels refresh a frame later.
-            MainThread.Later(0.3f, () => Speech.Say(verb + " " + name + (n > 0 ? ", " + n + " in deck" : "") + ". " + Stats(), true));
+            string line = added
+                ? (n > 0 ? Loc.T("Added {0}, {1} in deck.", name, n) : Loc.T("Added {0}.", name))
+                : (n > 0 ? Loc.T("Removed {0}, {1} in deck.", name, n) : Loc.T("Removed {0}.", name));
+            MainThread.Later(0.3f, () => Speech.Say(line + " " + Stats(), true));
         }
     }
 
@@ -125,12 +125,12 @@ namespace GwentAccess
     [HarmonyPatch(typeof(CollectionDeck), nameof(CollectionDeck.AddCard), new Type[] { typeof(CollectionCard), typeof(bool) })]
     internal static class DeckAddPatch
     {
-        static void Postfix(CollectionCard card, bool __result) { try { if (__result) DeckBuilder.Announce("Added", card); } catch { } }
+        static void Postfix(CollectionCard card, bool __result) { try { if (__result) DeckBuilder.Announce(true, card); } catch { } }
     }
 
     [HarmonyPatch(typeof(CollectionDeck), nameof(CollectionDeck.RemoveCard), new Type[] { typeof(CollectionCard), typeof(bool), typeof(bool) })]
     internal static class DeckRemovePatch
     {
-        static void Postfix(CollectionCard card, bool __result) { try { if (__result) DeckBuilder.Announce("Removed", card); } catch { } }
+        static void Postfix(CollectionCard card, bool __result) { try { if (__result) DeckBuilder.Announce(false, card); } catch { } }
     }
 }

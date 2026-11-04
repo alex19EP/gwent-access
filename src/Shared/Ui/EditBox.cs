@@ -49,18 +49,18 @@ namespace GwentAccess.Ui
         {
             Announcements = new[]
             {
-                new NodeAnnouncement(() => Placeholder(field) ?? _fallbackName, kind: AnnouncementKinds.Label),
-                NodeAnnouncement.Static("edit"),
+                new NodeAnnouncement(() => Placeholder(field) ?? Loc.T(_fallbackName), kind: AnnouncementKinds.Label),
+                NodeAnnouncement.Static(Loc.T("edit")),
                 new NodeAnnouncement(() => Typed(field) is string t && t.Length > 0 ? t : null, kind: AnnouncementKinds.Value),
                 // Arrows don't enter the field (they move between items): say how to, until typing starts.
-                new NodeAnnouncement(() => Editing() ? null : "Enter to type", live: true, kind: AnnouncementKinds.Tooltip),
+                new NodeAnnouncement(() => Editing() ? null : Loc.T("Enter to type"), live: true, kind: AnnouncementKinds.Tooltip),
             },
             OnActivate = () =>
             {
                 try { field.ActivateInputField(); }
                 catch (Exception e) { Plugin.LogInfo("[edit] activate field failed: " + e.Message); }
             },
-            OnTooltip = () => Speech.Say((Placeholder(field) ?? _fallbackName) + ": " + (Typed(field) is string t && t.Length > 0 ? t : "blank"), true),
+            OnTooltip = () => Speech.Say((Placeholder(field) ?? Loc.T(_fallbackName)) + ": " + (Typed(field) is string t && t.Length > 0 ? t : Loc.T("blank")), true),
         };
 
         /// <summary>True while the caret is in the field.</summary>
@@ -113,8 +113,8 @@ namespace GwentAccess.Ui
             int caret = editing ? Caret(field) : -1;
             if (editing != _editing)
             {
-                if (editing) Speech.Say("editing", true);
-                else if (!_leaving) Speech.Say("not editing", true);
+                if (editing) Speech.Say(Loc.T("editing"), true);
+                else if (!_leaving) Speech.Say(Loc.T("not editing"), true);
                 _leaving = false;
             }
             else if (editing && _typed != null && now != null && now != _typed) Speech.Say(Change(_typed, now), true);
@@ -170,18 +170,18 @@ namespace GwentAccess.Ui
 
         // The character the caret sits before; "blank" at the end.
         private static string CharAt(string text, int caret) =>
-            caret >= 0 && caret < text.Length ? Spoken(text[caret].ToString()) : "blank";
+            caret >= 0 && caret < text.Length ? Spoken(text[caret].ToString()) : Loc.T("blank");
 
         // The word the caret is in or before; "blank" at the end.
         private static string WordAt(string text, int caret)
         {
-            if (caret < 0 || caret >= text.Length) return "blank";
+            if (caret < 0 || caret >= text.Length) return Loc.T("blank");
             int start = caret, end = caret;
             while (start > 0 && !char.IsWhiteSpace(text[start - 1])) start--;
             while (end < text.Length && !char.IsWhiteSpace(text[end])) end++;
             return end > start ? text.Substring(start, end - start) : Spoken(text[caret].ToString());
         }
 
-        private static string Spoken(string s) => s == " " ? "space" : s;
+        private static string Spoken(string s) => s == " " ? Loc.T("space") : s;
     }
 }

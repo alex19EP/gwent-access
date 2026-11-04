@@ -45,7 +45,7 @@ namespace GwentAccess.Ui
             {
                 var p = Panel();
                 string title = p == null ? "" : UiText.Clean(p.m_TitleLabel?.Text?.text);
-                return title.Length > 0 ? title : "Reward book";
+                return title.Length > 0 ? title : Loc.T("Reward book");
             }
         }
 
@@ -85,7 +85,7 @@ namespace GwentAccess.Ui
             SendButton(node, CursorButtonEventArgs.EState.ButtonUp);
             if (!keyUp || !_pressedClaimable) return;
             Plugin.LogInfo("[reward-book] let go at hold " + hold.ToString("0.00") + ", completed " + held);
-            if (!held && !Claiming(node) && !ControllerMode.Force) Speech.Say("Hold Enter to claim.", true);
+            if (!held && !Claiming(node) && !ControllerMode.Force) Speech.Say(Loc.T("Hold Enter to claim."), true);
         }
 
         // Whether the claim the hold started is under way or done.
@@ -233,7 +233,7 @@ namespace GwentAccess.Ui
             var tabs = Tabs(p, used);
             if (tabs.Count == 0) return;
             b.BeginStop("tabs");
-            b.PushContext("Tabs");
+            b.PushContext(Loc.T("Tabs"));
             for (int i = 0; i < tabs.Count; i++)
             {
                 int index = i;
@@ -241,8 +241,8 @@ namespace GwentAccess.Ui
                 v.Announcements = new[]
                 {
                     v.Announcements[0],
-                    new NodeAnnouncement(() => SafeOpenTab(p) == index ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
-                    new NodeAnnouncement(() => SafeOpenTab(p) != index && InWalkthrough(p) ? "locked" : null, live: true, kind: AnnouncementKinds.Enabled),
+                    new NodeAnnouncement(() => SafeOpenTab(p) == index ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
+                    new NodeAnnouncement(() => SafeOpenTab(p) != index && InWalkthrough(p) ? Loc.T("locked") : null, live: true, kind: AnnouncementKinds.Enabled),
                 };
                 // A locked tab ignores the click; the game's own notice says what unlocks it.
                 var click = v.OnActivate;
@@ -273,7 +273,7 @@ namespace GwentAccess.Ui
             var landing = trees.Find(m => m.ElementData?.MosaicElementName == _lastTree) ?? trees[0];
             _firstContent = CrimsonNodes.Id(landing.BtnControl);
             b.BeginStop("trees");
-            b.PushContext("Trees");
+            b.PushContext(Loc.T("Trees"));
             foreach (var m in trees)
             {
                 var btn = m.BtnControl;
@@ -299,7 +299,7 @@ namespace GwentAccess.Ui
         {
             var d = m.ElementData;
             string name = d?.MosaicElementName;
-            if (string.IsNullOrEmpty(name)) return "Tree";
+            if (string.IsNullOrEmpty(name)) return Loc.T("Tree");
             string title = GameText.Get("reward_tree_" + name + "_title", null)
                 ?? GameText.Get("reward_tree_" + name.ToLowerInvariant() + "_title", null);
             if (title != null && title != "N/A") return title;
@@ -410,7 +410,7 @@ namespace GwentAccess.Ui
             b.BeginStop("hint");
             b.AddItem(ControlId.Structural("reward-book:hint:" + text), new NodeVtable
             {
-                Announcements = new[] { new NodeAnnouncement(() => "Hint: " + text, kind: AnnouncementKinds.Label) },
+                Announcements = new[] { new NodeAnnouncement(() => Loc.T("Hint: {0}", text), kind: AnnouncementKinds.Label) },
                 OnTooltip = () => Speech.Say(text, true),
             });
         }
@@ -443,7 +443,7 @@ namespace GwentAccess.Ui
                 if (index < list.Count) icon = list[index].Cast<RewardBookTab>().IconImage;
             }
             catch { }
-            if (string.IsNullOrEmpty(icon)) return "Tab " + (index + 1);
+            if (string.IsNullOrEmpty(icon)) return Loc.T("Tab {0}", index + 1);
             const string season = "ui_icons_seasons_";
             if (icon.StartsWith(season))
             {
@@ -451,11 +451,11 @@ namespace GwentAccess.Ui
                 if (s != null) return s;
             }
             if (icon.Contains("year_toad")) return GameText.Get("welcome_screen_year_of_cursed_toad_title", "Year of the Cursed Toad");
-            if (icon.Contains("year_boar")) return "Year of the Wild Boar";
-            if (icon.Contains("year_rat")) return "Year of the Wererat";
-            if (icon.Contains("year_oak")) return "Year of the Great Oak";
-            if (icon.Contains("saovine")) return "Events";
-            if (icon.Contains("expansion_unmillible")) return "Base set";
+            if (icon.Contains("year_boar")) return Loc.T("Year of the Wild Boar");
+            if (icon.Contains("year_rat")) return Loc.T("Year of the Wererat");
+            if (icon.Contains("year_oak")) return Loc.T("Year of the Great Oak");
+            if (icon.Contains("saovine")) return Loc.T("Events");
+            if (icon.Contains("expansion_unmillible")) return Loc.T("Base set");
             return icon.Replace("ui_icons_", "").Replace("ui_icon_", "").Replace('_', ' ');
         }
 
@@ -475,7 +475,7 @@ namespace GwentAccess.Ui
             _firstContent = CrimsonNodes.Id(ordered[0]);
 
             b.BeginStop("nodes");
-            b.PushContext("Rewards");
+            b.PushContext(Loc.T("Rewards"));
             foreach (var n in ordered)
             {
                 used.Add(n.Pointer);
@@ -511,7 +511,7 @@ namespace GwentAccess.Ui
             if (StoryPartLocked(side)) info.Add(GameText.Get("interface_rewards_story_text_unlock_desc", "Claim story nodes to read more."));
             if (info.Count == 0 && sideButtons.Count == 0) return;
             b.BeginStop("details");
-            b.PushContext("Details");
+            b.PushContext(Loc.T("Details"));
             if (info.Count > 0)
             {
                 string text = string.Join(". ", info);
@@ -536,7 +536,7 @@ namespace GwentAccess.Ui
                         v.Announcements[0],
                         new NodeAnnouncement(() =>
                         {
-                            string selected = toggle != null && toggle.IsToggled ? "selected" : null;
+                            string selected = toggle != null && toggle.IsToggled ? Loc.T("selected") : null;
                             return selected != null && section.State != null ? section.State + ", " + selected : selected ?? section.State;
                         }, live: true, kind: AnnouncementKinds.Value),
                     };
@@ -599,8 +599,8 @@ namespace GwentAccess.Ui
                 var large = side.CurrentData?.ElementTree?.LargeElements;
                 for (int i = 0; i < chests.Count; i++)
                 {
-                    string state = large != null && i < large.Count ? (large[i].Claimed ? "claimed" : "not claimed") : null;
-                    found[chests[i].Pointer] = (chests.Count > 1 ? "Large reward " + (i + 1) : "Large reward", state);
+                    string state = large != null && i < large.Count ? (large[i].Claimed ? Loc.T("claimed") : Loc.T("not claimed")) : null;
+                    found[chests[i].Pointer] = (chests.Count > 1 ? Loc.T("Large reward {0}", i + 1) : Loc.T("Large reward"), state);
                 }
             }
             catch (Exception e) { Plugin.LogInfo("[reward-book] story sections failed: " + e.Message); }
@@ -666,8 +666,14 @@ namespace GwentAccess.Ui
         {
             if (ways == null || ways.Count == 0) return null;
             var order = new[] { GraphDir.Left, GraphDir.Up, GraphDir.Right, GraphDir.Down };
-            var words = order.Where(d => ways.Any(w => w.Dir == d)).Select(d => d.ToString().ToLowerInvariant());
-            return "paths " + string.Join(", ", words);
+            var words = order.Where(d => ways.Any(w => w.Dir == d)).Select(d => d switch
+            {
+                GraphDir.Left => Loc.T("left"),
+                GraphDir.Up => Loc.T("up"),
+                GraphDir.Right => Loc.T("right"),
+                _ => Loc.T("down"),
+            });
+            return Loc.T("paths {0}", string.Join(", ", words));
         }
 
         private static uint SafeId(RewardSystemTreeElement n)
@@ -727,7 +733,7 @@ namespace GwentAccess.Ui
 
         // Claiming is a hold (see Press); in the keyboard interface the key to hold is Enter. A controller player
         // holds the game's own button, which the game's prompt shows.
-        private static string HoldHint() => ControllerMode.Force ? null : "hold Enter to claim";
+        private static string HoldHint() => ControllerMode.Force ? null : Loc.T("hold Enter to claim");
 
         private static ENodeType? Type(RewardSystemTreeElement n)
         {
@@ -736,17 +742,17 @@ namespace GwentAccess.Ui
 
         private static string Kind(RewardSystemTreeElement n)
         {
-            if (!(Type(n) is ENodeType type)) return "Reward";
+            if (!(Type(n) is ENodeType type)) return Loc.T("Reward");
             return type switch
             {
-                ENodeType.Starting => "Start",
-                ENodeType.Small => "Reward",
-                ENodeType.Large => "Large reward",
-                ENodeType.Mosaic => "Tree reward",
-                ENodeType.Story => "Story",
-                ENodeType.Combat => "Battle",
-                ENodeType.Quest => "Quest",
-                ENodeType.Exchange => "Exchange",
+                ENodeType.Starting => Loc.T("Start"),
+                ENodeType.Small => Loc.T("Reward"),
+                ENodeType.Large => Loc.T("Large reward"),
+                ENodeType.Mosaic => Loc.T("Tree reward"),
+                ENodeType.Story => Loc.T("Story"),
+                ENodeType.Combat => Loc.T("Battle"),
+                ENodeType.Quest => Loc.T("Quest"),
+                ENodeType.Exchange => Loc.T("Exchange"),
                 _ => type.ToString(),
             };
         }
@@ -760,14 +766,14 @@ namespace GwentAccess.Ui
             try
             {
                 var d = n.ElementData;
-                if (d.Claimed) return "claimed";
+                if (d.Claimed) return Loc.T("claimed");
                 var cost = d.ClaimCost;
                 int amount = cost == null ? 0 : cost.Amount;
                 string name = amount > 0 ? CostName(cost.CostType) : null;
-                string costPart = amount <= 0 ? "" : name == null ? ", cost " + amount : ", cost " + amount + " " + name;
-                if (!n.MeetCondition) return "out of reach" + costPart;
+                if (!n.MeetCondition)
+                    return amount <= 0 ? Loc.T("out of reach") : name == null ? Loc.T("out of reach, cost {0}", amount) : Loc.T("out of reach, cost {0} {1}", amount, name);
                 if (!n.IsEnoughCurrencyForClaiming()) return NotEnough(cost.CostType, amount, name);
-                return "can claim" + costPart;
+                return amount <= 0 ? Loc.T("can claim") : name == null ? Loc.T("can claim, cost {0}", amount) : Loc.T("can claim, cost {0} {1}", amount, name);
             }
             catch (Exception e) { Plugin.LogInfo("[reward-book] state failed: " + e.Message); return null; }
         }
@@ -780,7 +786,7 @@ namespace GwentAccess.Ui
                 && GameText.Get("interface_rewards_node_not_enough_rp", null) is string points)
                 return points.Replace("{0}", amount.ToString());
             string template = GameText.Get("interface_rewards_node_not_enough_currency", "Not enough {0}");
-            return template.Replace("{0}", name ?? "").TrimEnd('!', ' ') + ", cost " + amount;
+            return Loc.T("{0}, cost {1}", template.Replace("{0}", name ?? "").TrimEnd('!', ' '), amount);
         }
 
         // Currency names by type, found once per opening: a focused node's state is read every frame.
