@@ -38,6 +38,54 @@ uses the section for the tag it builds as the release notes, so keep each versio
 - The Reward Book's two tabs with the base set's icon are told apart ("Base set" and "Base set, 2").
 - The Friends window closes with Backspace or Escape. The friend search field says "Enter to type".
 
+### Battle
+
+- Cards read as in Hearthstone Access. Landing on a card says the short line: name, power, statuses,
+  provisions. Down then reads the abilities first, then categories, kind and base power, flavor and artist.
+  The card preview uses the same order.
+- A leader's landing is short ("Your leader, Emhyr var Emreis, Double Cross, order ready, 1 charge"). The
+  player's name and title are its last Down line.
+- Home and End go to the first and last card of the row you are in, not to the leader.
+- Rows read their effects with turns left and say "full" at nine units ("Opponent's melee row, score 12,
+  Frost, 2 turns left"). Number keys read the board from a choice too.
+- A says the deck and graveyard counts for both players. Shift+T reads either player's turn timer and the
+  mulligan timer, with warnings in the mulligan.
+- Orders say their cooldown and counters ("order recharging, 2 turns", "counter 3"). A card glowing because
+  its condition holds says so ("Dominance met"). Landing on a valid target says "valid target".
+- Choices: the offered cards are read (created cards were read as "hidden card"). Tab hides the choices to look
+  at the board ("Choices hidden.") and brings them back ("Choices shown.", then the card you were on). The
+  title reads "Choose a card to play for Dazhbog Runestone".
+- Special cards that need a confirmation say "Play X? Enter plays it, Backspace puts it back."
+- New effect lines: Syndicate coins, reveals and Ambush flips, charges, orders ready again, Zeal. Destroyed
+  cards read "Opponent's X destroyed by Y". Frost and other row effects name themselves as the damage source.
+- A round's draws are one line ("You draw 3 cards: …. Opponent draws 3 cards."), before the mulligan.
+  Later rounds' mulligans say only the round and swaps.
+- Fixed: purify read "[MISSING]card_token", a stray "Opponent: hidden card", an opponent's Disloyal card read
+  twice, a false "Not available right now", the first hand card read twice at the opening mulligan, and the
+  leader read before "Place X" after a choice against a person.
+- Emotes: M opens the emote wheel; Enter sends, the last item mutes the opponent. Your emote is read
+  ("You: Well played.").
+- The Versus banner reads both players once: name, title, rank. The results screen names the rank, the GG
+  notification names its reward ("5 Scraps"), and Send Good Game says "sent".
+
+### Menus
+
+- New screens: matchmaking (T reads the time, Backspace cancels), the Journey and Autumn Cycle side windows,
+  the Journey story with its pages, What's new, Leaderboards (Page Up and Page Down), gifting, the shop's product
+  preview, the profile's avatar, border, title and showcase pickers, the Autumn Cycle reroll payment, the Draft
+  lobby, wheel and summary, and the season transition. Card previews opened outside the collection are read.
+- Slide-in notifications are spoken (contract completed, gifts, maintenance).
+- PLAY opens on the mode last chosen, and choosing a mode reads its description.
+- Profile contracts give their dates as the card draws them. The banner's name and avatar are one item.
+- Reward Book nodes are named by their reward ("30 Ore, can claim, cost 1 Blood Drops, hold Enter to claim").
+- Popups and panels name currency icons ("COST: -200 Scraps").
+- Text fields: typing echoes, Backspace deletes (it used to close the deck rename popup), and Space types a
+  space. The rename popup lists its name field.
+- Deck builder: Backspace on the deck list exits; adding a card says the copies once; "1 card".
+- The mod's own speech follows the game's language. Machine translations for Russian, German, French, Spanish,
+  Polish, Brazilian Portuguese and Italian; corrections from native speakers are welcome (assets/lang).
+- The controller is detected from the game's connect and disconnect events instead of a check every second.
+
 ### For developers
 
 - The older hotkey layer (the F2 and F3 object navigator, the selection narrator, the legacy battle keys) is
