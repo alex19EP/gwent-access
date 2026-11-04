@@ -15,6 +15,11 @@ namespace GwentAccess.Ui
     /// buttons, clicked through their container's callback as the game's keys do. Escape stays the game's
     /// Back, which cancels where the popup allows it. The message node is keyed by its text, so a popup that
     /// is replaced by another lands afresh and is read.
+    ///
+    /// A popup with a text field (renaming a deck, naming a new one) offers the field as an edit box
+    /// (<see cref="EditBox"/>): Enter puts the caret in it, and what is typed or deleted is echoed. The field's
+    /// own texts (its placeholder, what is typed) are the edit box's, not part of the message, so typing doesn't
+    /// re-key the message and re-read the popup.
     /// </summary>
     internal sealed class PopupScreen : Screen
     {
@@ -50,12 +55,13 @@ namespace GwentAccess.Ui
             var buttons = Buttons(popup);
             var buttonTexts = new HashSet<string>();
             foreach (var c in buttons) foreach (var s in CrimsonNodes.Texts(c)) buttonTexts.Add(s);
+            var field = Field(popup);
 
             string title, message;
             if (popup.TryCast<PopupControl>() != null)
             {
                 title = Joined(popup.transform.Find("SafeArea/SizeFitter/VerticalLayout/Header"), null);
-                message = Joined(popup.transform.Find("SafeArea/SizeFitter/VerticalLayout/ContentRoot"), buttonTexts);
+                message = Joined(popup.transform.Find("SafeArea/SizeFitter/VerticalLayout/ContentRoot"), buttonTexts, field);
             }
             else
             {
@@ -79,19 +85,66 @@ namespace GwentAccess.Ui
                 });
                 b.SetStart(id);
             }
-            foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            foreach (var c in buttons)
+            {
+                if (field != null && c.Pointer == field.Pointer) b.AddItem(CrimsonNodes.Id(c), _field.Vtable(field));
+                else b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            }
             if (title.Length > 0) b.PopContext();
         }
 
-        // A part's distinct visible texts, joined; texts that are a button's caption are left to the button.
-        private static string Joined(UnityEngine.Transform t, HashSet<string> skip)
+        // A part's distinct visible texts (TextMeshPro and legacy UI text), joined; texts that are a button's
+        // caption are left to the button, and those inside the text field (its placeholder, what is typed) to the
+        // edit box.
+        private static string Joined(UnityEngine.Transform t, HashSet<string> skip, InputFieldControl field = null)
         {
             if (t == null) return "";
+            if (field == null)
+            {
+                var all = new List<string>();
+                foreach (var s in CrimsonNodes.Texts(t))
+                    if (skip == null || !skip.Contains(s)) all.Add(s);
+                return string.Join(" ", all);
+            }
             var parts = new List<string>();
-            foreach (var s in CrimsonNodes.Texts(t))
+            void Add(UnityEngine.Component c, string raw)
+            {
+                if (c.transform.IsChildOf(field.transform)) return;
+                string s = UiText.Clean(raw);
+                if (s.Length == 0 || s.StartsWith("[MISSING]") || UiText.IsPlaceholder(s) || parts.Contains(s)) return;
                 if (skip == null || !skip.Contains(s)) parts.Add(s);
+            }
+            foreach (var tmp in t.GetComponentsInChildren<TMPro.TMP_Text>(false)) Add(tmp, tmp.text);
+            foreach (var txt in t.GetComponentsInChildren<UnityEngine.UI.Text>(false)) Add(txt, txt.text);
             return string.Join(" ", parts);
         }
+
+        // ---- the text field ----
+
+        private static readonly EditBox _field = new EditBox(CurrentField, "Name");
+
+        // The popup's shown text field, if it has one.
+        private static InputFieldControl Field(AControl popup)
+        {
+            var f = popup?.GetComponentInChildren<InputFieldControl>(false);
+            return f != null && f.gameObject.activeInHierarchy ? f : null;
+        }
+
+        private static InputFieldControl CurrentField()
+        {
+            var container = Container();
+            return container != null ? Field(Popup(container)) : null;
+        }
+
+        public override void OnCursorMoved(GraphNode node)
+        {
+            _field.OnCursorMoved(node);
+            base.OnCursorMoved(node);
+        }
+
+        public override void Tick() => _field.Tick();
+
+        public override void OnPop() => _field.Reset();
 
         // The content's own selectable controls (an input field…), then the bar's captioned buttons: those are
         // never selectable (the game reaches them by key) and run their container's callback when clicked.
@@ -118,7 +171,8 @@ namespace GwentAccess.Ui
         /// <summary>On the message, Enter is the game's own: the popup's default button (ОК, Да…) as its key glyph
         /// says. On a button it clicks that button, so Отмена stays reachable by Enter too.</summary>
         public override bool LeavesToGame(UnityEngine.KeyCode key) =>
-            (key == UnityEngine.KeyCode.Return || key == UnityEngine.KeyCode.KeypadEnter)
+            _field.LeavesToGame(key)
+            || (key == UnityEngine.KeyCode.Return || key == UnityEngine.KeyCode.KeypadEnter)
             && GraphNavigator.CurrentNode is GraphNode n && !(n.Id.Reference is AControl);
 
         public override AControl GameSelection() => null;
