@@ -288,12 +288,12 @@ namespace GwentAccess.Ui
             foreach (var pr in view.GetComponentsInChildren<UIAchievementsProgress>(false))
             {
                 var c = pr;
-                lines.Add((CrimsonNodes.PathKey(c.transform, view.transform), () => Joined(CrimsonNodes.Texts(c))));
+                lines.Add((CrimsonNodes.PathKey(c.transform, view.transform), () => Joined(CrimsonNodes.Texts(c).ConvertAll(AsProgress))));
             }
             foreach (var bar in view.GetComponentsInChildren<UIAchievementCategoryProgressBar>(false))
             {
                 var c = bar;
-                lines.Add((CrimsonNodes.PathKey(c.transform, view.transform), () => Joined(LabelFirst(c, c.m_Label?.transform))));
+                lines.Add((CrimsonNodes.PathKey(c.transform, view.transform), () => Joined(LabelFirst(c, c.m_Label?.transform).ConvertAll(AsProgress))));
             }
             foreach (var w in view.GetComponentsInChildren<UIFactionCardWinStatsContainer>(false))
             {
@@ -320,6 +320,17 @@ namespace GwentAccess.Ui
                     OnTooltip = () => Speech.Say(text(), true),
                 });
             }
+        }
+
+        // A progress bar's drawn counter ("7/142", cleaned to "7 of 142") says it is progress, as the quests'
+        // do: "General, progress 7 of 142, 2 of 11", not two positions in a row.
+        private static readonly System.Text.RegularExpressions.Regex BareCounter =
+            new System.Text.RegularExpressions.Regex(@"^(\d+)\s+\D{1,6}\s+(\d+)$");
+
+        private static string AsProgress(string s)
+        {
+            var m = BareCounter.Match(s ?? "");
+            return m.Success ? Loc.T("progress {0} of {1}", m.Groups[1].Value, m.Groups[2].Value) : s;
         }
 
         // ---- the contract lists ----
@@ -353,10 +364,10 @@ namespace GwentAccess.Ui
                         new NodeAnnouncement(() => Name(e), kind: AnnouncementKinds.Label),
                         CrimsonNodes.RolePart(Loc.T("button")), // Enter claims or opens it, as the mouse clicks the card
                         new NodeAnnouncement(() => State(e), live: true, kind: AnnouncementKinds.Value),
-                        new NodeAnnouncement(() => Joined(new List<string> { Description(e), Reward(e) }), kind: AnnouncementKinds.Tooltip),
+                        new NodeAnnouncement(() => Joined(new List<string> { Description(e), Reward(e), Score(e) }), kind: AnnouncementKinds.Tooltip),
                     },
                     OnActivate = () => Activate(e),
-                    OnTooltip = () => Speech.Say(Joined(new List<string> { Name(e), State(e), Description(e), Reward(e), Steps(e) }), true),
+                    OnTooltip = () => Speech.Say(Joined(new List<string> { Name(e), State(e), Description(e), Reward(e), Score(e), Steps(e) }), true),
                 });
             }
             if (heading != null) b.PopContext();
@@ -403,6 +414,19 @@ namespace GwentAccess.Ui
         private static string Name(Contract e)
         {
             try { return UiText.NullIfEmpty(UiText.Clean(Public(e)?.Name)) ?? Loc.T("Contract"); } catch { return Loc.T("Contract"); }
+        }
+
+        // The badge in the card's corner ("Score 5"), in the game's words.
+        private static string Score(Contract e)
+        {
+            try
+            {
+                var pa = Public(e);
+                if (pa == null) return null;
+                string format = GameText.Get(UIAchievementPoints.ACHIEVEMENT_POINTS_LOC_KEY, "Score {0}");
+                return format.Contains("{0}") ? format.Replace("{0}", pa.Score.ToString()) : format + " " + pa.Score;
+            }
+            catch { return null; }
         }
 
         private static string Description(Contract e)
