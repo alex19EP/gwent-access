@@ -322,16 +322,7 @@ namespace GwentAccess.Ui
             }
         }
 
-        // A progress bar's drawn counter ("7/142", cleaned to "7 of 142") says it is progress, as the quests'
-        // do: "General, progress 7 of 142, 2 of 11", not two positions in a row.
-        private static readonly System.Text.RegularExpressions.Regex BareCounter =
-            new System.Text.RegularExpressions.Regex(@"^(\d+)\s+\D{1,6}\s+(\d+)$");
-
-        private static string AsProgress(string s)
-        {
-            var m = BareCounter.Match(s ?? "");
-            return m.Success ? Loc.T("progress {0} of {1}", m.Groups[1].Value, m.Groups[2].Value) : s;
-        }
+        private static string AsProgress(string s) => UiText.AsProgress(s);
 
         // ---- the contract lists ----
 

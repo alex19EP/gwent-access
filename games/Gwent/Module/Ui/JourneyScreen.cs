@@ -13,7 +13,7 @@ namespace GwentAccess.Ui
     /// numbers and "x2"s, every step reward twice over, each bar button twice, and only the ten steps on screen.
     /// Tab stops, as the panel is drawn:
     ///
-    /// - Progress: the Journey level, the crowns toward the next one ("6 of 24, 18 until next level"), and the
+    /// - Progress: the Journey level, the crowns toward the next one ("progress 6 of 24, 18 until next level"), and the
     ///   resource counters beside them.
     /// - Steps: every step of the journey, from the game's own list (it scrolls; ten are drawn at a time), each a
     ///   row as drawn, the Standard reward then the Premium one: "Step 2, 2 Reward Point(s), locked". A special
@@ -82,11 +82,11 @@ namespace GwentAccess.Ui
             }
         }
 
-        // "6 of 24, 18 until next level": the bar's crowns and the counter beside it.
+        // "progress 6 of 24, 18 until next level": the bar's crowns and the counter beside it.
         private static string Crowns(UIJourneyProgress pr)
         {
             var parts = new List<string>();
-            if (CrimsonNodes.Shown(pr.m_JourneyProgressBar)) parts.AddRange(CrimsonNodes.Texts(pr.m_JourneyProgressBar));
+            if (CrimsonNodes.Shown(pr.m_JourneyProgressBar)) parts.AddRange(CrimsonNodes.Texts(pr.m_JourneyProgressBar).ConvertAll(UiText.AsProgress));
             var counter = pr.m_JourneyCrownCounter;
             if (CrimsonNodes.Shown(counter)) parts.Add(UiText.Join(CrimsonNodes.Text(counter.m_CrownCount), CrimsonNodes.Text(counter.m_Text)).Replace(", ", " "));
             return UiText.Join(parts.ToArray());

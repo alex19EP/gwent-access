@@ -211,6 +211,18 @@ namespace GwentAccess
 
         public static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
 
+        private static readonly System.Text.RegularExpressions.Regex BareCounter =
+            new System.Text.RegularExpressions.Regex(@"^(\d+)\s+\D{1,6}\s+(\d+)$");
+
+        /// <summary>A progress bar's counter alone ("7/142", which <see cref="Clean"/> made "7 of 142") said as
+        /// progress, as the quests say theirs: "General, progress 7 of 142, 2 of 11", not two positions in a
+        /// row. Any other text comes back as it is.</summary>
+        public static string AsProgress(string s)
+        {
+            var m = BareCounter.Match(s ?? "");
+            return m.Success ? Loc.T("progress {0} of {1}", m.Groups[1].Value, m.Groups[2].Value) : s;
+        }
+
         /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers. A tag becomes a space (it may
         /// separate two words), which is then dropped again before closing punctuation and after an opening
         /// bracket: "&lt;b&gt;Order&lt;/b&gt;: (&lt;b&gt;ranged&lt;/b&gt;)" reads "Order: (ranged)".</summary>
