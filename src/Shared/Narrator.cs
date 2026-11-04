@@ -655,6 +655,17 @@ namespace GwentAccess
         static void Postfix(CardResetAttack __0) => Narrator.Guard("reset", () =>
         {
             if (__0 == null) return;
+#if GWENT
+            // A purify comes with a reset of the statuses only (EResetMode.Tokens), already said as "purify";
+            // a reset is the keyword's only when the power or armor goes back (seen in a practice match: Imperial
+            // Diviner's purify read "reset your Naglfar Taskmaster, power 5" with nothing changed).
+            var mode = __0.ResetMode;
+            if ((mode & (EResetMode.Power | EResetMode.TemplatePower | EResetMode.Armor)) == 0)
+            {
+                Plugin.LogInfo("[narr] reset not said, mode " + mode);
+                return;
+            }
+#endif
             var targets = new List<Card>();
             foreach (var card in Narrator.List(__0.Targets))
                 if (Narrator.Visible(card)) targets.Add(card);
