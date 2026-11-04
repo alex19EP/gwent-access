@@ -256,7 +256,15 @@ namespace GwentAccess.Ui
                     : r == FriendRegion ? GameText.Get("friend_match_setup_title", "Friend match setup")
                     : known ? Regions[r].Context : null;
                 if (context != null) b.PushContext(context);
-                if (r == ProfileRegion && overlay != null) AddProfile(b, overlay);
+                if (r == ProfileRegion && overlay != null)
+                {
+                    AddProfile(b, overlay);
+                    // The banner's button is listed by AddProfile with the player's name. The game sometimes makes
+                    // it selectable too (seen right after login), and a second item with its id threw "Duplicate
+                    // control id", leaving the whole menu unbuilt and silent.
+                    var profile = overlay.m_ProfileButtonController?.m_ProfileButton;
+                    if (profile != null) byStop[r].RemoveAll(c => c.Pointer == profile.Pointer);
+                }
                 bool sideBySide = known && (Regions[r].Stop == "modes" || Regions[r].Stop == "cards");
                 var ids = new List<ControlId>();
                 foreach (var c in byStop[r]) ids.Add(CrimsonNodes.Id(c));
