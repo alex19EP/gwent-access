@@ -123,7 +123,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => CrimsonNodes.Label(toggle), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                         new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? PageText(desc, toggle) : null, live: true, kind: AnnouncementKinds.Tooltip),
                     },
                     OnActivate = () => Navigator.ClickControl(toggle),

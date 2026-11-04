@@ -20,7 +20,7 @@ namespace GwentAccess.Ui
         public override int Layer => 1;
         public override bool NamedOnReturn => true;
 
-        public override string ScreenName => "Versus";
+        public override string ScreenName => Loc.T("Versus");
 
         public override bool IsActive() => Panel() != null;
 
