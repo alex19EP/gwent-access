@@ -189,17 +189,38 @@ namespace GwentAccess.Ui
             return parts.Count > 0 ? string.Join(", ", parts) : Loc.T("Quest");
         }
 
+        private static string IconSprite(UIRewardIcon icon)
+        {
+            try { return icon.m_Icon?.GetComponent<UnityEngine.UI.Image>()?.sprite?.name; } catch { return null; }
+        }
+
         // A reward icon as a mouse player reads it: its hover tooltip (what it is), then the number drawn on it.
         private static string Reward(UIRewardIcon icon)
         {
             if (!CrimsonNodes.Shown(icon)) return null;
             string n = CrimsonNodes.Text(icon.m_Number);
             string what = CrimsonNodes.TooltipText(icon);
-            string text = UiText.Join(n.Length > 0 ? n : null, what);
+            // No tooltip: the icon's picture names it (Journey quests' crown is the bar's XP; RP the reward
+            // points). "Reward: 20" was read with nothing after the number.
+            if (string.IsNullOrEmpty(what)) what = Currency.OfRewardSprite(IconSprite(icon));
+            // "20 XP", "50 Ore": the amount and what it is, as the icon draws them side by side.
+            string text = n.Length > 0 && !string.IsNullOrEmpty(what) ? n + " " + what : UiText.Join(n.Length > 0 ? n : null, what);
             return string.IsNullOrEmpty(text) ? null : GameText.Get("achievements_reward", "Reward:") + " " + text;
         }
 
         // ---- the season cycle ----
+
+        // The quests section's countdown to new quests (QuestsSection/TimerCountdownRenderer), when drawn.
+        private static Component QuestTimer(OuroborosSocialFeatureWindow w)
+        {
+            try
+            {
+                foreach (var t in w.GetComponentsInChildren<Transform>(false))
+                    if (t.name == "TimerCountdownRenderer" && t.parent != null && t.parent.name == "QuestsSection") return t;
+            }
+            catch { }
+            return null;
+        }
 
         private static void BuildCycle(GraphBuilder b, OuroborosSocialFeatureWindow w, HashSet<IntPtr> used)
         {
@@ -217,6 +238,10 @@ namespace GwentAccess.Ui
             AddLevel(b, "next", w.m_LevelItemViewNext, used);
 
             b.BeginStop("side:cycle:quests");
+            // "New Quest(s) in: 07h : 35m : 15s": the countdown drawn above the quests, read live.
+            var timer = QuestTimer(w);
+            if (timer != null)
+                b.AddLabel(ControlId.Structural("side:cycle:timer"), () => CrimsonNodes.Shown(timer) ? string.Join(" ", CrimsonNodes.Texts(timer)) : null);
             foreach (var s in new[] { w.m_QuestsEasy, w.m_QuestsNormal, w.m_QuestsHard })
             {
                 if (!CrimsonNodes.Shown(s)) continue;

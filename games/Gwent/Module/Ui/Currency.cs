@@ -69,6 +69,21 @@ namespace GwentAccess.Ui
             });
         }
 
+        /// <summary>What a reward icon's picture stands for, by its sprite name ("ui_icon_crown_half(Clone)" is
+        /// Journey XP, "symbol_icon_RP(Clone)" reward points), in the game's words; null when unknown.</summary>
+        public static string OfRewardSprite(string sprite)
+        {
+            if (string.IsNullOrEmpty(sprite)) return null;
+            string s = sprite.ToLowerInvariant();
+            if (s.Contains("crown")) return GameText.Get("experience_value", "XP");
+            if (s.Contains("_rp") || s.Contains("rewardpoint")) return RewardPoints() ?? Of(EVirtualCurrencyType.RewardPoints);
+            if (s.Contains("scrap")) return Scraps();
+            if (s.Contains("powder")) return Powder();
+            if (s.Contains("ore") || s.Contains("gold")) return Ore();
+            if (s.Contains("keg")) return Kegs();
+            return null;
+        }
+
         /// <summary>The currency a popup icon (a sprite name: "Ore", "Scraps") stands for, in the game's words;
         /// null for any other icon.</summary>
         public static string OfIcon(string sprite)
