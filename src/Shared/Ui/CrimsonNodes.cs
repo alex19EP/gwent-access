@@ -175,9 +175,15 @@ namespace GwentAccess.Ui
             return parts;
         }
 
+        /// <summary>Set by a game whose texts draw icons that carry words (Gwent's currency sprites: a popup's
+        /// "COST: &lt;sprite name="ScrapsNeg"&gt; -200"): turns a raw text into speech with them named. Null:
+        /// <see cref="UiText.Clean"/>.</summary>
+        public static Func<string, string> RichText;
+
         private static void AddText(List<string> parts, string raw)
         {
             string s = UiText.Clean(raw);
+            try { if (RichText != null) s = RichText(raw) ?? s; } catch { }
             if (s.Length > 0 && !s.StartsWith("[MISSING]") && !UiText.IsPlaceholder(s) && !parts.Contains(s)) parts.Add(s);
         }
 

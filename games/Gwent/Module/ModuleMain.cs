@@ -16,6 +16,8 @@ namespace GwentAccess
 #if DEBUG
             Speech.Observer = Dev.DevServer.TapSpeech; // before the first Say, so /speech sees it
 #endif
+            // Currency icons drawn in texts ("COST: <sprite name=ScrapsNeg> -200") are named: "COST: -200 Scraps".
+            Ui.CrimsonNodes.RichText = Ui.Currency.Caption;
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
                 Speech.Say(first
