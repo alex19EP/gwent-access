@@ -66,6 +66,7 @@ namespace GwentAccess
             Ui.ScreenManager.Register(new Ui.DeckBuilderScreen());
             Ui.ScreenManager.Register(new Ui.DraftScreen());
             Ui.ScreenManager.Register(new Ui.DraftLobbyScreen());
+            Ui.ScreenManager.Register(new Ui.DraftDeckScreen());
             Ui.ScreenManager.Register(new Ui.NewDeckScreen());
             Ui.ScreenManager.Register(new Ui.CycleScreen());
             Ui.ScreenManager.Register(new Ui.CycleRerollScreen());

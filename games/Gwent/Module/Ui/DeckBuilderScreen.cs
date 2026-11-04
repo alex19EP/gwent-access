@@ -239,7 +239,7 @@ namespace GwentAccess.Ui
 
         // A deck row as the collection reads cards ("Geralt of Rivia, power 3, 10 provisions"), with its copies
         // ("x2"); rows that aren't cards (the leader slot) read their words.
-        private static string DeckRow(AControl c)
+        internal static string DeckRow(AControl c)
         {
             try
             {

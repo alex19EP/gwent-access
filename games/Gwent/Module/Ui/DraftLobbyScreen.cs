@@ -19,8 +19,8 @@ namespace GwentAccess.Ui
     /// - The run's end (<see cref="ArenaSummaryWidget"/>): the wins, "Your rewards:" and each reward, then
     ///   Draft again.
     ///
-    /// Then the panel's own buttons (show deck, redraft, the bar). Not while picking, nor while the deck picker
-    /// is open.
+    /// Then the panel's own buttons (show deck, redraft, the bar). Not while picking; the deck picker Show deck
+    /// opens is <see cref="DraftDeckScreen"/>'s, over this one.
     /// </summary>
     internal sealed class DraftLobbyScreen : Screen
     {
@@ -37,7 +37,9 @@ namespace GwentAccess.Ui
             if (p == null) return null;
             try
             {
-                if (CrimsonNodes.Shown(p.ArenaDraftingContainerInstance) || p.m_IsDeckPickerOpen) return null;
+                // The deck picker (Show deck) is DraftDeckScreen's, over this one: the lobby stays under it, so
+                // closing the deck comes back to Show deck.
+                if (CrimsonNodes.Shown(p.ArenaDraftingContainerInstance)) return null;
                 return Ticket(p) != null || Ready(p) != null || Summary(p) != null ? p : null;
             }
             catch { return null; }
@@ -72,14 +74,14 @@ namespace GwentAccess.Ui
                 b.BeginStop("draft:buttons");
                 foreach (var c in rest)
                 {
+                    // Show deck opens the deck picker over the lobby and Abandon the redraft confirmation: toggles
+                    // only in the game's make (each alone in its group), so buttons. The panel's own copy of the
+                    // social bar (journey, season cycle, quests, friends: one radio group) opens the side window's
+                    // sections, as the main menu's does: tabs. Their toggled flags don't follow what is open (the
+                    // group keeps its first one on), so no state is said.
                     var v = CrimsonNodes.Button(c);
-                    var t = c.TryCast<ToggleButtonControl>();
-                    // Show deck / redraft say "on" while on: an on/off option, a checkbox.
-                    if (t != null)
-                        v.Announcements = new List<NodeAnnouncement>(CrimsonNodes.WithRole(v, Loc.T("checkbox")).Announcements)
-                        {
-                            new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? Loc.T("on") : null, live: true, kind: AnnouncementKinds.Selected),
-                        };
+                    if (c.TryCast<ToggleButtonControl>() != null && CrimsonNodes.Role(c) == Loc.T("radio button"))
+                        v = CrimsonNodes.WithRole(v, Loc.T("tab"));
                     b.AddItem(CrimsonNodes.Id(c), v);
                 }
             }
