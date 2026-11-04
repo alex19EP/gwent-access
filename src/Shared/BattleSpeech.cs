@@ -73,12 +73,12 @@ namespace GwentAccess
         {
             switch (loc)
             {
-                case ELocation.Melee: return "melee row";
-                case ELocation.Ranged: return "ranged row";
-                case ELocation.Hand: return "hand";
-                case ELocation.Deck: return "deck";
-                case ELocation.Graveyard: return "graveyard";
-                case ELocation.Leader: return "leader";
+                case ELocation.Melee: return Loc.T("melee row");
+                case ELocation.Ranged: return Loc.T("ranged row");
+                case ELocation.Hand: return Loc.T("hand");
+                case ELocation.Deck: return Loc.T("deck");
+                case ELocation.Graveyard: return Loc.T("graveyard");
+                case ELocation.Leader: return Loc.T("leader");
                 default: return loc.ToString();
             }
         }
@@ -86,8 +86,8 @@ namespace GwentAccess
         /// <summary>"Your melee row" / "Opponent's ranged row" etc. for a card's position.</summary>
         public static string Place(GameController gc, CardPosition pos)
         {
-            string side = pos.PlayerId == Me(gc) ? "your" : "opponent's";
-            return side + " " + WhereName(pos.Location);
+            string where = WhereName(pos.Location);
+            return pos.PlayerId == Me(gc) ? Loc.T("your {0}", where) : Loc.T("opponent's {0}", where);
         }
 
         public static string StatusText(GameController gc)
@@ -96,22 +96,22 @@ namespace GwentAccess
             var me = pm.LocalUser;
             var opp = me.OpponentPlayer;
             var parts = new List<string>();
-            try { parts.Add("Round " + (gc.RoundManager.CurrentRoundIndex + 1)); } catch { }
-            try { parts.Add("Score: you " + me.CurrentScore + ", opponent " + opp.CurrentScore); } catch { }
-            try { parts.Add("Rounds won: you " + me.Crowns + ", opponent " + opp.Crowns); } catch { }
-            try { parts.Add(pm.CurrentPlayerId == Me(gc) ? "Your turn" : "Opponent's turn"); } catch { }
-            try { if (me.HasPassed) parts.Add("You have passed"); } catch { }
-            try { if (opp.HasPassed) parts.Add("Opponent has passed"); } catch { }
+            try { parts.Add(Loc.T("Round {0}", gc.RoundManager.CurrentRoundIndex + 1)); } catch { }
+            try { parts.Add(Loc.T("Score: you {0}, opponent {1}", me.CurrentScore, opp.CurrentScore)); } catch { }
+            try { parts.Add(Loc.T("Rounds won: you {0}, opponent {1}", me.Crowns, opp.Crowns)); } catch { }
+            try { parts.Add(pm.CurrentPlayerId == Me(gc) ? Loc.T("Your turn") : Loc.T("Opponent's turn")); } catch { }
+            try { if (me.HasPassed) parts.Add(Loc.T("You have passed")); } catch { }
+            try { if (opp.HasPassed) parts.Add(Loc.T("Opponent has passed")); } catch { }
             try
             {
                 var mull = GameObject.Find("UIMulliganPrefab(Clone)");
-                if (mull != null && mull.activeInHierarchy) parts.Add("Swaps left: " + me.MulligansLeft);
+                if (mull != null && mull.activeInHierarchy) parts.Add(Loc.T("Swaps left: {0}", me.MulligansLeft));
             }
             catch { }
-            try { parts.Add("Cards in hand: you " + HandCount(gc, Me(gc)) + ", opponent " + HandCount(gc, Them(gc))); } catch { }
+            try { parts.Add(Loc.T("Cards in hand: you {0}, opponent {1}", HandCount(gc, Me(gc)), HandCount(gc, Them(gc)))); } catch { }
             // The counters on both players' deck and graveyard stacks beside the board.
-            try { parts.Add("Deck: you " + PileCount(gc, Me(gc), ELocation.Deck) + ", opponent " + PileCount(gc, Them(gc), ELocation.Deck)); } catch { }
-            try { parts.Add("Graveyard: you " + PileCount(gc, Me(gc), ELocation.Graveyard) + ", opponent " + PileCount(gc, Them(gc), ELocation.Graveyard)); } catch { }
+            try { parts.Add(Loc.T("Deck: you {0}, opponent {1}", PileCount(gc, Me(gc), ELocation.Deck), PileCount(gc, Them(gc), ELocation.Deck))); } catch { }
+            try { parts.Add(Loc.T("Graveyard: you {0}, opponent {1}", PileCount(gc, Me(gc), ELocation.Graveyard), PileCount(gc, Them(gc), ELocation.Graveyard))); } catch { }
             return string.Join(". ", parts) + ".";
         }
 
