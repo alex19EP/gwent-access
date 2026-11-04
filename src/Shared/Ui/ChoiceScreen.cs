@@ -71,10 +71,11 @@ namespace GwentAccess.Ui
         {
             var req = _req;
             if (req == null || _gc == null) return;
-            // The offered cards are created for the choice and sit nowhere the visibility rules cover (the game
-            // reports them hidden from you), yet the choice panel shows them face up: read them without the
-            // match's visibility check.
-            PlayerManager pm = null;
+            // The offered cards are created for the choice and sit where the board's visibility rule reports
+            // them hidden from you, yet the choice panel shows them face up: they are checked by the game's
+            // preview rule instead (CardReader.Hidden with preview), so a card the panel shows face down
+            // reads "hidden card".
+            var pm = _gc.PlayerManager;
             _cards.Clear();
             var offered = new List<(Card Card, bool Enabled)>();
             try
@@ -84,6 +85,7 @@ namespace GwentAccess.Ui
             }
             catch (Exception e) { Plugin.LogInfo("[choice] read failed: " + e.Message); }
             if (offered.Count == 0) return;
+            LogHidden(req, offered, pm);
 
             b.BeginStop("choices");
             b.PushContext("Choices");
@@ -96,15 +98,29 @@ namespace GwentAccess.Ui
                 {
                     Announcements = new[]
                     {
-                        new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => CardReader.Summary(card, pm, preview: true), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => enabled ? (Chosen(card) ? "chosen" : null) : "unavailable", live: true, kind: AnnouncementKinds.Selected),
                     },
                     OnActivate = () => Pick(card, enabled),
-                    OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
+                    OnTooltip = () => Speech.Say(CardReader.Whole(card, pm, preview: true), true),
                 });
             }
             b.EndRow();
             b.PopContext();
+        }
+
+        private int _loggedReq = -1;
+
+        // Once per choice, the log says how many offered cards read face down: a choice the panel shows face
+        // up that logs them all hidden means the preview rule doesn't cover it.
+        private void LogHidden(RequestCardChoicesAction req, List<(Card Card, bool Enabled)> offered, PlayerManager pm)
+        {
+            int id = -1;
+            try { id = req.Id; } catch { }
+            if (id == _loggedReq) return;
+            _loggedReq = id;
+            int hidden = offered.FindAll(o => CardReader.Hidden(o.Card, pm, preview: true)).Count;
+            Plugin.LogInfo("[choice] " + offered.Count + " offered, " + hidden + " read as hidden");
         }
 
         private bool Chosen(Card card)
@@ -164,7 +180,7 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => null, always: true); // face up, as in Build
+                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager, always: true, preview: true); // as in Build
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, done choosing" },

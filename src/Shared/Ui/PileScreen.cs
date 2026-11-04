@@ -91,9 +91,9 @@ namespace GwentAccess.Ui
         public override void Build(GraphBuilder b)
         {
             if (_open == Pile.None || _gc == null) return;
-            // The panel shows its cards face up (your own deck, a public graveyard): read them as shown, without
-            // the match's visibility check, as the choice panel does.
-            PlayerManager pm = null;
+            // The panel shows its cards face up (your own deck, a public graveyard), where the board's rule
+            // reports a deck card hidden: checked by the game's preview rule, as the choice panel's are.
+            var pm = _gc.PlayerManager;
             _cards.Clear();
             var cards = Cards();
             b.BeginStop("pile");
@@ -109,8 +109,8 @@ namespace GwentAccess.Ui
                 _cards[(string)id.StructuralKey] = card;
                 b.AddItem(id, new NodeVtable
                 {
-                    Announcements = new[] { new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label) },
-                    OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
+                    Announcements = new[] { new NodeAnnouncement(() => CardReader.Summary(card, pm, preview: true), kind: AnnouncementKinds.Label) },
+                    OnTooltip = () => Speech.Say(CardReader.Whole(card, pm, preview: true), true),
                 });
             }
             b.EndRow();
@@ -226,7 +226,7 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, () => null, always: true); // face up, as in Build
+                _cardKeys = new CardKeys(FocusedCard, () => _gc?.PlayerManager, always: true, preview: true); // as in Build
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
                     new ScreenKey { Key = KeyCode.Backspace, Run = Close, Hint = "Backspace, close" },

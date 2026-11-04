@@ -23,15 +23,19 @@ namespace GwentAccess.Ui
 
         private readonly bool _always;
         private readonly Action _noCard;
+        private readonly bool _preview;
 
         /// <param name="always">Up/Down always read (no card focused: <paramref name="noCard"/>, by default "No
         /// card."); false: they read only while a card is focused, and move otherwise.</param>
-        public CardKeys(Func<Card> focused, Func<PlayerManager> players, bool always = false, Action noCard = null)
+        /// <param name="preview">The cards sit in a panel of cards (a choice, a pile): hidden is what the panel
+        /// shows face down (<see cref="CardReader.Hidden"/>).</param>
+        public CardKeys(Func<Card> focused, Func<PlayerManager> players, bool always = false, Action noCard = null, bool preview = false)
         {
             _focused = focused;
             _players = players;
             _always = always;
             _noCard = noCard;
+            _preview = preview;
         }
 
         /// <summary>The keys. On screens of cards only (<c>always</c>), Home/End also stay in the row: the first or
@@ -75,7 +79,7 @@ namespace GwentAccess.Ui
                 return;
             }
             if (_lineCard == null || _lineCard.Id != card.Id) { _lineCard = card; _line = 0; }
-            var lines = CardReader.Lines(card, _players());
+            var lines = CardReader.Lines(card, _players(), _preview);
             int next = _line + dir;
             // Past either end says so (Accessible Arena's "End of card"), instead of silence.
             if (next < 0) { Speech.Say("Beginning of card", true); return; }
@@ -91,10 +95,10 @@ namespace GwentAccess.Ui
             IReadOnlyList<string> only = null;
             if (_lineCard != null && _lineCard.Id == card.Id)
             {
-                var lines = CardReader.Lines(card, _players());
+                var lines = CardReader.Lines(card, _players(), _preview);
                 if (_line < lines.Count && lines[_line].Keywords.Count > 0) only = lines[_line].Keywords;
             }
-            var explained = CardReader.Explanations(card, _players(), only);
+            var explained = CardReader.Explanations(card, _players(), only, _preview);
             Speech.Say(explained.Count > 0 ? string.Join(" ", explained) : "No keywords.", true);
         }
 
@@ -102,7 +106,7 @@ namespace GwentAccess.Ui
         {
             var card = _focused();
             if (card == null) return;
-            Speech.Say(CardReader.Hidden(card, _players()) ? "hidden card" : CardReader.Stats(card), true);
+            Speech.Say(CardReader.Hidden(card, _players(), _preview) ? "hidden card" : CardReader.Stats(card), true);
         }
     }
 }
