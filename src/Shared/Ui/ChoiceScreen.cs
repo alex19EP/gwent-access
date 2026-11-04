@@ -156,7 +156,10 @@ namespace GwentAccess.Ui
             }
             b.EndRow();
             // Shown again after Tab hid it: the cursor goes back to the card it was on.
-            if (_lastCard != null && _cards.ContainsKey(_lastCard)) b.SetStart(ControlId.Structural(_lastCard));
+            // Only within the same choice: the cards made for each choice reuse the same ids (1000, 1001, …), so
+            // a card remembered from an earlier choice would start the next one on its third card (seen in a
+            // ranked match).
+            if (_lastCard != null && _lastReq == ReqId(req) && _cards.ContainsKey(_lastCard)) b.SetStart(ControlId.Structural(_lastCard));
             b.PopContext();
         }
 
@@ -210,7 +213,14 @@ namespace GwentAccess.Ui
         public override void OnCursorMoved(GraphNode node)
         {
             _cardKeys?.Reset();
-            if (node?.Id.StructuralKey is string key && _cards.ContainsKey(key)) _lastCard = key;
+            if (node?.Id.StructuralKey is string key && _cards.ContainsKey(key)) { _lastCard = key; _lastReq = ReqId(_req); }
+        }
+
+        private static int _lastReq = -1;
+
+        private static int ReqId(RequestCardChoicesAction req)
+        {
+            try { return req?.Id ?? -1; } catch { return -1; }
         }
 
         // The card the cursor was last on, so a choice shown again after Tab comes back to it.
