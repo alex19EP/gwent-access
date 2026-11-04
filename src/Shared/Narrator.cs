@@ -792,13 +792,18 @@ namespace GwentAccess
     /// <summary>
     /// The opponent's emote, in its speech bubble's words: "Противник: Молодец". Muted emotes stay silent —
     /// the game's "mute opponent's emotes" setting and the in-match mute both set the manager's mute flag.
-    /// The notification says who emoted; the bubble that follows carries the text.
+    /// The notification says who emoted; the bubble that follows carries the text. Your own emote is read
+    /// once when it was just sent from the emote wheel (<see cref="SentAt"/>), as the bubble over your avatar
+    /// confirms it went: "You: Well played."
     /// </summary>
     [HarmonyPatch(typeof(TauntsManager), nameof(TauntsManager.OnTauntNotification))]
     internal static class NarrateTauntWho
     {
         internal static float At = -1;
         internal static bool Opponent, Muted;
+
+        /// <summary>When the emote wheel's screen sent an emote (Gwent's EmoteScreen); -1 when none is awaited.</summary>
+        internal static float SentAt = -1;
 
         static void Prefix(TauntsManager __instance, TauntNotificationData __0) => Narrator.Guard("taunt", () =>
         {
@@ -816,10 +821,15 @@ namespace GwentAccess
         static void Postfix(string __0) => Narrator.Guard("taunt text", () =>
         {
             bool recent = NarrateTauntWho.At > 0 && Time.realtimeSinceStartup - NarrateTauntWho.At < 5f;
-            if (!recent || !NarrateTauntWho.Opponent || NarrateTauntWho.Muted) return; // your own emote: you chose it
+            // The mute silences only the opponent's emotes; yours still show their bubble.
+            if (!recent || NarrateTauntWho.Opponent && NarrateTauntWho.Muted) return;
+            // Your own emote only when just sent from the wheel, once: its bubble says it went.
+            bool sent = NarrateTauntWho.SentAt > 0 && Time.realtimeSinceStartup - NarrateTauntWho.SentAt < 5f;
+            if (!NarrateTauntWho.Opponent && !sent) return;
             NarrateTauntWho.At = -1;
+            if (!NarrateTauntWho.Opponent) NarrateTauntWho.SentAt = -1;
             string text = UiText.Clean(__0);
-            if (text.Length > 0) Narrator.Say(Narrator.Opponent() + ": " + text);
+            if (text.Length > 0) Narrator.Say((NarrateTauntWho.Opponent ? Narrator.Opponent() : "You") + ": " + text);
         });
     }
 }
