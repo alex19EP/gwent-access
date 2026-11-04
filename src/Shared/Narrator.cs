@@ -35,7 +35,9 @@ namespace GwentAccess
         internal static void Say(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
-            FlushDraws(); // draws gathered so far come first, in the order they happened
+            // Draws gathered so far come first, in the order they happened — but not a round's deal still
+            // going on, which is said whole once it is over.
+            if (!Dealing) FlushDraws();
             Speech.Say(text, false);
             Ui.LogScreen.Add(text); // kept for the battle log (O)
         }
@@ -118,6 +120,19 @@ namespace GwentAccess
         /// opening deal, which the mulligan screen reads out card by card straight after.</summary>
         internal static IntPtr TurnsStartedIn;
 
+        private static float _dealAt = -1;
+
+        /// <summary>Whether a round's deal is going on: from the round's start until its draws are said (ten
+        /// seconds at most). The game deals the cards one at a time, alternating players, with the round
+        /// banner in between; the deal is said as one line once it is over, not cut up by the banner.</summary>
+        internal static bool Dealing => _dealAt >= 0 && Time.realtimeSinceStartup - _dealAt < 10f;
+
+        /// <summary>A round started: its deal follows (<see cref="Dealing"/>).</summary>
+        internal static void Deal() => _dealAt = Time.realtimeSinceStartup;
+
+        /// <summary>A turn started: any deal is over, and its draws are said before the turn's banner.</summary>
+        internal static void EndDeal() => _dealAt = -1;
+
         /// <summary>A card drawn: yours by name, the opponent's as a count (their hand is face down).</summary>
         internal static void Drawn(Card card, EPlayerId who)
         {
@@ -127,26 +142,32 @@ namespace GwentAccess
             _drawAt = Time.realtimeSinceStartup;
         }
 
-        /// <summary>Per frame: says the gathered draws once a burst is over. The game deals a round's cards one
-        /// at a time, alternating players, so the wait is long enough to span the whole deal.</summary>
+        /// <summary>Per frame: says the gathered draws once a burst is over (a round's deal waits longer: its
+        /// cards fly in one by one).</summary>
         public static void Tick()
         {
-            if (_drawAt >= 0 && Time.realtimeSinceStartup - _drawAt >= 1.2f) FlushDraws();
+            float wait = Dealing ? 2.5f : 1.2f;
+            if (_drawAt >= 0 && Time.realtimeSinceStartup - _drawAt >= wait) FlushDraws();
         }
 
-        /// <summary>"Взять: Ведьмак, Цири." and "Противник: Взять 2."</summary>
+        /// <summary>The draws as one line: "You draw 3 cards: Wild Hunt Hound, Adda: Striga, Ge'els. Opponent
+        /// draws 3 cards." The opponent's are a count: their cards come in face down.</summary>
         private static void FlushDraws()
         {
             if (_drawAt < 0) return;
             _drawAt = -1;
+            _dealAt = -1;
             var mine = new List<string>(_myDraws);
             int theirs = _theirDraws;
             _myDraws.Clear();
             _theirDraws = 0;
-            string label = GameText.Term("keyword_draw", "Draw");
-            if (mine.Count > 0) SayEffect(null, label, null, mine);
-            if (theirs > 0) Say(Opponent() + ": " + label + " " + theirs + ".");
+            var parts = new List<string>();
+            if (mine.Count > 0) parts.Add("You draw " + Cards(mine.Count) + ": " + string.Join(", ", mine) + ".");
+            if (theirs > 0) parts.Add(Opponent() + " draws " + Cards(theirs) + ".");
+            if (parts.Count > 0) Say(string.Join(" ", parts));
         }
+
+        private static string Cards(int n) => n == 1 ? "1 card" : n + " cards";
 
         internal static bool IsUnit(Card card)
         {
@@ -756,6 +777,7 @@ namespace GwentAccess
         {
             if (!Narrator.Real(__instance, out var gc)) return;
             Narrator.TurnsStartedIn = gc.Pointer;
+            Narrator.EndDeal();
             NarrateStatusBanner.Forget();
             // A player who passed gets their turns skipped straight away; there's no turn to announce.
             try
@@ -785,6 +807,16 @@ namespace GwentAccess
                 ? GameText.Get("gwent_message_player_pass_main", "You passed.")
                 : GameText.Get("gwent_opponent_passed_turn", "Opponent passed.");
             Narrator.Say(Narrator.Sentence(banner) + " " + Narrator.Scores() + ".");
+        });
+    }
+
+    /// <summary>A round started: the deal that follows is gathered whole (<see cref="Narrator.Dealing"/>).</summary>
+    [HarmonyPatch(typeof(BattleHistory), nameof(BattleHistory.OnRoundStartedHandler))]
+    internal static class NarrateRoundDeal
+    {
+        static void Postfix(BattleHistory __instance) => Narrator.Guard("round deal", () =>
+        {
+            if (Narrator.Real(__instance, out _)) Narrator.Deal();
         });
     }
 
@@ -819,6 +851,7 @@ namespace GwentAccess
             try { who = UiText.Clean(__instance.m_WhoStarts.text); } catch { }
             if (head.Length == 0) head = GameText.Get(__1 ? "ui_final_round" : "gwent_round_start", "Round start");
             if (who.Length == 0) who = GameText.Get(__0, __0 ?? "");
+            Narrator.Deal(); // the banner shows over the deal, which is said whole after it
             Narrator.Say(head.TrimEnd('.', '!') + ". " + who);
         });
     }
