@@ -286,7 +286,6 @@
   "Couldn't open it.": "Não foi possível abrir.",
   "Backspace, close": "Backspace, fechar",
   "Categories": "Categorias",
-  "Options": "Opções",
   "Escape or Backspace, back to the categories": "Escape ou Backspace, voltar às categorias",
   "20 seconds left to swap.": "20 segundos restantes para trocar.",
   "Hurry, 8 seconds left to swap!": "Rápido, 8 segundos restantes para trocar!",
@@ -475,7 +474,6 @@
   "No other decks.": "Nenhum outro baralho.",
   "Only one deck.": "Só há um baralho.",
   "Couldn't change the deck.": "Não foi possível mudar o baralho.",
-  "pressed": "pressionado",
   "Show fewer": "Mostrar menos",
   "No timer shown.": "Nenhum cronômetro visível.",
   "T, time searching": "T, tempo de busca",
@@ -483,7 +481,6 @@
   "Leader ability, Enter creates the deck": "Habilidade do líder, Enter cria o baralho",
   "adds {0} provisions": "adiciona {0} ao limite de recrutamento",
   "Name": "Nome",
-  "Tabs": "Abas",
   "avatar and border": "avatar e borda",
   "Contract": "Contrato",
   "T, track the contract": "T, acompanhar o contrato",
@@ -585,5 +582,8 @@
   "tab": "guia",
   "radio button": "botão de opção",
   "checkbox": "caixa de seleção",
-  "button": "botão"
+  "button": "botão",
+  "combo box": "caixa de combinação",
+  "slider": "controle deslizante",
+  "spin button": "botão giratório"
 }

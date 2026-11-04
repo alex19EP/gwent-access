@@ -213,7 +213,8 @@ namespace GwentAccess.Ui
             {
                 used.Add(c.Pointer);
                 var control = c;
-                b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => DeckRow(control)));
+                // A card row reads as a card, with no role (as the collection's cards and the battle's).
+                b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => DeckRow(control)), null));
             }
             b.EndRow();
             b.PopContext();
@@ -474,7 +475,7 @@ namespace GwentAccess.Ui
             var dropdown = c.GetComponentInParent<UIDBFilterDropdown>();
             if (dropdown != null && c.TryCast<GwentUnity.UI.PlayerProfile.UIDropdownButton>() != null)
             {
-                var head = CrimsonNodes.Button(c, () => AllTexts(c));
+                var head = CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => AllTexts(c)), Loc.T("button"));
                 head.Announcements = new List<NodeAnnouncement>(head.Announcements)
                 {
                     new NodeAnnouncement(() => DropdownOpen(dropdown) ? Loc.T("expanded") : Loc.T("collapsed"), live: true, kind: AnnouncementKinds.Value),
@@ -484,6 +485,8 @@ namespace GwentAccess.Ui
             var v = CrimsonNodes.Button(c);
             var toggle = c.TryCast<ToggleButtonControl>();
             if (toggle == null) return v;
+            // A filter toggle says checked or not: a checkbox, whatever group the game puts it in.
+            v = CrimsonNodes.WithRole(v, Loc.T("checkbox"));
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
                 new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("checked") : Loc.T("not checked"), live: true, kind: AnnouncementKinds.Value),

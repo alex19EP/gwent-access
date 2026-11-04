@@ -65,7 +65,11 @@ namespace GwentAccess.Ui
                     _cards[(string)id.StructuralKey] = slot;
                     b.AddItem(id, new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => RewardName(slot), kind: AnnouncementKinds.Label) },
+                        Announcements = new[]
+                        {
+                            new NodeAnnouncement(() => RewardName(slot), kind: AnnouncementKinds.Label),
+                            CrimsonNodes.RolePart(Loc.T("button")), // Enter clicks the reward, as the mouse does
+                        },
                         OnActivate = () => Navigator.ClickControl(btn),
                         OnTooltip = () => Speech.Say(RewardDetails(slot), true),
                     });

@@ -286,7 +286,6 @@
   "Couldn't open it.": "Öffnen fehlgeschlagen.",
   "Backspace, close": "Rücktaste, schließen",
   "Categories": "Kategorien",
-  "Options": "Optionen",
   "Escape or Backspace, back to the categories": "Escape oder Rücktaste, zurück zu den Kategorien",
   "20 seconds left to swap.": "Noch 20 Sekunden zum Austauschen.",
   "Hurry, 8 seconds left to swap!": "Beeil dich, noch 8 Sekunden zum Austauschen!",
@@ -475,7 +474,6 @@
   "No other decks.": "Keine anderen Decks.",
   "Only one deck.": "Nur ein Deck.",
   "Couldn't change the deck.": "Das Deck konnte nicht gewechselt werden.",
-  "pressed": "gedrückt",
   "Show fewer": "Weniger anzeigen",
   "No timer shown.": "Kein Timer angezeigt.",
   "T, time searching": "T, bisherige Suchdauer",
@@ -483,7 +481,6 @@
   "Leader ability, Enter creates the deck": "Anführerfähigkeit, Eingabe erstellt das Deck",
   "adds {0} provisions": "erhöht die Rekrutierungskosten um {0}",
   "Name": "Name",
-  "Tabs": "Reiter",
   "avatar and border": "Avatar und Rahmen",
   "Contract": "Vertrag",
   "T, track the contract": "T, Vertrag verfolgen",
@@ -585,5 +582,8 @@
   "tab": "Registerkarte",
   "radio button": "Optionsfeld",
   "checkbox": "Kontrollkästchen",
-  "button": "Schalter"
+  "button": "Schalter",
+  "combo box": "Kombinationsfeld",
+  "slider": "Schieberegler",
+  "spin button": "Drehfeld"
 }

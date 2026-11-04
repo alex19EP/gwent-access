@@ -234,8 +234,8 @@ namespace GwentAccess.Ui
         {
             var tabs = Tabs(p, used);
             if (tabs.Count == 0) return;
+            // No "Tabs" context word: each tab says "tab" ("Summary, tab, selected, 1 of 4").
             b.BeginStop("tabs");
-            b.PushContext(Loc.T("Tabs"));
             for (int i = 0; i < tabs.Count; i++)
             {
                 int index = i;
@@ -243,6 +243,7 @@ namespace GwentAccess.Ui
                 v.Announcements = new[]
                 {
                     v.Announcements[0],
+                    CrimsonNodes.RolePart(Loc.T("tab")),
                     new NodeAnnouncement(() => SafeOpenTab(p) == index ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                     new NodeAnnouncement(() => SafeOpenTab(p) != index && InWalkthrough(p) ? Loc.T("locked") : null, live: true, kind: AnnouncementKinds.Enabled),
                 };
@@ -256,7 +257,6 @@ namespace GwentAccess.Ui
                 };
                 b.AddItem(CrimsonNodes.Id(tabs[i]), v);
             }
-            b.PopContext();
         }
 
         // ---- the book's page ----
@@ -286,6 +286,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => TreeName(tree), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("button")), // Enter opens the tree
                         new NodeAnnouncement(() => UiText.NullIfEmpty(UiText.Clean(tree.m_NodeProgressText?.text)), live: true, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => Navigator.ClickControl(btn),
@@ -536,6 +537,7 @@ namespace GwentAccess.Ui
                     v.Announcements = new[]
                     {
                         v.Announcements[0],
+                        CrimsonNodes.RolePart(Loc.T("tab")), // the story's parts, one shown at a time
                         new NodeAnnouncement(() =>
                         {
                             string selected = toggle != null && toggle.IsToggled ? Loc.T("selected") : null;

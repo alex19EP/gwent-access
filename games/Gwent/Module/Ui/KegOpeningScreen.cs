@@ -187,7 +187,11 @@ namespace GwentAccess.Ui
                 var label = l;
                 b.AddItem(CrimsonNodes.Id(l), new NodeVtable
                 {
-                    Announcements = new[] { new NodeAnnouncement(() => GameText.Get(label.LocalizationKey, label.LocalizationKey), kind: AnnouncementKinds.Label) },
+                    Announcements = new[]
+                    {
+                        new NodeAnnouncement(() => GameText.Get(label.LocalizationKey, label.LocalizationKey), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("button")),
+                    },
                     OnActivate = () =>
                     {
                         Plugin.LogInfo("[keg] bar label: " + label.LocalizationKey);

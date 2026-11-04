@@ -74,8 +74,9 @@ namespace GwentAccess.Ui
                 {
                     var v = CrimsonNodes.Button(c);
                     var t = c.TryCast<ToggleButtonControl>();
+                    // Show deck / redraft say "on" while on: an on/off option, a checkbox.
                     if (t != null)
-                        v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+                        v.Announcements = new List<NodeAnnouncement>(CrimsonNodes.WithRole(v, Loc.T("checkbox")).Announcements)
                         {
                             new NodeAnnouncement(() => CrimsonNodes.Toggled(t) ? Loc.T("on") : null, live: true, kind: AnnouncementKinds.Selected),
                         };

@@ -68,7 +68,8 @@ namespace GwentAccess.Ui
                     used.Add(t.Pointer);
                     var tab = t;
                     if (CrimsonNodes.Toggled(tab)) selected = CrimsonNodes.Texts(tab) is var tt && tt.Count > 0 ? tt[0] : null;
-                    var v = CrimsonNodes.Button(tab);
+                    // The two stories' buttons switch the page below them: tabs.
+                    var v = CrimsonNodes.WithRole(CrimsonNodes.Button(tab), Loc.T("tab"));
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
                         new NodeAnnouncement(() => CrimsonNodes.Toggled(tab) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),

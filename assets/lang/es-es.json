@@ -286,7 +286,6 @@
   "Couldn't open it.": "No se pudo abrir.",
   "Backspace, close": "Retroceso, cerrar",
   "Categories": "Categorías",
-  "Options": "Opciones",
   "Escape or Backspace, back to the categories": "Escape o Retroceso, volver a las categorías",
   "20 seconds left to swap.": "Quedan 20 segundos para cambiar.",
   "Hurry, 8 seconds left to swap!": "¡Rápido, quedan 8 segundos para cambiar!",
@@ -475,7 +474,6 @@
   "No other decks.": "No hay otras barajas.",
   "Only one deck.": "Solo hay una baraja.",
   "Couldn't change the deck.": "No se pudo cambiar la baraja.",
-  "pressed": "presionado",
   "Show fewer": "Mostrar menos",
   "No timer shown.": "No se muestra ningún temporizador.",
   "T, time searching": "T, tiempo de búsqueda",
@@ -483,7 +481,6 @@
   "Leader ability, Enter creates the deck": "Habilidad de líder, Enter crea la baraja",
   "adds {0} provisions": "añade {0} al límite de reclutamiento",
   "Name": "Nombre",
-  "Tabs": "Pestañas",
   "avatar and border": "avatar y marco",
   "Contract": "Contrato",
   "T, track the contract": "T, seguir el contrato",
@@ -585,5 +582,8 @@
   "tab": "pestaña",
   "radio button": "botón de opción",
   "checkbox": "casilla de verificación",
-  "button": "botón"
+  "button": "botón",
+  "combo box": "cuadro combinado",
+  "slider": "deslizador",
+  "spin button": "botón de giro"
 }

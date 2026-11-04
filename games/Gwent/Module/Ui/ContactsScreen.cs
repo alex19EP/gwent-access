@@ -269,7 +269,8 @@ namespace GwentAccess.Ui
         /// foldout with its animation and sound; the group's expanded state is read back from the game.</summary>
         internal static NodeVtable Foldout(AControl header, FoldoutSectionComponent foldout, System.Func<string> label)
         {
-            var v = CrimsonNodes.Button(header, label);
+            // "button" before the kernel's expanded/collapsed, whatever control the header is drawn with.
+            var v = CrimsonNodes.WithRole(CrimsonNodes.Button(header, label), Loc.T("button"));
             void Toggle(bool open)
             {
                 bool isOpen;

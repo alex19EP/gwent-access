@@ -286,7 +286,6 @@
   "Couldn't open it.": "Не удалось открыть.",
   "Backspace, close": "Backspace, закрыть",
   "Categories": "Категории",
-  "Options": "Параметры",
   "Escape or Backspace, back to the categories": "Escape или Backspace, назад к категориям",
   "20 seconds left to swap.": "На обмен осталось 20 секунд.",
   "Hurry, 8 seconds left to swap!": "Скорее, на обмен осталось 8 секунд!",
@@ -475,7 +474,6 @@
   "No other decks.": "Других колод нет.",
   "Only one deck.": "Колода только одна.",
   "Couldn't change the deck.": "Не удалось сменить колоду.",
-  "pressed": "нажато",
   "Show fewer": "Показать меньше",
   "No timer shown.": "Таймер не показан.",
   "T, time searching": "T, время поиска",
@@ -483,7 +481,6 @@
   "Leader ability, Enter creates the deck": "Способность лидера, Enter создает колоду",
   "adds {0} provisions": "лимит стоимости найма +{0}",
   "Name": "Название",
-  "Tabs": "Вкладки",
   "avatar and border": "аватар и рамка",
   "Contract": "Контракт",
   "T, track the contract": "T, отслеживать контракт",
@@ -585,5 +582,8 @@
   "tab": "вкладка",
   "radio button": "переключатель",
   "checkbox": "флажок",
-  "button": "кнопка"
+  "button": "кнопка",
+  "combo box": "поле со списком",
+  "slider": "ползунок",
+  "spin button": "счётчик"
 }

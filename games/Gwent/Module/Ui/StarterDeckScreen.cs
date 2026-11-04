@@ -80,6 +80,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => FactionText(button, "Title"), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("button")), // Enter picks the faction
                         new NodeAnnouncement(() => FactionText(button, "Description"), kind: AnnouncementKinds.Tooltip),
                     },
                     OnActivate = () => Navigator.ClickControl(button),
@@ -123,6 +124,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => CrimsonNodes.Label(toggle), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("tab")), // the description's pages, one shown at a time
                         new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                         new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? PageText(desc, toggle) : null, live: true, kind: AnnouncementKinds.Tooltip),
                     },

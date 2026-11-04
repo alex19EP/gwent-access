@@ -102,6 +102,7 @@ namespace GwentAccess.Ui
                 Announcements = new[]
                 {
                     new NodeAnnouncement(() => UiText.Clean(slot.m_DayLabel?.Text?.text), kind: AnnouncementKinds.Label),
+                    CrimsonNodes.RolePart(Loc.T("button")), // Enter shows the reward, as clicking the day does
                     new NodeAnnouncement(() => Reward(p, slot), live: true, kind: AnnouncementKinds.Value),
                     new NodeAnnouncement(() => Claimed(slot), live: true, kind: AnnouncementKinds.Value),
                     new NodeAnnouncement(() => Countdown(slot), kind: AnnouncementKinds.Value),

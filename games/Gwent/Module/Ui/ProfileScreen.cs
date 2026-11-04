@@ -91,17 +91,16 @@ namespace GwentAccess.Ui
             if (menu == null || !menu.gameObject.activeInHierarchy) return;
             var items = menu.GetComponentsInChildren<UIProfileMenuItem>(false);
             if (items.Length == 0) return;
+            // No "Tabs" context word: each tab says "tab" ("Summary, tab, selected, 1 of 4").
             b.BeginStop("tabs");
-            b.PushContext(Loc.T("Tabs"));
             foreach (var it in items)
             {
                 used.Add(it.Pointer);
                 var id = CrimsonNodes.Id(it);
-                b.AddItem(id, Toggle(it, () => UiText.Clean(it.m_Label?.Text?.text)));
+                b.AddItem(id, CrimsonNodes.WithRole(Toggle(it, () => UiText.Clean(it.m_Label?.Text?.text)), Loc.T("tab")));
                 // The window opens on the open tab.
                 if (CrimsonNodes.Toggled(it)) b.SetStart(id);
             }
-            b.PopContext();
         }
 
         // The game parks its selection on the Exit button when the window opens, and moves it about while a
@@ -177,7 +176,8 @@ namespace GwentAccess.Ui
                     var v = CrimsonNodes.Button(cosmetics, () => UiText.Clean(name?.text));
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
-                        new NodeAnnouncement(() => CrimsonNodes.TooltipText(cosmetics) ?? Loc.T("avatar and border"), kind: AnnouncementKinds.Role),
+                        // What it opens, after the role Button gives it: "blindndanger, button, avatar and border".
+                        new NodeAnnouncement(() => CrimsonNodes.TooltipText(cosmetics) ?? Loc.T("avatar and border"), kind: AnnouncementKinds.Value),
                     };
                     b.AddItem(CrimsonNodes.Id(cosmetics), v);
                 }
@@ -194,7 +194,7 @@ namespace GwentAccess.Ui
                     var v = CrimsonNodes.Button(title, () => UiText.Clean(titleText?.text));
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
-                        new NodeAnnouncement(() => GameText.Get("player_profile_titles", "Titles"), kind: AnnouncementKinds.Role),
+                        new NodeAnnouncement(() => GameText.Get("player_profile_titles", "Titles"), kind: AnnouncementKinds.Value),
                     };
                     b.AddItem(CrimsonNodes.Id(title), v);
                 }
@@ -351,6 +351,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => Name(e), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("button")), // Enter claims or opens it, as the mouse clicks the card
                         new NodeAnnouncement(() => State(e), live: true, kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => Joined(new List<string> { Description(e), Reward(e) }), kind: AnnouncementKinds.Tooltip),
                     },
@@ -658,30 +659,70 @@ namespace GwentAccess.Ui
 
         /// <summary>
         /// An item of the cosmetics tab's avatar, border and title pickers (<see cref="UIATrinketItem"/>): a
-        /// picture (or a title's words) a sighted player knows by sight. Named by the item's own name, then
-        /// "Locked" when the player doesn't own it, as the picker greys it out. Equipped is said apart (see
-        /// <see cref="Toggle"/>). Null for any other control.
+        /// picture (or a title's words) a sighted player knows by sight. Named by the item's own name (its asset
+        /// definition's translation key), then "Locked" when the player doesn't own it, as the picker greys it
+        /// out. The lock overlay's own word is not a name: an item whose name the game can't give reads its
+        /// other drawn words, never "Locked" first. Equipped is said apart (see <see cref="Toggle"/>). Null for
+        /// any other control.
         /// </summary>
         private static string TrinketText(AControl c)
         {
             var item = c.TryCast<UIATrinketItem>();
             if (item == null) return null;
             var parts = new List<string>();
+            string locked = GameText.Get("cosmetic_locked", "Locked");
             try
             {
                 var def = item.m_Data?.Item;
-                string key = def?.NameLocalizationKey;
-                if (key != null && GameText.Get(key, null) is string name) parts.Add(name);
-                if (parts.Count == 0) parts.AddRange(CrimsonNodes.Texts(c));
-                if (def != null && !def.IsOwned) parts.Add(GameText.Get("cosmetic_locked", "Locked"));
+                if (TrinketName(def) is string name) parts.Add(name);
+                if (parts.Count == 0)
+                    foreach (var t in CrimsonNodes.Texts(c))
+                        if (!t.Equals(locked, StringComparison.OrdinalIgnoreCase)) parts.Add(t);
+                if (!Owned(def)) parts.Add(locked);
             }
             catch (Exception e) { Plugin.LogInfo("[profile] trinket read failed: " + e.Message); }
             return parts.Count > 0 ? Joined(parts) : null;
         }
 
+        // The item's name in the game's words: the definition's key through the interface, else the avatar's or
+        // border's own key field; each also tried in lower case (the game's keys don't always match in case).
+        private static string TrinketName(GwentUnity.IAssetDefinition def)
+        {
+            if (def == null) return null;
+            var keys = new List<string>();
+            try { keys.Add(def.NameLocalizationKey); } catch { }
+            try { keys.Add(def.TryCast<GwentUnity.BorderDefinition>()?.m_LocalizationKey); } catch { }
+            try { keys.Add(def.TryCast<GwentUnity.AvatarDefinition>()?.m_LocalizationKey); } catch { }
+            foreach (var key in keys)
+            {
+                if (string.IsNullOrEmpty(key)) continue;
+                if ((GameText.Get(key, null) ?? GameText.Get(key.ToLowerInvariant(), null)) is string name) return name;
+            }
+            return null;
+        }
+
+        // Whether the player owns the item; an item whose definition can't be read counts as owned (no "Locked").
+        private static bool Owned(GwentUnity.IAssetDefinition def)
+        {
+            if (def == null) return true;
+            try { return def.IsOwned; } catch { }
+            try { if (def.TryCast<GwentUnity.BorderDefinition>() is GwentUnity.BorderDefinition b) return b._IsOwned_k__BackingField; } catch { }
+            try { if (def.TryCast<GwentUnity.AvatarDefinition>() is GwentUnity.AvatarDefinition a) return a._IsOwned_k__BackingField; } catch { }
+            return true;
+        }
+
+        /// <summary>The item the profile wears: the picker's own data flag (the row data the list was filled
+        /// from), not the "equipped" overlay object, which a pooled item can keep showing from the item it drew
+        /// before. A locked item is never worn.</summary>
         private static bool Equipped(UIATrinketItem item)
         {
-            try { return CrimsonNodes.Shown(item.m_Equiped) || item.m_Data?.IsEquiped == true; } catch { return false; }
+            try
+            {
+                var data = item.m_Data;
+                if (data == null) return CrimsonNodes.Shown(item.m_Equiped);
+                return data.IsEquiped && Owned(data.Item);
+            }
+            catch { return false; }
         }
 
         private static bool IsCount(string s)

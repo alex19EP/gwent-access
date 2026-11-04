@@ -147,6 +147,7 @@ namespace GwentAccess.Ui
                 Announcements = new[]
                 {
                     new NodeAnnouncement(text, kind: AnnouncementKinds.Label),
+                    CrimsonNodes.RolePart(Loc.T("button")), // Enter claims it, as the mouse clicks the reward
                     new NodeAnnouncement(() => State(premium ? step.ExtendedRewardData : step.StandardRewardData), live: true, kind: AnnouncementKinds.Value),
                     new NodeAnnouncement(() => premium ? null : position, kind: AnnouncementKinds.Position),
                 },
