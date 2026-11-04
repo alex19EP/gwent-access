@@ -382,7 +382,7 @@ namespace GwentAccess.Ui
 
         /// <summary>A control's words with each price in it said with its currency: "x1, 100 Руда",
         /// "Купить, 100 Руда", "x2, 2,99 $".</summary>
-        private static string PricedLabel(AControl c)
+        internal static string PricedLabel(AControl c)
         {
             var widgets = c.GetComponentsInChildren<UIShopPriceWidget>(false);
             var priceTexts = new HashSet<string>();

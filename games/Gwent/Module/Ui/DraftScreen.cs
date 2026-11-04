@@ -21,7 +21,7 @@ namespace GwentAccess.Ui
     ///   was picked; current; to come).
     /// - The panel's buttons (Show deck, Abandon, Options, Quit, EXIT).
     ///
-    /// The lobby before a draft and the run between games are left to the fallback panel screen.
+    /// The ticket before a draft, the run between games and its end are <see cref="DraftLobbyScreen"/>'s.
     /// </summary>
     internal sealed class DraftScreen : Screen
     {
