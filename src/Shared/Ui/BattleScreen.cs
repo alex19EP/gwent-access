@@ -325,6 +325,10 @@ namespace GwentAccess.Ui
                 Announcements = new[]
                 {
                     new NodeAnnouncement(() => Label(card, pm), kind: AnnouncementKinds.Label),
+                    // While the game asks for targets the valid ones glow and the rest dim: the glow is said on
+                    // landing, the dimmed say nothing. Not live: the request's own "Choose a target" covers
+                    // the moment it opens under the cursor.
+                    new NodeAnnouncement(() => _plays.Targets != null && !_plays.IsChosen(card) && _plays.IsTarget(card) ? "valid target" : null),
                     new NodeAnnouncement(() => _plays.IsChosen(card) ? "chosen" : null, live: true, kind: AnnouncementKinds.Selected),
                 },
                 OnActivate = () => EnterOnCard(card, loc),
