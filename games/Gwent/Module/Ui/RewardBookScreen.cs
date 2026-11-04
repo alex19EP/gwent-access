@@ -23,11 +23,13 @@ namespace GwentAccess.Ui
     /// The book's page: the trees on the page (each with its progress, as the game prints it under the tree).
     /// Enter on a tree opens it through the tree's own button.
     ///
-    /// An open tree: its nodes nearest the root first (left to right within a step), each read as its kind,
-    /// whether it is claimed, can be claimed or is out of reach, its cost and its rewards in the game's own
-    /// words; then the side panel's text and buttons (the tree's title, story, progress, buy). Enter on a node
-    /// is the game's own click on it — claiming spends the node's currency, so the game's own claim flow, hold
-    /// and confirmation included, decides what happens.
+    /// An open tree: its nodes nearest the root first (left to right within a step), each read as its rewards in
+    /// the game's own words (the start, and a node with none, as its kind; a large or special node adds its
+    /// kind), whether it is claimed, can be claimed or is out of reach, and its cost; then the side panel's text
+    /// and buttons (the tree's title, story, progress, buy). Enter on a node is the game's own press on it —
+    /// claiming spends the node's currency, so the game's own claim flow, hold and confirmation included,
+    /// decides what happens. A claimable node says to hold Enter, and a tap let go before the hold fills says so
+    /// again.
     ///
     /// Active while the reward book panel is attached to the input layer that has the input; the tutorial
     /// panels and popups the book opens take the input and step in above it.
@@ -57,17 +59,39 @@ namespace GwentAccess.Ui
         // instead: the press goes down when Enter does and comes up when Enter is let go (or the cursor leaves).
         private RewardSystemTreeElement _pressed;
 
+        // Whether the reward pressed could be claimed when Enter went down.
+        private bool _pressedClaimable;
+
         private void Press(RewardSystemTreeElement node)
         {
             Release();
-            if (SendButton(node, CursorButtonEventArgs.EState.ButtonDown)) _pressed = node;
+            if (SendButton(node, CursorButtonEventArgs.EState.ButtonDown))
+            {
+                _pressed = node;
+                _pressedClaimable = Claimable(node);
+            }
         }
 
-        private void Release()
+        /// <summary>Let go of the pressed reward. <paramref name="keyUp"/>: Enter was let go on it; if it could be
+        /// claimed and the hold had not filled (a tap), nothing was claimed, and the player is told to hold.</summary>
+        private void Release(bool keyUp = false)
         {
             var node = _pressed;
             _pressed = null;
-            if (node != null) SendButton(node, CursorButtonEventArgs.EState.ButtonUp);
+            if (node == null) return;
+            bool held = false;
+            float hold = 0f;
+            try { held = node.HoldButtonCompleted; hold = node.HoldValue; } catch { }
+            SendButton(node, CursorButtonEventArgs.EState.ButtonUp);
+            if (!keyUp || !_pressedClaimable) return;
+            Plugin.LogInfo("[reward-book] let go at hold " + hold.ToString("0.00") + ", completed " + held);
+            if (!held && !Claiming(node) && !ControllerMode.Force) Speech.Say("Hold Enter to claim.", true);
+        }
+
+        // Whether the claim the hold started is under way or done.
+        private static bool Claiming(RewardSystemTreeElement n)
+        {
+            try { return n.IsClaiming || n.ElementData.Claimed; } catch { return true; }
         }
 
         private static bool SendButton(RewardSystemTreeElement node, CursorButtonEventArgs.EState state)
@@ -85,7 +109,7 @@ namespace GwentAccess.Ui
 
         public override void Tick()
         {
-            if (_pressed != null && !Keys.Held(KeyCode.Return) && !Keys.Held(KeyCode.KeypadEnter)) Release();
+            if (_pressed != null && !Keys.Held(KeyCode.Return) && !Keys.Held(KeyCode.KeypadEnter)) Release(keyUp: true);
         }
 
         // Moving off a pressed reward lets go of it, as dragging the pointer off does; the base raises the hover.
@@ -461,13 +485,14 @@ namespace GwentAccess.Ui
                 {
                     Announcements = new[]
                     {
-                        new NodeAnnouncement(() => Kind(node), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => Name(node), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => Role(node), kind: AnnouncementKinds.Role),
                         new NodeAnnouncement(() => State(node), live: true, kind: AnnouncementKinds.Value),
-                        new NodeAnnouncement(() => Rewards(node), kind: AnnouncementKinds.Tooltip),
+                        new NodeAnnouncement(() => Claimable(node) ? HoldHint() : null, kind: AnnouncementKinds.Tooltip),
                         new NodeAnnouncement(() => Paths(ways), kind: AnnouncementKinds.Position),
                     },
                     OnActivate = () => Press(node),
-                    OnTooltip = () => Speech.Say(Kind(node) + ". " + State(node) + ". " + Rewards(node), true),
+                    OnTooltip = () => Speech.Say(UiText.Join(Name(node), Role(node), State(node)), true),
                 });
             }
             foreach (var n in ordered)
@@ -680,10 +705,38 @@ namespace GwentAccess.Ui
             return steps;
         }
 
+        // A node reads as what it gives ("Monster Keg"), as its icon shows it; the start, and a node that gives
+        // nothing nameable, by its kind ("Start", "Story").
+        private static string Name(RewardSystemTreeElement n) =>
+            Type(n) == ENodeType.Starting ? Kind(n) : Rewards(n) ?? Kind(n);
+
+        // The kind of a node named by its reward, when the tree draws it apart from the usual small ones ("Large
+        // reward", "Battle"); null for a small one and for a node already named by its kind.
+        private static string Role(RewardSystemTreeElement n)
+        {
+            var type = Type(n);
+            return type == null || type == ENodeType.Small || type == ENodeType.Starting || Rewards(n) == null ? null : Kind(n);
+        }
+
+        // Whether Enter held on the node would claim it now.
+        private static bool Claimable(RewardSystemTreeElement n)
+        {
+            try { return !n.ElementData.Claimed && n.MeetCondition && n.IsEnoughCurrencyForClaiming(); }
+            catch { return false; }
+        }
+
+        // Claiming is a hold (see Press); in the keyboard interface the key to hold is Enter. A controller player
+        // holds the game's own button, which the game's prompt shows.
+        private static string HoldHint() => ControllerMode.Force ? null : "hold Enter to claim";
+
+        private static ENodeType? Type(RewardSystemTreeElement n)
+        {
+            try { return n.ElementData.NodeType; } catch { return null; }
+        }
+
         private static string Kind(RewardSystemTreeElement n)
         {
-            ENodeType type;
-            try { type = n.ElementData.NodeType; } catch { return "Reward"; }
+            if (!(Type(n) is ENodeType type)) return "Reward";
             return type switch
             {
                 ENodeType.Starting => "Start",
