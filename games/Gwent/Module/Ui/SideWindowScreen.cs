@@ -60,8 +60,12 @@ namespace GwentAccess.Ui
             {
                 SocialFeatureWindow w = (SocialFeatureWindow)Journey() ?? Cycle();
                 var button = w?.SocialButtonRef;
-                if (!CrimsonNodes.Shown(button)) return false;
-                Navigator.ClickControl(button);
+                if (CrimsonNodes.Shown(button)) { Navigator.ClickControl(button); return true; }
+                // The Cycle window has no button of its own shown (Backspace said "Nothing to go back to
+                // here."): the social panel closes its open section as its bar toggle does.
+                var panel = CrimsonNodes.ActivePanel<SocialPanel>();
+                if (panel == null || !panel.IsWindowOpen) return false;
+                panel.ToggleSection(panel.CurrentSection);
                 return true;
             }
             catch { return false; }
