@@ -70,6 +70,7 @@
   "{0} destroyed.": "Уничтожено: {0}.",
   "{0} card in the opponent's hand|{0} cards in the opponent's hand": "{0} карта в руке противника|{0} карты в руке противника|{0} карт в руке противника",
   "{0} on {1}": "{0} — {1}",
+  "{0} ends on {1}.": "{0} заканчивается: {1}.",
   "Revealed from hand": "Вскрыто из руки",
   "Revealed from deck": "Вскрыто из колоды",
   "Revealed": "Вскрыто",

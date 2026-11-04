@@ -70,6 +70,7 @@
   "{0} destroyed.": "Se destruye {0}.",
   "{0} card in the opponent's hand|{0} cards in the opponent's hand": "{0} carta en la mano del rival|{0} cartas en la mano del rival",
   "{0} on {1}": "{0} en {1}",
+  "{0} ends on {1}.": "{0} termina en {1}.",
   "Revealed from hand": "Revelada desde la mano",
   "Revealed from deck": "Revelada desde la baraja",
   "Revealed": "Revelada",

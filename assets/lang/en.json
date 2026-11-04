@@ -70,6 +70,7 @@
   "{0} destroyed by {1}.": "{0} destroyed by {1}.",
   "{0} destroyed.": "{0} destroyed.",
   "{0} card in the opponent's hand|{0} cards in the opponent's hand": "{0} card in the opponent's hand|{0} cards in the opponent's hand",
+  "{0} ends on {1}.": "{0} ends on {1}.",
   "Revealed from hand": "Revealed from hand",
   "Revealed from deck": "Revealed from deck",
   "Revealed": "Revealed",
