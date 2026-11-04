@@ -36,8 +36,8 @@ namespace GwentAccess
             // A leader shows its faction on the board (the deck's colours and crest); other cards only in the preview.
             if (type == ECardType.Leader) Add(parts, Faction(card));
             AddStatuses(parts, card);
-            if (pm != null) AddOrder(parts, card);
-            AddTimer(parts, card);
+            bool cooldown = pm != null && AddOrder(parts, card);
+            if (!cooldown) AddTimer(parts, card);
             if (type != ECardType.Leader && (pm == null || At(card) == ELocation.Hand))
                 Try(() => { int p = card.Template.Provision; if (p > 0) parts.Add(p + " provisions"); });
             return string.Join(", ", parts);
@@ -266,12 +266,15 @@ namespace GwentAccess
             return found;
         }
 
-        // The order icon on a card in play: ready, waiting out the turn it arrived, recharging, used up;
-        // with its charges when the card shows them.
-        private static void AddOrder(List<string> parts, Card card)
+        // The order icon on a card in play: ready, waiting out the turn it arrived, recharging (with the turns
+        // its hourglass counts down: a Cooldown runs on the card's timer, which the order's charges follow —
+        // TapCardCharges.OnTimerChangedHandler), used up; with its charges when the card shows them. True when
+        // the timer was said as the cooldown, so it isn't said again.
+        private static bool AddOrder(List<string> parts, Card card)
         {
             var at = At(card);
-            if (at != ELocation.Melee && at != ELocation.Ranged && at != ELocation.Leader) return;
+            if (at != ELocation.Melee && at != ELocation.Ranged && at != ELocation.Leader) return false;
+            bool cooldown = false;
             Try(() =>
             {
                 if (!card.HasTapAbility()) return;
@@ -280,22 +283,55 @@ namespace GwentAccess
                 {
                     case ETapCardState.Available: parts.Add("order ready"); break;
                     case ETapCardState.SummoningSickness: parts.Add("order next turn"); break;
-                    case ETapCardState.Recharging: parts.Add("order recharging"); break;
+                    case ETapCardState.Recharging:
+                        parts.Add("order recharging");
+                        int t = TimerOf(card);
+                        if (t > 0) { parts.Add(t == 1 ? "1 turn" : t + " turns"); cooldown = true; }
+                        break;
                     case ETapCardState.Depleted: parts.Add("order used"); break;
                     case ETapCardState.Unavailable: parts.Add("order unavailable"); break;
                 }
                 if (card.Template.VisibleTapCharges || at == ELocation.Leader)
                     parts.Add(charges.Value == 1 ? "1 charge" : charges.Value + " charges");
             });
+            return cooldown;
         }
 
-        private static void AddTimer(List<string> parts, Card card)
+        // The card's timer, or -1 when it has none.
+        private static int TimerOf(Card card)
         {
-            Try(() =>
+            try
             {
                 int t = card.AbilityData.Timer.Value;
-                if (t >= 0 && t != AEntityTimer.NO_TIMER) parts.Add("timer " + t);
-            });
+                return t >= 0 && t != AEntityTimer.NO_TIMER ? t : -1;
+            }
+            catch { return -1; }
+        }
+
+        // The number in the card's corner, named as the card's own text names it. One timer runs a Timer, a
+        // Counter and a Cooldown alike (Elven Scribe's template starts its Counter as InitialTimer 3), so the
+        // ability text tells which: "counter 3", "timer 1", "cooldown 2".
+        private static void AddTimer(List<string> parts, Card card)
+        {
+            int t = TimerOf(card);
+            if (t < 0) return;
+            string word = TimerWord(card, out bool isCooldown);
+            if (isCooldown && t == 0) return; // a cooldown run out is the order being ready, said as such
+            parts.Add(GameText.Lower(word) + " " + t);
+        }
+
+        private static string TimerWord(Card card, out bool isCooldown)
+        {
+            string text = Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false);
+            string lower = text.ToLowerInvariant();
+            bool Linked(string key) => lower.Contains("<link=" + key + ">") || lower.Contains("<link=\"" + key + "\"");
+            isCooldown = Linked("cooldown");
+            if (isCooldown) return GameText.Term("keyword_cooldown", "Cooldown");
+            if (Linked("timer")) return GameText.Term("keyword_timer", "Timer");
+            // A Counter line is plain text in the ability ("Counter: 3"), not a keyword link.
+            string counter = GameText.Term("keyword_counter", "Counter");
+            if (Linked("counter") || UiText.Clean(text).IndexOf(counter, StringComparison.OrdinalIgnoreCase) >= 0) return counter;
+            return GameText.Term("keyword_timer", "Timer");
         }
 
         // One keyword's explanation from the game's table ("keyword_order", "keyword_veil"), "" when it has none.
