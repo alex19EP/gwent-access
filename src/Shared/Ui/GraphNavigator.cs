@@ -332,6 +332,16 @@ namespace GwentAccess.Ui
         {
             try { LogKeys(); } catch { }
             if (Keys.Alt) return;
+            // A field has the caret: the typing keys are the field's (Space types a space, letters type, not the
+            // screen's letter keys or Space's details: "Rename your deck…: Wild" was read on each space). Only
+            // Up/Down and Tab still move off the one-line field.
+            if (EditBox.Typing)
+            {
+                if (Keys.DownOrRepeat(KeyCode.UpArrow)) Arrow(GraphDir.Up);
+                else if (Keys.DownOrRepeat(KeyCode.DownArrow)) Arrow(GraphDir.Down);
+                else if (Keys.Down(KeyCode.Tab)) Tab(Keys.Shift ? -1 : 1);
+                return;
+            }
             foreach (var k in _screen.ExtraKeys)
                 if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Pressed(k.Key) && (k.When == null || k.When()))
                 {
@@ -350,7 +360,7 @@ namespace GwentAccess.Ui
             else if (Keys.Down(KeyCode.End)) Edge(GraphDir.Down);
             else if (Keys.Down(KeyCode.Return) && !_screen.LeavesToGame(KeyCode.Return)
                 || Keys.Down(KeyCode.KeypadEnter) && !_screen.LeavesToGame(KeyCode.KeypadEnter)) Activate();
-            else if (Keys.Down(KeyCode.Backspace) && !EditBox.Typing)
+            else if (Keys.Down(KeyCode.Backspace))
             {
                 if (_graph.CurrentNode?.Vtable.OnSecondary != null) Run(_graph.CurrentNode.Vtable.OnSecondary, _graph.Secondary);
                 else Back();
