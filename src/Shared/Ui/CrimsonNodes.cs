@@ -191,7 +191,7 @@ namespace GwentAccess.Ui
             var anns = new List<NodeAnnouncement>
             {
                 new NodeAnnouncement(label ?? (() => Label(c)), kind: AnnouncementKinds.Label),
-                new NodeAnnouncement(() => SafeEnabled(c) ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+                new NodeAnnouncement(() => SafeEnabled(c) ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
             };
 #if GWENT // cosmetics thumbnails: Gwent's vanity UI, absent from Thronebreaker
             var thumb = c.TryCast<VirtualSkinThumbnailButton>();
@@ -200,7 +200,7 @@ namespace GwentAccess.Ui
                 if (label == null) anns[0] = new NodeAnnouncement(() => VanityLabel(thumb), kind: AnnouncementKinds.Label);
                 anns.Add(new NodeAnnouncement(() => thumb.m_VanityItem?.IsLocked == true
                     ? GameText.Get("cosmetic_locked", "locked") : null, live: true, kind: AnnouncementKinds.Value));
-                anns.Add(new NodeAnnouncement(() => thumb.CanShowSelected && Shown(thumb.m_SelectedFrame) ? "selected" : null,
+                anns.Add(new NodeAnnouncement(() => thumb.CanShowSelected && Shown(thumb.m_SelectedFrame) ? Loc.T("selected") : null,
                     live: true, kind: AnnouncementKinds.Selected));
                 // The description panel beside the picker shows the choice under the cursor (its group, "Basic",
                 // and what it is): read with the picker's choices, as a sighted player reads the panel. The slot
@@ -213,7 +213,7 @@ namespace GwentAccess.Ui
             {
                 Announcements = anns,
                 // A disabled button does nothing when clicked: say so rather than stay silent.
-                OnActivate = () => { if (SafeEnabled(c)) Navigator.ClickControl(c); else Speech.Say("Not available right now.", true); },
+                OnActivate = () => { if (SafeEnabled(c)) Navigator.ClickControl(c); else Speech.Say(Loc.T("Not available right now."), true); },
                 OnTooltip = () => Speech.Say(Details(c), true),
             };
         }
@@ -455,15 +455,15 @@ namespace GwentAccess.Ui
 #endif
             foreach (var img in c.GetComponentsInChildren<UnityEngine.UI.Image>(false))
                 if (img.sprite != null && IconSprites.TryGetValue(img.sprite.name.Replace("(Clone)", ""), out var known))
-                    return known;
+                    return Loc.T(known);
             return null;
         }
 
         private static readonly Dictionary<string, string> IconSprites = new Dictionary<string, string>
         {
-            { "vanity_selection_grid_open_icon", "Show all" },  // the cosmetics picker's grid window
-            { "ui_icons_cards_hide", "Full preview" },          // the cosmetics picker hiding its panels
-            { "ui_icons_cards_show", "Exit full preview" },     // the same button while the panels are hidden
+            { "vanity_selection_grid_open_icon", Loc.Mark("Show all") },  // the cosmetics picker's grid window
+            { "ui_icons_cards_hide", Loc.Mark("Full preview") },          // the cosmetics picker hiding its panels
+            { "ui_icons_cards_show", Loc.Mark("Exit full preview") },     // the same button while the panels are hidden
         };
 
         public static string Details(AControl c)
@@ -471,7 +471,7 @@ namespace GwentAccess.Ui
             var parts = Texts(c);
             if (NotificationText(c) is string note) return note;
             if (Tooltipped(c, parts) is string tipped) return tipped;
-            return parts.Count > 0 ? string.Join(". ", parts) : "No details.";
+            return parts.Count > 0 ? string.Join(". ", parts) : Loc.T("No details.");
         }
 
         private static bool SafeEnabled(AControl c)
