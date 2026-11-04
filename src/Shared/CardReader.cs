@@ -25,6 +25,9 @@ namespace GwentAccess
         /// (null outside a match): in a match the card is checked against what the local player may see, and
         /// stats read live. <paramref name="preview"/>: the card sits in a panel of cards (a choice, the deck or
         /// a graveyard), checked against what the game shows there (<see cref="Hidden"/>).</summary>
+        /// <summary>Set by the battle screen: the name and title on the player panel beside a leader, its last line.</summary>
+        internal static Func<Card, string> LeaderPlayer;
+
         public static string Summary(Card card, PlayerManager pm = null, bool preview = false)
         {
             if (card == null) return "";
@@ -32,9 +35,10 @@ namespace GwentAccess
             var parts = new List<string> { Name(card) };
             var type = Type(card);
             if (type == ECardType.Unit) AddPower(parts, card);
-            else parts.Add(TypeWord(type));
-            // A leader shows its faction on the board (the deck's colours and crest); other cards only in the preview.
-            if (type == ECardType.Leader) Add(parts, Faction(card));
+            // In a match a leader's row already says "your leader" and its faction is a line below (Stats): the
+            // short line is its name, ability and order. Elsewhere (the deck builder) the leader says what it is.
+            else if (type != ECardType.Leader || pm == null) parts.Add(TypeWord(type));
+            if (type == ECardType.Leader && pm == null) Add(parts, Faction(card));
             AddStatuses(parts, card);
             if (pm != null) AddCondition(parts, card);
             bool cooldown = pm != null && AddOrder(parts, card);
@@ -82,6 +86,9 @@ namespace GwentAccess
             Add(lines, Stats(card));
             Add(lines, Text(() => LocalizationHelper.GetCardFlavor(card)));
             Add(lines, Text(() => LocalizationHelper.GetArtistDescription(card.Template)));
+            // A leader in a match: the player beside it, name and title, as their panel shows.
+            if (pm != null && Type(card) == ECardType.Leader && LeaderPlayer != null)
+                Try(() => Add(lines, LeaderPlayer(card)));
             return lines;
         }
 

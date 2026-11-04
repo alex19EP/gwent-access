@@ -164,8 +164,9 @@ namespace GwentAccess.Ui
                 var cards = Battle.Cards(gc, who, row.Where);
                 Location loc = null;
                 try { loc = gc.BoardManager.GetLocation(who, row.Where); } catch { }
-                // A leader row also says whose it is, as the player panel beside it shows: name and title.
-                b.PushContext(row.Name, row.Scored ? RowDetail(cards, loc) : row.Where == ELocation.Leader ? PlayerTag(row.Mine) : null);
+                // A leader row's player (name and title on the panel beside it) is the leader card's last line
+                // (CardReader.LeaderPlayer), so the landing stays short.
+                b.PushContext(row.Name, row.Scored ? RowDetail(cards, loc) : null);
                 b.StartRow();
                 var rowIds = new List<ControlId>();
                 if (cards.Count == 0)
@@ -493,7 +494,11 @@ namespace GwentAccess.Ui
 
         // Settle calls OnCursorMoved only when the cursor changes; a new request over the same card (an order
         // asking for targets) needs the game's selection put back where the cursor is.
-        public override void OnFocus() => _mirrorNow = true;
+        public override void OnFocus()
+        {
+            _mirrorNow = true;
+            CardReader.LeaderPlayer = card => PlayerTag(Mine(card));
+        }
 
         private void Mirror(string key)
         {
