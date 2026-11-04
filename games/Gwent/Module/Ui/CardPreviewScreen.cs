@@ -9,9 +9,11 @@ using UnityEngine;
 namespace GwentAccess.Ui
 {
     /// <summary>
-    /// The collection's full card preview (<see cref="UICardPreview"/>, run by DBPreviewState): opened from the
-    /// deck builder's grid (Enter on a card), it shows the card large with its text, and the crafting bar
-    /// ("Создать: -800", "В жернова: +200", "Преобразовать: -800", "Назад"). Its arrows walk the grid's cards.
+    /// The full card preview (<see cref="UICardPreview"/>): the collection's (run by DBPreviewState, opened from
+    /// the deck builder's grid by Enter on a card), and the same preview opened anywhere else outside a match (a
+    /// reward, a keg's card, the shop, the profile, the journey). It shows the card large with its text, and a
+    /// bar: in the collection the crafting bar ("Создать: -800", "В жернова: +200", "Преобразовать: -800",
+    /// "Назад"), elsewhere just Back. Its arrows walk the cards it was opened from.
     ///
     /// - Card: the card's lines, one node each, as the preview shows them: the card reader's summary (name,
     ///   power, provisions), then the categories, the ability text, each keyword explanation, the flavour text
@@ -22,23 +24,33 @@ namespace GwentAccess.Ui
     /// - Left/Right: the previous / next card, through the preview's own arrow handlers (silent at the ends,
     ///   where the game shows no arrow). The new card's first line is spoken.
     ///
-    /// Only the collection's preview (the one with a crafting component) for now: the battle's preview shares
-    /// the class but not the bar, and the battle screen reads cards its own way.
+    /// Not during a match: the battle's preview shares the class, and the battle screen reads cards its own way.
+    /// Over the screen it was opened from (a reward popup on the same input layer): layer 2, registered after
+    /// the reward popup so it wins the tie.
     /// </summary>
     internal sealed class CardPreviewScreen : Screen
     {
         public override string Key => "card-preview";
-        public override int Layer => 1;
+        public override int Layer => 2;
         public override bool ReturnsToOpener => false;
 
         public override bool IsActive() => Preview() != null;
 
-        // The preview, when the input layer that has the input holds it and it carries the crafting component.
+        // The preview, when the input layer that has the input holds it: the collection's (it carries the crafting
+        // component), or, outside a match, any other.
         private static UICardPreview Preview()
         {
             var p = CrimsonNodes.ActivePanel<UICardPreview>();
-            var crafter = p?.CraftingComponent;
-            return crafter != null && crafter.gameObject.activeInHierarchy ? p : null;
+            if (p == null) return null;
+            try
+            {
+                var crafter = p.CraftingComponent;
+                if (crafter != null && crafter.gameObject.activeInHierarchy) return p;
+            }
+            catch { }
+            if (Battle.Controller() != null) return null;
+            var v = p.Visibility;
+            return v == CrimsonUIBehaviour.EVisibility.Shown || v == CrimsonUIBehaviour.EVisibility.Showing ? p : null;
         }
 
         private static GwentGameplay.Card CurrentCard(UICardPreview p)
