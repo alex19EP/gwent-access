@@ -99,6 +99,7 @@ namespace GwentAccess.Ui
             "UIWelcomeScreenPanel", // WhatsNewScreen
             "UIOuroborosRerollPanel", // CycleRerollScreen
             "UIShopGiftPanel", // GiftScreen
+            "UIMainMenuLeaderboardPanel", // LeaderboardScreen
         };
 
         // Panels a dedicated screen reads once they finish opening: the fallback would read their placeholders
