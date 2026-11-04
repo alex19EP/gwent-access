@@ -29,7 +29,15 @@ namespace GwentAccess.Ui
         // How many reward banners the last render had, to tell when the first one arrives.
         private int _bannerCount;
 
-        public override void OnPush() => _bannerCount = 0;
+        // Whether the player pressed Send Good Game on this screen, so the button greying out is said as "sent".
+        private bool _goodGameSent;
+
+        public override void OnPush() { _bannerCount = 0; _goodGameSent = false; }
+
+        private static bool Enabled(AControl c)
+        {
+            try { return c.IsEnabled; } catch { return true; }
+        }
 
         // The results panel, when the input layer that has the input holds it.
         private static UIBattleResultsPanel Panel() => CrimsonNodes.ActivePanel<UIBattleResultsPanel>();
@@ -111,11 +119,30 @@ namespace GwentAccess.Ui
 
             // The game turns the good-game button on (m_GoodGameButton) only once it binds it: in a match against
             // a person after the server closes the game, or in the new-player flow's mock; in Practice it stays
-            // off. After a send the game disables it, which the button's live "unavailable" reads.
+            // off. After a send the game disables it (greys it out): that state change, right after Enter, is said
+            // as "sent", since it is the send going through; a button the game shows disabled before any send
+            // (the opponent left) reads "unavailable" on landing, as any disabled button does.
             var gg = panel.m_GoodGameButtonControl;
             if (gg != null && CrimsonNodes.Shown(gg) && GoodGameOn(panel))
-                b.AddItem(last = CrimsonNodes.Id(gg), CrimsonNodes.Button(gg,
-                    () => GameText.Get("input_send_good_game", "Good game")));
+            {
+                System.Func<string> label = () => GameText.Get("input_send_good_game", "Good game");
+                b.AddItem(last = CrimsonNodes.Id(gg), new NodeVtable
+                {
+                    Announcements = new[]
+                    {
+                        new NodeAnnouncement(label, kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => Enabled(gg) ? null : _goodGameSent ? "sent" : "unavailable",
+                            live: true, kind: AnnouncementKinds.Enabled),
+                    },
+                    OnActivate = () =>
+                    {
+                        if (!Enabled(gg)) { Speech.Say("Not available right now.", true); return; }
+                        _goodGameSent = true;
+                        Navigator.ClickControl(gg);
+                    },
+                    OnTooltip = () => Speech.Say(label(), true),
+                });
+            }
 
             b.BeginStop("results:buttons");
             ControlId firstButton = null;
