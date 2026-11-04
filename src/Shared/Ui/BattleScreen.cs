@@ -22,7 +22,8 @@ namespace GwentAccess.Ui
     /// hover the opponent sees too — follows the cursor, and Enter is the game's A, so picking up, ordering,
     /// placing and targeting go through the game's flow. Enter on something that can't be used says why
     /// instead. Picking up a card turns the board into the gaps of the rows it may go to ("between A and B";
-    /// the game's ghost card follows); while the game asks for targets or a row, the board stays browsable and
+    /// the game's ghost card follows) until the game lets go of it (a special put down and waiting for Enter
+    /// to confirm it still keeps them); while the game asks for targets or a row, the board stays browsable and
     /// Tab cycles the valid ones. Backspace is the game's cancel; E ends the turn or passes by holding the game's
     /// coin for as long as E is held — the game's own hold, so letting go early cancels — saying the score (or
     /// that orders are still ready) as the hold starts.
@@ -114,7 +115,20 @@ namespace GwentAccess.Ui
             _gaps.Clear();
             _cycle.Clear();
 
-            if (_plays.Placing != null && _plays.Targets == null && _plays.Rows == null) BuildGaps(b, gc);
+            // The gaps stay up for as long as the game holds the card: while it is placed, and while a special put
+            // down waits for Enter to confirm it. That second step is the same request one state on (its result
+            // Invalid → PendingPlace, Plays.Placing → Plays.Confirming); building the board for it made the
+            // cursor's gap vanish, and the navigator fell back to the board's start, the first card in hand,
+            // announced while the game was still waiting on the special.
+            var held = _plays.Held;
+            if (held != null && _plays.Targets == null && _plays.Rows == null)
+            {
+                // Back on the board once the card is down, the cursor lands on it, as on a card played from the
+                // hand (which keeps its id): also for one the game made (a choice's "create and play"), which was
+                // never in the hand, and would otherwise land on the first card in hand.
+                try { _last = ControlId.Structural("battle:card:" + held.CardIdToPlay); } catch { }
+                BuildGaps(b, gc);
+            }
             else BuildBoard(b, gc);
 
             NoticeRequest();
@@ -352,18 +366,26 @@ namespace GwentAccess.Ui
 
         private int _noticed = -1;
 
+        // The noticed request's confirmation step was said: a special put down goes from placing to waiting for
+        // Enter under the same request id, so the id alone never saw it. Said once per request.
+        private bool _noticedConfirm;
+
         private void NoticeRequest()
         {
             var req = _plays.Pending;
             int id = -1;
             try { id = req?.Id ?? -1; } catch { }
-            if (id == _noticed) return;
+            if (id == _noticed)
+            {
+                if (req != null && !_noticedConfirm && ReferenceEquals(req, _plays.Confirming)) SayConfirm();
+                return;
+            }
             _noticed = id;
+            _noticedConfirm = false;
             _mirrorNow = true;
             if (req == null) return;
 
-            var requester = _plays.Requester();
-            string name = requester != null ? CardReader.Name(requester, _gc.PlayerManager) : "the card";
+            string name = RequesterName();
             if (_plays.Targets != null)
             {
                 int max = _plays.MaxTargets;
@@ -378,7 +400,19 @@ namespace GwentAccess.Ui
             else if (_plays.Placing != null)
                 Speech.Say("Place " + name + ".", true);
             else if (_plays.Confirming != null)
-                Speech.Say("Play " + name + "? Enter plays it, Backspace puts it back.", true);
+                SayConfirm();
+        }
+
+        private string RequesterName()
+        {
+            var requester = _plays.Requester();
+            return requester != null ? CardReader.Name(requester, _gc.PlayerManager) : "the card";
+        }
+
+        private void SayConfirm()
+        {
+            _noticedConfirm = true;
+            Speech.Say("Play " + RequesterName() + "? Enter plays it, Backspace puts it back.", true);
         }
 
         // Onto the first valid option, unless the cursor already sits on one.
@@ -416,7 +450,9 @@ namespace GwentAccess.Ui
         private void Mirror(string key)
         {
             _mirrorNow = false;
-            if (_gaps.TryGetValue(key, out var gap)) { BattleInput.Ghost(gap.Row, gap.Index); return; }
+            // A special waiting for its confirmation is already put down: Enter confirms it wherever the cursor
+            // is, and the ghost card is not moved on.
+            if (_gaps.TryGetValue(key, out var gap)) { if (_plays.Placing != null) BattleInput.Ghost(gap.Row, gap.Index); return; }
             if (_plays.Rows != null)
             {
                 if (_locationOf.TryGetValue(key, out var loc) && _plays.IsTargetRow(loc)) BattleInput.Hover(loc);

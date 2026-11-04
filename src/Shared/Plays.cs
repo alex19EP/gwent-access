@@ -127,12 +127,18 @@ namespace GwentAccess
 
         // ---- the request being answered ----
 
+        /// <summary>The play still being placed: picked up (<see cref="Placing"/>), or a special put down that now
+        /// waits for its confirmation (<see cref="Confirming"/>, the same request one step on). Either way the
+        /// game still holds the card, and the battle screen keeps the placement spots up.</summary>
+        public RequestPlayCardAction Held => Placing ?? Confirming;
+
         /// <summary>The rows the picked-up card may go to: the request's spots, or — in an online match, where
         /// the client's copy of the request comes without them — the rows the game's own placing highlights.</summary>
         public bool MayPlaceIn(Location l)
         {
-            if (Placing == null) return false;
-            var spots = Placing.m_AvailableSpots;
+            var play = Held;
+            if (play == null) return false;
+            var spots = play.m_AvailableSpots;
             bool none = true;
             try { none = spots == null || spots.Count == 0; } catch { }
             if (!none) return Contains(spots, l);
