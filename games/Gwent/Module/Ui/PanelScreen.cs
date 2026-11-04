@@ -94,6 +94,7 @@ namespace GwentAccess.Ui
             "UIMainMenuContentPanel", "UINotificationsPanel", "UITooltipPanel", "UIPlayerInfoOverlay", "UIBattlePanel",
             "UIBattleDialoguePanel", "UIBattleCardPresentationPanel", "SocialPanel", "UIMainMenuBGPanel", "PopupPanel",
             "UIResultBannerPanel", // the results screen that follows names itself by the same banner
+            "TauntSelectorView", // the emote wheel: EmoteScreen once it has opened
         };
 
         // Panels a dedicated screen reads once they finish opening: the fallback would read their placeholders

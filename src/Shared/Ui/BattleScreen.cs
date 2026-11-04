@@ -32,7 +32,7 @@ namespace GwentAccess.Ui
     /// leader, F the opponent's leader; Shift+C the opponent's hand size, A the score. The number row jumps to
     /// the board rows as the first version of the mod numbered them (1 your melee, 2 your ranged, 3 the
     /// opponent's melee, 4 the opponent's ranged; while placing, to that row's spots), and Shift+number reads
-    /// the whole row without moving.
+    /// the whole row without moving. M opens your emotes (Gwent: <c>EmoteScreen</c>).
     /// </summary>
     internal sealed class BattleScreen : Screen
     {
@@ -613,6 +613,9 @@ namespace GwentAccess.Ui
         public override void Tick()
         {
             PileScreen.CheckRefused();
+#if GWENT
+            EmoteScreen.WatchOpen();
+#endif
             WatchEnter();
             WatchCancel();
             if (_endTurnSince >= 0)
@@ -711,6 +714,9 @@ namespace GwentAccess.Ui
                     new ScreenKey { Key = KeyCode.D, Run = () => PileScreen.Open(deck: true, mine: true), Hint = "D, your deck" },
                     new ScreenKey { Key = KeyCode.Y, Run = () => PileScreen.Open(deck: false, mine: true), Hint = "Y, your graveyard" },
                     new ScreenKey { Key = KeyCode.Y, Shift = true, Run = () => PileScreen.Open(deck: false, mine: false), Hint = "Shift Y, opponent's graveyard" },
+#if GWENT
+                    new ScreenKey { Key = KeyCode.M, Run = EmoteScreen.Open, Hint = "M, emotes" },
+#endif
                 };
                 for (int i = 0; i < NumberRows.Length; i++)
                 {
