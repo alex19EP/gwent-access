@@ -632,6 +632,15 @@ namespace GwentAccess.Ui
         private static string Describe(AControl c)
         {
             if (TrinketText(c) is string trinket) return trinket;
+            // A favorite-card pick (the faction backs, then the cards) draws only its art: read as the card it is,
+            // never the words of the windows around it (it climbed to the main menu's).
+            // A faction's back (a template of no card type; Syndicate's is named "Ignore.") reads as its faction.
+            if (CardText.CardOf(c) is GwentGameplay.Card card)
+            {
+                bool back = false;
+                try { back = card.Template.Type == 0; } catch { }
+                return back ? CardReader.Faction(card) : CardReader.Summary(card, preview: true);
+            }
             var own = CrimsonNodes.Texts(c);
             if (own.Count > 0)
             {
@@ -660,28 +669,30 @@ namespace GwentAccess.Ui
         /// <summary>
         /// An item of the cosmetics tab's avatar, border and title pickers (<see cref="UIATrinketItem"/>): a
         /// picture (or a title's words) a sighted player knows by sight. Named by the item's own name (its asset
-        /// definition's translation key), then "Locked" when the player doesn't own it, as the picker greys it
-        /// out. The lock overlay's own word is not a name: an item whose name the game can't give reads its
-        /// other drawn words, never "Locked" first. Equipped is said apart (see <see cref="Toggle"/>). Null for
-        /// any other control.
+        /// definition's translation key), else its drawn words, else the game's word for its kind ("Avatar",
+        /// "Border"): the default avatar and border, and some reward avatars, have no name to give. The pickers
+        /// list only what the player may wear and draw no lock: the defaults report themselves unowned
+        /// (<c>IsOwned</c> false) yet are worn, so ownership is not said. Equipped is said apart (see
+        /// <see cref="Toggle"/>). Null for any other control.
         /// </summary>
         private static string TrinketText(AControl c)
         {
             var item = c.TryCast<UIATrinketItem>();
             if (item == null) return null;
             var parts = new List<string>();
-            string locked = GameText.Get("cosmetic_locked", "Locked");
             try
             {
-                var def = item.m_Data?.Item;
-                if (TrinketName(def) is string name) parts.Add(name);
-                if (parts.Count == 0)
-                    foreach (var t in CrimsonNodes.Texts(c))
-                        if (!t.Equals(locked, StringComparison.OrdinalIgnoreCase)) parts.Add(t);
-                if (!Owned(def)) parts.Add(locked);
+                if (TrinketName(item.m_Data?.Item) is string name) parts.Add(name);
+                if (parts.Count == 0) parts.AddRange(CrimsonNodes.Texts(c));
             }
             catch (Exception e) { Plugin.LogInfo("[profile] trinket read failed: " + e.Message); }
-            return parts.Count > 0 ? Joined(parts) : null;
+            if (parts.Count == 0)
+            {
+                if (c.TryCast<UIAvatarItem>() != null) parts.Add(GameText.Get("reward_avatar", "Avatar"));
+                else if (c.TryCast<UIBorderItem>() != null) parts.Add(GameText.Get("reward_border", "Border"));
+                else parts.Add(GameText.Get("reward_title", "Title"));
+            }
+            return Joined(parts);
         }
 
         // The item's name in the game's words: the definition's key through the interface, else the avatar's or
@@ -701,26 +712,16 @@ namespace GwentAccess.Ui
             return null;
         }
 
-        // Whether the player owns the item; an item whose definition can't be read counts as owned (no "Locked").
-        private static bool Owned(GwentUnity.IAssetDefinition def)
-        {
-            if (def == null) return true;
-            try { return def.IsOwned; } catch { }
-            try { if (def.TryCast<GwentUnity.BorderDefinition>() is GwentUnity.BorderDefinition b) return b._IsOwned_k__BackingField; } catch { }
-            try { if (def.TryCast<GwentUnity.AvatarDefinition>() is GwentUnity.AvatarDefinition a) return a._IsOwned_k__BackingField; } catch { }
-            return true;
-        }
-
         /// <summary>The item the profile wears: the picker's own data flag (the row data the list was filled
         /// from), not the "equipped" overlay object, which a pooled item can keep showing from the item it drew
-        /// before. A locked item is never worn.</summary>
+        /// before. The default avatar, border and title are worn though they report themselves unowned.</summary>
         private static bool Equipped(UIATrinketItem item)
         {
             try
             {
                 var data = item.m_Data;
                 if (data == null) return CrimsonNodes.Shown(item.m_Equiped);
-                return data.IsEquiped && Owned(data.Item);
+                return data.IsEquiped;
             }
             catch { return false; }
         }
