@@ -75,6 +75,7 @@ namespace GwentAccess.Ui
         // false = the deck button, null = none) until a deadline or a key; and this frame's control for it.
         private bool? _listOpen;
         private bool? _steerToList;
+        private static bool _modesWereShown;
         private float _steerUntil;
         private AControl _steer;
 
@@ -238,6 +239,7 @@ namespace GwentAccess.Ui
             // between the items of the part you are in. The game modes and the play stack's mode cards also move
             // with Left/Right, as they lie side by side.
             ControlId first = null;
+            AControl frontMode = null;
             bool pickerShown = false;
             for (int r = 0; r < byStop.Length; r++)
             {
@@ -282,6 +284,8 @@ namespace GwentAccess.Ui
                 // which would start the menu on VERSUS AI instead of the first mode.
                 if (known && Regions[r].Stop == "modes")
                 {
+                    foreach (var c in byStop[r])
+                        try { if (CardOf(c) is UIMainMenuCardItem mode && mode.m_DescriptionToggled) frontMode = c; } catch { }
                     var toggles = OpponentToggles(byStop[r]);
                     if (toggles.Count > 0)
                     {
@@ -300,6 +304,10 @@ namespace GwentAccess.Ui
             // (the shop button, at the bottom).
             if (first != null) b.SetStart(first);
             if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
+            // PLAY opening the modes: the cursor starts on the mode in front (the one drawn with its description
+            // and the PLAY button, the mode last chosen), not on the first mode of the stack.
+            else if (frontMode != null && !_modesWereShown) GraphNavigator.Suggest(CrimsonNodes.Id(frontMode));
+            _modesWereShown = frontMode != null;
             // The cosmetics picker opening: the cursor goes to the equipped choice, the one the picker scrolls to.
             if (pickerShown && !_pickerWasShown && _pickerStart != null)
             {
