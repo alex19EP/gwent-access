@@ -116,10 +116,20 @@ namespace GwentAccess.Ui
         private static string LevelText(UIOuroborosLevelListViewData data, int index)
         {
             var item = LevelAt(data, index);
-            if (item == null) return "Level " + (index + 1);
-            var reward = item.StandardRewardData;
-            string text = RewardText.Of(reward?.Rewards);
-            if (text == null && reward?.GetReward()?.Type == Modules.Rewards.Entities.ERewardType.ItemTemplateReward) text = "Chest";
+            return item == null ? "Level " + (index + 1) : LevelText(item);
+        }
+
+        /// <summary>A level of the track and its reward: "Level 2, 40 Ore".</summary>
+        internal static string LevelText(UIOuroborosLevelListItemViewData item)
+        {
+            string text = null;
+            try
+            {
+                var reward = item.StandardRewardData;
+                text = RewardText.Of(reward?.Rewards);
+                if (text == null && reward?.GetReward()?.Type == Modules.Rewards.Entities.ERewardType.ItemTemplateReward) text = "Chest";
+            }
+            catch { }
             return UiText.Join("Level " + item.Level, text);
         }
 
@@ -175,9 +185,9 @@ namespace GwentAccess.Ui
         private static void AddQuests(GraphBuilder b, UIOuroborosProgressionPanel p, HashSet<IntPtr> used)
         {
             b.BeginStop("cycle:quests");
-            AddTier(b, p.m_EasyQuestLabel, p.m_EasyQuestsContainer, null, null, used);
-            AddTier(b, p.m_MediumQuestLabel, p.m_NormalQuestsContainer, p.m_NormalQuestUnlockRoot, p.m_NormalQuestUnlockLabel, used);
-            AddTier(b, p.m_HardQuestLabel, p.m_HardQuestsContainer, p.m_HardQuestUnlockRoot, p.m_HardQuestUnlockLabel, used);
+            AddTier(b, CrimsonNodes.Text(p.m_EasyQuestLabel), p.m_EasyQuestsContainer, null, used);
+            AddTier(b, CrimsonNodes.Text(p.m_MediumQuestLabel), p.m_NormalQuestsContainer, p.m_NormalQuestUnlockRoot, used);
+            AddTier(b, CrimsonNodes.Text(p.m_HardQuestLabel), p.m_HardQuestsContainer, p.m_HardQuestUnlockRoot, used);
             // When the next quests come ("New Quest(s) added in: 06h: 59m"), read when landed on, not ticking.
             var timer = p.m_TimerRenderer;
             if (CrimsonNodes.Shown(timer))
@@ -195,12 +205,15 @@ namespace GwentAccess.Ui
             return CrimsonNodes.Texts(t);
         }
 
-        private static void AddTier(GraphBuilder b, Label title, UIQuestOuroborosList list, GameObject lockRoot, Label lockLabel,
-            HashSet<IntPtr> used)
+        /// <summary>A difficulty's quests under its name ("Easy"): each quest a row with its Change Quest button,
+        /// or while the difficulty is locked, the line saying at which level it unlocks. Shared with the cycle's
+        /// side window (<see cref="SideWindowScreen"/>), which draws the same quest list; there the name is
+        /// already the foldout header's, so <paramref name="context"/> is off.</summary>
+        internal static void AddTier(GraphBuilder b, string name, UIQuestOuroborosList list, GameObject lockRoot, HashSet<IntPtr> used,
+            bool context = true)
         {
-            string name = CrimsonNodes.Text(title);
-            if (name.Length == 0) return;
-            b.PushContext(name);
+            if (string.IsNullOrEmpty(name)) return;
+            if (context) b.PushContext(name);
             if (lockRoot != null && lockRoot.activeInHierarchy)
             {
                 // "Unlock Medium Quests at level", "5": one line.
@@ -242,7 +255,7 @@ namespace GwentAccess.Ui
                     b.EndRow();
                 }
             }
-            b.PopContext();
+            if (context) b.PopContext();
         }
 
         // The quest as drawn: its text, its progress ("1 of 5"), the levels it gives; an empty slot's notice.

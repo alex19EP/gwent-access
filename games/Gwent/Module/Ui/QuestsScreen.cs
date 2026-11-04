@@ -286,7 +286,7 @@ namespace GwentAccess.Ui
 
         /// <summary>Opens a section's group, mirroring the game's foldout. False when there is nothing to put
         /// under it: no header, or one the game greys out, which then reads as a line.</summary>
-        private static bool BeginSection(GraphBuilder b, FoldoutSectionComponent section, ButtonControl header, HashSet<System.IntPtr> used)
+        internal static bool BeginSection(GraphBuilder b, FoldoutSectionComponent section, ButtonControl header, HashSet<System.IntPtr> used)
         {
             if (!CrimsonNodes.Shown(header)) return false;
             used.Add(header.Pointer);
