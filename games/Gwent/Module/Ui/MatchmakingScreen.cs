@@ -42,7 +42,7 @@ namespace GwentAccess.Ui
 
         public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new List<ScreenKey>
         {
-            new ScreenKey { Key = KeyCode.T, Run = () => Speech.Say(Timer() ?? "No timer shown.", true), Hint = "T, time searching" },
+            new ScreenKey { Key = KeyCode.T, Run = () => Speech.Say(Timer() ?? Loc.T("No timer shown."), true), Hint = Loc.T("T, time searching") },
         };
         private List<ScreenKey> _keys;
 

@@ -31,7 +31,7 @@ namespace GwentAccess.Ui
     internal sealed class MainMenuScreen : Screen
     {
         public override string Key => "main-menu";
-        public override string ScreenName => "Main menu";
+        public override string ScreenName => Loc.T("Main menu");
 
         private const string DeckListRoot = "DeckSelectorListContainerRoot";
 
@@ -42,14 +42,14 @@ namespace GwentAccess.Ui
         {
             (FriendStackRoot, "friend-match", null),
             ("Carousel", "cards", null),
-            ("CardsSpawnRoot", "modes", "Game modes"),
+            ("CardsSpawnRoot", "modes", Loc.Mark("Game modes")),
             (DeckListRoot, "deck", null),
-            ("MainView", "deck", "Deck"),
-            ("UIVanityInventoryAndPreview(Clone)", "cosmetics", "Cosmetics"),
-            ("ControlsSection", "menubar", "Menu bar"),
-            ("UIPlayerInfoOverlayPrefab(Clone)", "profile", "Profile and currencies"),
-            ("UINotificationsPrefab(Clone)", "notifications", "Notifications"),
-            ("UIMenusSocialPrefab(Clone)", "social", "Social"),
+            ("MainView", "deck", Loc.Mark("Deck")),
+            ("UIVanityInventoryAndPreview(Clone)", "cosmetics", Loc.Mark("Cosmetics")),
+            ("ControlsSection", "menubar", Loc.Mark("Menu bar")),
+            ("UIPlayerInfoOverlayPrefab(Clone)", "profile", Loc.Mark("Profile and currencies")),
+            ("UINotificationsPrefab(Clone)", "notifications", Loc.Mark("Notifications")),
+            ("UIMenusSocialPrefab(Clone)", "social", Loc.Mark("Social")),
         };
 
         private static readonly int DeckListRegion = System.Array.FindIndex(Regions, r => r.Root == DeckListRoot);
@@ -100,7 +100,7 @@ namespace GwentAccess.Ui
                     {
                         Key = k,
                         Run = () => Letter(letter),
-                        Hint = first ? "A letter, jump to the next item starting with it; when it is the only one, open it" : null,
+                        Hint = first ? Loc.T("A letter, jump to the next item starting with it; when it is the only one, open it") : null,
                     });
                     first = false;
                 }
@@ -125,7 +125,7 @@ namespace GwentAccess.Ui
                 string l = GraphNavigator.LabelOf(n)?.Trim();
                 if (!string.IsNullOrEmpty(l) && char.ToLowerInvariant(l[0]) == letter) matches.Add(n);
             }
-            if (matches.Count == 0) { Speech.Say("Nothing starting with " + char.ToUpperInvariant(letter) + ".", true); return; }
+            if (matches.Count == 0) { Speech.Say(Loc.T("Nothing starting with {0}.", char.ToUpperInvariant(letter)), true); return; }
             // The next match after the cursor, wrapping, so pressing the letter again walks them.
             var cur = GraphNavigator.CurrentNode;
             int curAt = -1;
@@ -254,7 +254,7 @@ namespace GwentAccess.Ui
                 string context = r == DeckListRegion
                     ? GameText.Get(DeckSelector.SELECT_DECK_TEXT_LOCALIZATION_KEY, "Change deck")
                     : r == FriendRegion ? GameText.Get("friend_match_setup_title", "Friend match setup")
-                    : known ? Regions[r].Context : null;
+                    : known ? Loc.T(Regions[r].Context) : null;
                 if (context != null) b.PushContext(context);
                 if (r == ProfileRegion && overlay != null)
                 {
@@ -327,9 +327,9 @@ namespace GwentAccess.Ui
                 var texts = CrimsonNodes.Texts(note);
                 if (texts.Count == 0) continue;
                 for (int i = 0; i < texts.Count; i++)
-                    if (System.Text.RegularExpressions.Regex.IsMatch(texts[i], @"^\d+ of \d+$")) texts[i] = "progress " + texts[i];
+                    if (System.Text.RegularExpressions.Regex.IsMatch(texts[i], @"^\d+ of \d+$")) texts[i] = Loc.T("progress {0}", texts[i]);
                 string text = string.Join(", ", texts);
-                if (!pushed) { b.PushContext("Notifications"); pushed = true; }
+                if (!pushed) { b.PushContext(Loc.T("Notifications")); pushed = true; }
                 b.AddItem(ControlId.Structural("menu:note:" + CrimsonNodes.PathKey(note.transform, null)), new NodeVtable
                 {
                     Announcements = new[] { new NodeAnnouncement(() => text, kind: AnnouncementKinds.Label) },
@@ -505,8 +505,8 @@ namespace GwentAccess.Ui
             {
                 var selector = button.GetComponentInParent<DeckSelector>();
                 var decks = selector?.GetDeckList();
-                if (decks == null || decks.Count == 0) { Speech.Say("No other decks.", true); return; }
-                if (decks.Count == 1) { Speech.Say("Only one deck.", true); return; }
+                if (decks == null || decks.Count == 0) { Speech.Say(Loc.T("No other decks."), true); return; }
+                if (decks.Count == 1) { Speech.Say(Loc.T("Only one deck."), true); return; }
                 ulong current = selector.GetSelectedDeck()?.Id ?? 0;
                 int at = 0;
                 for (int i = 0; i < decks.Count; i++) if (decks[i]?.Id == current) { at = i; break; }
@@ -514,7 +514,7 @@ namespace GwentAccess.Ui
                 selector.OnDeckButtonClicked(decks[next]);
                 Plugin.LogInfo("[menu] deck " + at + " -> " + next);
             }
-            catch (System.Exception e) { Plugin.LogInfo("[menu] deck change failed: " + e.Message); Speech.Say("Couldn't change the deck.", true); }
+            catch (System.Exception e) { Plugin.LogInfo("[menu] deck change failed: " + e.Message); Speech.Say(Loc.T("Couldn't change the deck."), true); }
         }
 
         private static ulong DeckOf(AControl c)
@@ -661,9 +661,9 @@ namespace GwentAccess.Ui
             var anns = new List<NodeAnnouncement>(v.Announcements)
             {
                 inList
-                    ? new NodeAnnouncement(() => activeDeck != 0 && DeckOf(c) == activeDeck ? "selected" : null,
+                    ? new NodeAnnouncement(() => activeDeck != 0 && DeckOf(c) == activeDeck ? Loc.T("selected") : null,
                         kind: AnnouncementKinds.Selected)
-                    : new NodeAnnouncement(() => GraphAnnouncer.ExpandedStateText?.Invoke(false) ?? "collapsed",
+                    : new NodeAnnouncement(() => GraphAnnouncer.ExpandedStateText?.Invoke(false) ?? Loc.T("collapsed"),
                         kind: AnnouncementKinds.Value),
             };
             v.Announcements = anns;
@@ -682,7 +682,7 @@ namespace GwentAccess.Ui
             var v = CrimsonNodes.Button(c);
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
-                new NodeAnnouncement(() => toggle.IsToggled ? "pressed" : null, live: true, kind: AnnouncementKinds.Selected),
+                new NodeAnnouncement(() => toggle.IsToggled ? Loc.T("pressed") : null, live: true, kind: AnnouncementKinds.Selected),
             };
             return v;
         }
@@ -734,7 +734,7 @@ namespace GwentAccess.Ui
             var button = c.TryCast<ButtonControl>();
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
-                new NodeAnnouncement(() => LockedReason(card) == null ? "unavailable" : null, live: true, kind: AnnouncementKinds.Enabled),
+                new NodeAnnouncement(() => LockedReason(card) == null ? Loc.T("unavailable") : null, live: true, kind: AnnouncementKinds.Enabled),
             };
             v.OnActivate = () =>
             {
@@ -887,7 +887,7 @@ namespace GwentAccess.Ui
                     var l = list;
                     b.AddItem(ControlId.Structural("cosmetics:expand"), new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => Collapsed(l) ? "Show all" : "Show fewer", live: true, kind: AnnouncementKinds.Label) },
+                        Announcements = new[] { new NodeAnnouncement(() => Collapsed(l) ? Loc.T("Show all") : Loc.T("Show fewer"), live: true, kind: AnnouncementKinds.Label) },
                         // The game moves its selection as the lists swap; the cursor stays on the arrow.
                         OnActivate = () =>
                         {
@@ -963,10 +963,10 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(t)), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => t.IsToggled ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
-                        new NodeAnnouncement(() => t.IsCurrentlySelectable() ? null : "unavailable", live: true, kind: AnnouncementKinds.Enabled),
+                        new NodeAnnouncement(() => t.IsToggled ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => t.IsCurrentlySelectable() ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
                     },
-                    OnActivate = () => { if (t.IsCurrentlySelectable()) Navigator.ClickControl(t); else Speech.Say("Not available right now.", true); },
+                    OnActivate = () => { if (t.IsCurrentlySelectable()) Navigator.ClickControl(t); else Speech.Say(Loc.T("Not available right now."), true); },
                 });
             }
         }

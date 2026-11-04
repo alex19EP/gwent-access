@@ -39,7 +39,7 @@ namespace GwentAccess.Ui
             if (factions != null && factions.Length > 0)
             {
                 b.BeginStop("new-deck:factions");
-                b.PushContext("Faction");
+                b.PushContext(Loc.T("Faction"));
                 foreach (var f in factions)
                 {
                     var item = f;
@@ -50,7 +50,7 @@ namespace GwentAccess.Ui
                         Announcements = new[]
                         {
                             new NodeAnnouncement(name, kind: AnnouncementKinds.Label),
-                            new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                            new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                             new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? FactionDescription(p, name()) : null, kind: AnnouncementKinds.Tooltip),
                         },
                         OnActivate = () => Navigator.ClickControl(item),
@@ -66,7 +66,7 @@ namespace GwentAccess.Ui
             if (abilities != null && abilities.Length > 0)
             {
                 b.BeginStop("new-deck:abilities");
-                b.PushContext("Leader ability, Enter creates the deck");
+                b.PushContext(Loc.T("Leader ability, Enter creates the deck"));
                 string group = null;
                 foreach (var a in abilities)
                 {
@@ -144,7 +144,7 @@ namespace GwentAccess.Ui
             try
             {
                 string n = UiText.Clean(a.m_CardProvision?.Text?.text ?? "");
-                return n.Length > 0 ? "adds " + n + " provisions" : null;
+                return n.Length > 0 ? Loc.T("adds {0} provisions", n) : null;
             }
             catch { return null; }
         }
