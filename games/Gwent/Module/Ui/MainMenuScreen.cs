@@ -76,6 +76,7 @@ namespace GwentAccess.Ui
         private bool? _listOpen;
         private bool? _steerToList;
         private static bool _modesWereShown;
+        private static float _frontUntil;
         private float _steerUntil;
         private AControl _steer;
 
@@ -303,11 +304,15 @@ namespace GwentAccess.Ui
             // Opening the menu starts at the top (the first game mode), not wherever the game's selection was left
             // (the shop button, at the bottom).
             if (first != null) b.SetStart(first);
-            if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
             // PLAY opening the modes: the cursor starts on the mode in front (the one drawn with its description
-            // and the PLAY button, the mode last chosen), not on the first mode of the stack.
-            else if (frontMode != null && !_modesWereShown) GraphNavigator.Suggest(CrimsonNodes.Id(frontMode));
+            // and the PLAY button, the mode last chosen), not on the first mode of the stack. Held as the steer
+            // for a moment (the game's own selection goes to the first mode and would be followed), until a key.
+            float now = UnityEngine.Time.realtimeSinceStartup;
+            if (frontMode != null && !_modesWereShown) _frontUntil = now + 0.8f;
+            if (Keys.AnyDown()) _frontUntil = 0;
+            if (_steer == null && frontMode != null && now < _frontUntil) _steer = frontMode;
             _modesWereShown = frontMode != null;
+            if (_steer != null) GraphNavigator.Suggest(CrimsonNodes.Id(_steer));
             // The cosmetics picker opening: the cursor goes to the equipped choice, the one the picker scrolls to.
             if (pickerShown && !_pickerWasShown && _pickerStart != null)
             {
@@ -738,7 +743,28 @@ namespace GwentAccess.Ui
                 // it is spoken when it appears (Left/Right through the modes read each one).
                 new NodeAnnouncement(() => DrawnDescription(card), live: true, kind: AnnouncementKinds.Tooltip),
             };
-            if (!IsStandIn(c, card)) return v;
+            if (!IsStandIn(c, card))
+            {
+                // Enter on a mode not in front brings it to the front (its card turns into PLAY): the stack
+                // reorders under the cursor and nothing was said. Its description is said once drawn, as the
+                // sighted player reads it beside the card ("Training Mode. Practice your skills…").
+                var act = v.OnActivate;
+                if (act != null)
+                    v.OnActivate = () =>
+                    {
+                        bool front = false;
+                        try { front = card.m_DescriptionToggled; } catch { }
+                        act();
+                        if (front) return; // PLAY: the match starts
+                        MainThread.Later(0.8f, () =>
+                        {
+                            string d = null;
+                            try { d = DrawnDescription(card); } catch { }
+                            if (!string.IsNullOrEmpty(d)) Speech.Say(d, false);
+                        });
+                    };
+                return v;
+            }
             var button = c.TryCast<ButtonControl>();
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
