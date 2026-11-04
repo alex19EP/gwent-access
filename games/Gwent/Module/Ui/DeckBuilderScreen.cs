@@ -122,7 +122,7 @@ namespace GwentAccess.Ui
 
         // While a deck opens (its "Loading Deck" popup comes and goes) the cursor's passing landings aren't read.
         public override bool QuietLanding(GraphNode node) =>
-            _seenEdit != IntPtr.Zero && Time.realtimeSinceStartup - _seenEditAt < 0.8f;
+            (_seenEdit != IntPtr.Zero && Time.realtimeSinceStartup - _seenEditAt < 0.8f) | Leaving(node);
 
         public override AControl GameSelection() =>
             Time.realtimeSinceStartup - _openedAt < 1.5f ? null : base.GameSelection();
@@ -512,7 +512,44 @@ namespace GwentAccess.Ui
             var list = CrimsonNodes.BarButtons(p, used, bar => bar.GetComponentInParent<UIDeckListContainer>() != null);
             if (list.Count == 0) return;
             b.BeginStop("db:bar");
-            foreach (var c in list) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            var edit = DeckBuilder.Edit;
+            foreach (var c in list)
+            {
+                var v = CrimsonNodes.Button(c);
+                // Save and exit / Exit without saving hide as they are pressed, and the cursor fell back onto the
+                // last filter ("Cycle Cards, not checked") while the deck saved: quiet until the deck list.
+                if (edit != null && (Same(c, edit.m_QuitAndSaveBinding) || Same(c, edit.m_QuitWithoutSavingBinding)))
+                {
+                    var click = v.OnActivate;
+                    v.OnActivate = () => { _leaving = true; click?.Invoke(); };
+                }
+                b.AddItem(CrimsonNodes.Id(c), v);
+            }
+        }
+
+        private static bool Same(AControl c, Component other)
+        {
+            try { return other != null && c.Pointer == other.Pointer; } catch { return false; }
+        }
+
+        // A deck's Save and exit or Exit without saving was pressed: the landings until the deck list are the
+        // deck view coming apart. Cleared by the deck list's first landing, or by the exit showing again (the
+        // game kept the deck open).
+        private static bool _leaving;
+
+        public override void OnPush() => _leaving = false;
+
+        private static bool Leaving(GraphNode node)
+        {
+            if (!_leaving) return false;
+            try
+            {
+                var quit = DeckBuilder.Edit?.m_QuitAndSaveBinding;
+                bool listed = node?.Id.Reference is AControl c && c.GetComponentInParent<UIDeckListContainer>() != null;
+                if (listed || (quit != null && quit.gameObject.activeInHierarchy)) _leaving = false;
+            }
+            catch { _leaving = false; }
+            return _leaving;
         }
 
         // ---- keys ----
