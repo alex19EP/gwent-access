@@ -31,7 +31,7 @@ namespace GwentAccess
         public static string Summary(Card card, PlayerManager pm = null, bool preview = false)
         {
             if (card == null) return "";
-            if (Hidden(card, pm, preview)) return "hidden card";
+            if (Hidden(card, pm, preview)) return Loc.T("hidden card");
             var parts = new List<string> { Name(card) };
             var type = Type(card);
             if (type == ECardType.Unit) AddPower(parts, card);
@@ -44,7 +44,7 @@ namespace GwentAccess
             bool cooldown = pm != null && AddOrder(parts, card);
             if (!cooldown) AddTimer(parts, card);
             if (type != ECardType.Leader && (pm == null || At(card) == ELocation.Hand))
-                Try(() => { int p = card.Template.Provision; if (p > 0) parts.Add(p + " provisions"); });
+                Try(() => { int p = card.Template.Provision; if (p > 0) parts.Add(Loc.P(p, "{0} provision", "{0} provisions")); });
             return string.Join(", ", parts);
         }
 
@@ -149,15 +149,33 @@ namespace GwentAccess
             if (card == null) return "";
             var parts = new List<string>();
             var type = Type(card);
-            string tier = "";
-            Try(() => tier = card.Template.Tier == ECardTier.Leader ? "" : card.Template.Tier.ToString().ToLowerInvariant() + " ");
-            parts.Add(tier + TypeWord(type));
+            string kind = TypeWord(type);
+            Try(() => kind = card.Template.Tier == ECardTier.Leader ? kind : WithTier(card.Template.Tier, kind));
+            parts.Add(kind);
             if (type == ECardType.Unit)
-                Try(() => parts.Add("base power " + card.Data.Power.BasePower));
+                Try(() => parts.Add(Loc.T("base power {0}", card.Data.Power.BasePower)));
             Add(parts, Faction(card));
-            Try(() => parts.Add(card.Template.Rarity.ToString().ToLowerInvariant()));
+            Try(() => parts.Add(RarityWord(card.Template.Rarity)));
             return string.Join(", ", parts);
         }
+
+        // "gold unit": the kind with its tier, one phrase per tier so a translator can place and agree the word.
+        private static string WithTier(ECardTier tier, string kind) => tier switch
+        {
+            ECardTier.Bronze => Loc.T("bronze {0}", kind),
+            ECardTier.Silver => Loc.T("silver {0}", kind),
+            ECardTier.Gold => Loc.T("gold {0}", kind),
+            _ => tier.ToString().ToLowerInvariant() + " " + kind,
+        };
+
+        private static string RarityWord(ERarity rarity) => rarity switch
+        {
+            ERarity.Common => Loc.T("common"),
+            ERarity.Rare => Loc.T("rare"),
+            ERarity.Epic => Loc.T("epic"),
+            ERarity.Legendary => Loc.T("legendary"),
+            _ => rarity.ToString().ToLowerInvariant(),
+        };
 
         /// <summary>The card's faction in the game's words ("Нильфгаард"), or "".</summary>
         public static string Faction(Card card) =>
@@ -190,12 +208,12 @@ namespace GwentAccess
         }
 
         /// <summary>Just the name, or "hidden card" for one the local player can't see.</summary>
-        public static string Name(Card card, PlayerManager pm, bool preview = false) => Hidden(card, pm, preview) ? "hidden card" : Name(card);
+        public static string Name(Card card, PlayerManager pm, bool preview = false) => Hidden(card, pm, preview) ? Loc.T("hidden card") : Name(card);
 
         private static string Name(Card card)
         {
             string name = Text(() => LocalizationHelper.GetCardName(card));
-            return name.Length > 0 ? name : "unknown card";
+            return name.Length > 0 ? name : Loc.T("unknown card");
         }
 
         // A card's main type: the template's type flags, leader first (a leader is never also a unit).
@@ -210,12 +228,12 @@ namespace GwentAccess
 
         private static string TypeWord(ECardType t) => t switch
         {
-            ECardType.Leader => "leader",
-            ECardType.Unit => "unit",
-            ECardType.Special => "special",
-            ECardType.Artifact => "artifact",
-            ECardType.Stratagem => "stratagem",
-            _ => "card",
+            ECardType.Leader => Loc.T("leader"),
+            ECardType.Unit => Loc.T("unit"),
+            ECardType.Special => Loc.T("special"),
+            ECardType.Artifact => Loc.T("artifact"),
+            ECardType.Stratagem => Loc.T("stratagem"),
+            _ => Loc.T("card"),
         };
 
         private static ELocation At(Card card)
@@ -230,15 +248,15 @@ namespace GwentAccess
             Try(() =>
             {
                 var power = card.Data.Power;
-                parts.Add("power " + power.CurrentPower);
+                parts.Add(Loc.T("power {0}", power.CurrentPower));
                 switch (power.GetPowerState())
                 {
-                    case EPowerState.Wounded: parts.Add("damaged"); break;
-                    case EPowerState.Boosted: parts.Add("boosted"); break;
-                    case EPowerState.Weakened: parts.Add("weakened"); break;
-                    case EPowerState.Strengthened: parts.Add("strengthened"); break;
+                    case EPowerState.Wounded: parts.Add(Loc.T("damaged")); break;
+                    case EPowerState.Boosted: parts.Add(Loc.T("boosted")); break;
+                    case EPowerState.Weakened: parts.Add(Loc.T("weakened")); break;
+                    case EPowerState.Strengthened: parts.Add(Loc.T("strengthened")); break;
                 }
-                if (power.CurrentArmor > 0) parts.Add("armor " + power.CurrentArmor);
+                if (power.CurrentArmor > 0) parts.Add(Loc.T("armor {0}", power.CurrentArmor));
             });
         }
 
@@ -289,18 +307,18 @@ namespace GwentAccess
                 var charges = card.Data.TapCharges;
                 switch (charges.State)
                 {
-                    case ETapCardState.Available: parts.Add("order ready"); break;
-                    case ETapCardState.SummoningSickness: parts.Add("order next turn"); break;
+                    case ETapCardState.Available: parts.Add(Loc.T("order ready")); break;
+                    case ETapCardState.SummoningSickness: parts.Add(Loc.T("order next turn")); break;
                     case ETapCardState.Recharging:
-                        parts.Add("order recharging");
+                        parts.Add(Loc.T("order recharging"));
                         int t = TimerOf(card);
-                        if (t > 0) { parts.Add(t == 1 ? "1 turn" : t + " turns"); cooldown = true; }
+                        if (t > 0) { parts.Add(Loc.P(t, "{0} turn", "{0} turns")); cooldown = true; }
                         break;
-                    case ETapCardState.Depleted: parts.Add("order used"); break;
-                    case ETapCardState.Unavailable: parts.Add("order unavailable"); break;
+                    case ETapCardState.Depleted: parts.Add(Loc.T("order used")); break;
+                    case ETapCardState.Unavailable: parts.Add(Loc.T("order unavailable")); break;
                 }
                 if (card.Template.VisibleTapCharges || at == ELocation.Leader)
-                    parts.Add(charges.Value == 1 ? "1 charge" : charges.Value + " charges");
+                    parts.Add(Loc.P(charges.Value, "{0} charge", "{0} charges"));
             });
             return cooldown;
         }
@@ -328,7 +346,7 @@ namespace GwentAccess
                 };
                 if (key == null) return;
                 string fallback = char.ToUpperInvariant(key[0]) + key.Substring(1);
-                parts.Add(GameText.Term(LocalizationHelper.KEYWORD_LOCALIZATION_KEY_PREFIX + key, fallback) + " met");
+                parts.Add(Loc.T("{0} met", GameText.Term(LocalizationHelper.KEYWORD_LOCALIZATION_KEY_PREFIX + key, fallback)));
             });
         }
 

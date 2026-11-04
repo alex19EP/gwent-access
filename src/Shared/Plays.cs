@@ -95,12 +95,12 @@ namespace GwentAccess
         /// <summary>Why Enter on this card of yours does nothing, or null when it does something.</summary>
         public string WhyNot(Card c)
         {
-            if (!MyTurn) return "Not your turn.";
-            if (Pending != null) return "Finish the current play first, or Backspace to cancel.";
+            if (!MyTurn) return Loc.T("Not your turn.");
+            if (Pending != null) return Loc.T("Finish the current play first, or Backspace to cancel.");
             if (CanUse(c)) return null;
             bool inHand = Try(() => c.Position.Location == ELocation.Hand);
-            if (inHand) return CardPlayed ? "You've already played a card this turn." : "Can't play that now.";
-            return Try(() => c.HasTapAbility()) ? "Order not ready." : "Nothing to use.";
+            if (inHand) return CardPlayed ? Loc.T("You've already played a card this turn.") : Loc.T("Can't play that now.");
+            return Try(() => c.HasTapAbility()) ? Loc.T("Order not ready.") : Loc.T("Nothing to use.");
         }
 
         /// <summary>Your cards with a play or an order available right now, hand first.</summary>

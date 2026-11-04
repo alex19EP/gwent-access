@@ -51,11 +51,20 @@ namespace GwentAccess
             bool mine = Narrator.Mine(__0);
             var reason = info.Reason;
             bool paid = (reason & (EMoneyChangeReason.Fee | EMoneyChangeReason.Tribute)) != 0;
-            string verb = delta > 0 ? (mine ? "gain" : "gains")
-                : paid ? (mine ? "spend" : "spends")
-                : (mine ? "lose" : "loses");
             int n = Math.Abs(delta);
-            Narrator.Say((mine ? "You" : Narrator.Opponent()) + " " + verb + " " + n + (n == 1 ? " coin" : " coins") + ": " + now + ".");
+            string line;
+            if (mine)
+                line = delta > 0 ? Loc.P(n, "You gain {0} coin: {1}.", "You gain {0} coins: {1}.", now)
+                    : paid ? Loc.P(n, "You spend {0} coin: {1}.", "You spend {0} coins: {1}.", now)
+                    : Loc.P(n, "You lose {0} coin: {1}.", "You lose {0} coins: {1}.", now);
+            else
+            {
+                string them = Narrator.Opponent();
+                line = delta > 0 ? Loc.P(n, "{1} gains {0} coin: {2}.", "{1} gains {0} coins: {2}.", them, now)
+                    : paid ? Loc.P(n, "{1} spends {0} coin: {2}.", "{1} spends {0} coins: {2}.", them, now)
+                    : Loc.P(n, "{1} loses {0} coin: {2}.", "{1} loses {0} coins: {2}.", them, now);
+            }
+            Narrator.Say(line);
         });
     }
 
@@ -96,7 +105,7 @@ namespace GwentAccess
             try
             {
                 int n = card.Data.TapCharges.Value;
-                return n == 1 ? "1 charge" : n + " charges";
+                return Loc.P(n, "{0} charge", "{0} charges");
             }
             catch { return ""; }
         }
@@ -148,7 +157,7 @@ namespace GwentAccess
             if (now != ETapCardState.Available || before != ETapCardState.Recharging) return;
             var at = card.Position.Location;
             if (at != ELocation.Melee && at != ELocation.Ranged && at != ELocation.Leader) return;
-            Narrator.Gather(GameText.Term("keyword_order", "Order") + " ready", Narrator.Owned(card));
+            Narrator.Gather(Loc.T("{0} ready", GameText.Term("keyword_order", "Order")), Narrator.Owned(card));
         });
     }
 

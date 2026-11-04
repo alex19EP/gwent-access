@@ -46,23 +46,23 @@ namespace GwentAccess
             int templateId = -1;
             try { templateId = card.Template.Id; } catch { }
             if (name.StartsWith("[MISSING]") || templateId == 0)
-                return "Hidden card. You can't see this card yet.";
-            parts.Add(name.Length > 0 ? name : "Unknown card");
+                return Loc.T("Hidden card. You can't see this card yet.");
+            parts.Add(name.Length > 0 ? name : Loc.T("Unknown card"));
 
             bool leader = false, special = false;
             try { leader = card.IsLeader; } catch { }
             try { special = card.IsSpecial; } catch { }
-            if (leader) parts.Add("leader");
-            else if (special) parts.Add("special card");
+            if (leader) parts.Add(Loc.T("leader"));
+            else if (special) parts.Add(Loc.T("special card"));
             else
             {
-                try { parts.Add("power " + card.Power); } catch { }
+                try { parts.Add(Loc.T("power {0}", card.Power)); } catch { }
             }
-            try { if (card.Armor > 0) parts.Add("armor " + card.Armor); } catch { }
+            try { if (card.Armor > 0) parts.Add(Loc.T("armor {0}", card.Armor)); } catch { }
             try
             {
                 var t = card.Template;
-                if (t != null && t.Provision > 0) parts.Add(t.Provision + " provisions");
+                if (t != null && t.Provision > 0) parts.Add(Loc.P(t.Provision, "{0} provision", "{0} provisions"));
             }
             catch { }
 

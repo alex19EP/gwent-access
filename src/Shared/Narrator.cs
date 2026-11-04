@@ -167,7 +167,7 @@ namespace GwentAccess
             try
             {
                 var me = Players().LocalUser;
-                return "You " + me.CurrentScore + ", opponent " + me.OpponentPlayer.CurrentScore;
+                return Loc.T("You {0}, opponent {1}", me.CurrentScore, me.OpponentPlayer.CurrentScore);
             }
             catch { return ""; }
         }
@@ -263,12 +263,10 @@ namespace GwentAccess
             _myDraws.Clear();
             _theirDraws = 0;
             var parts = new List<string>();
-            if (mine.Count > 0) parts.Add("You draw " + Cards(mine.Count) + ": " + string.Join(", ", mine) + ".");
-            if (theirs > 0) parts.Add(Opponent() + " draws " + Cards(theirs) + ".");
+            if (mine.Count > 0) parts.Add(Loc.P(mine.Count, "You draw {0} card: {1}.", "You draw {0} cards: {1}.", string.Join(", ", mine)));
+            if (theirs > 0) parts.Add(Loc.P(theirs, "{1} draws {0} card.", "{1} draws {0} cards.", Opponent()));
             if (parts.Count > 0) Say(string.Join(" ", parts));
         }
-
-        private static string Cards(int n) => n == 1 ? "1 card" : n + " cards";
 
         internal static bool IsUnit(Card card)
         {
@@ -387,10 +385,11 @@ namespace GwentAccess
             return text;
         }
 
-        /// <summary>"your" or "opponent's": whose side of the board a card is on (where it is now).</summary>
-        internal static string Side(Card card)
+        /// <summary>"your" or "opponent's": whose side of the board a card is on (where it is now). True for
+        /// yours, false for the opponent's, null when it can't be told; the words are <see cref="Owned"/>'s.</summary>
+        internal static bool? Side(Card card)
         {
-            try { return Mine(card.Position.PlayerId) ? "your" : "opponent's"; } catch { return null; }
+            try { return Mine(card.Position.PlayerId); } catch { return null; }
         }
 
         /// <summary>"your Ard Feainn Heavy Cavalry": a card named with its side. <paramref name="name"/> overrides
@@ -398,8 +397,8 @@ namespace GwentAccess
         internal static string Owned(Card card, string name = null)
         {
             name ??= CardName(card);
-            string side = Side(card);
-            return side != null ? side + " " + name : name;
+            bool? mine = Side(card);
+            return mine == null ? name : mine.Value ? Loc.T("your {0}", name) : Loc.T("opponent's {0}", name);
         }
 
         /// <summary>"power 3, armor 3": a unit's power (and armor) as drawn now, worded as the card reader words
@@ -410,9 +409,9 @@ namespace GwentAccess
             try
             {
                 var power = card.Data.Power;
-                string text = "power " + power.CurrentPower;
-                if (power.CurrentArmor > 0) text += ", " + GameText.Lower(GameText.Term("keyword_armor", "armor")) + " " + power.CurrentArmor;
-                return text;
+                if (power.CurrentArmor > 0)
+                    return Loc.T("power {0}, {1} {2}", power.CurrentPower, GameText.Lower(GameText.Term("keyword_armor", "armor")), power.CurrentArmor);
+                return Loc.T("power {0}", power.CurrentPower);
             }
             catch { return ""; }
         }
@@ -437,7 +436,15 @@ namespace GwentAccess
             if (targets.Count == 0) return;
             string list = string.Join(", ", targets);
             if (source == null) { Say(label + ": " + list + "."); return; }
-            Say(First(source) + ": " + GameText.Lower(label) + (join != null ? " " + join : "") + " " + list + ".");
+            // The join is a code ("to", "on", "from"), each with its own sentence for the translator.
+            string what = GameText.Lower(label);
+            Say(join switch
+            {
+                "to" => Loc.T("{0}: {1} to {2}.", First(source), what, list),
+                "on" => Loc.T("{0}: {1} on {2}.", First(source), what, list),
+                "from" => Loc.T("{0}: {1} from {2}.", First(source), what, list),
+                _ => First(source) + ": " + what + " " + list + ".",
+            });
         }
 
         /// <summary>One thing an effect happened to, named once, side first: "Your Ard Feainn Heavy Cavalry,
@@ -477,7 +484,8 @@ namespace GwentAccess
             if (cards.Count == 0) return;
             var names = cards.ConvertAll(c => Owned(c));
             bool self = cards.Count == 1 && Same(attacker, cards[0]);
-            Say(First(string.Join(", ", names)) + " destroyed" + (source != null && !self ? " by " + source : "") + ".");
+            string who = First(string.Join(", ", names));
+            Say(source != null && !self ? Loc.T("{0} destroyed by {1}.", who, source) : Loc.T("{0} destroyed.", who));
         }
 
         /// <summary>Whether an effect's source is <paramref name="card"/> itself.</summary>
@@ -541,7 +549,7 @@ namespace GwentAccess
             }
             // Face-down cards in the opponent's hand light up as they're hit: a sighted player sees how many.
             string hand = inTheirHand == 0 ? null
-                : inTheirHand == 1 ? "1 card in the opponent's hand" : inTheirHand + " cards in the opponent's hand";
+                : Loc.P(inTheirHand, "{0} card in the opponent's hand", "{0} cards in the opponent's hand");
             Narrator.SayOnCards(Narrator.Source(a.Attacker), a.Attacker, label, join, targets, power: true, extra: hand);
             Narrator.SayDestroyed(null, null, killed);
         });
@@ -736,16 +744,17 @@ namespace GwentAccess
                 var spawn = __0[i];
                 var card = spawn?.SpawnedCard;
                 if (card == null || !Narrator.Visible(card)) continue;
-                string where = "";
+                string where = null;
                 try
                 {
                     string row = Narrator.RowName(card.Position.PlayerId, card.Position.Location);
-                    if (row != null) where = " on " + GameText.Lower(row);
+                    if (row != null) where = GameText.Lower(row);
                 }
                 catch { }
                 string stats = Narrator.Stats(card);
-                if (spawn.SpawnerCard == null) { Narrator.SaySelf(Narrator.Owned(card), label + where, stats); continue; }
-                string what = Narrator.Owned(card) + where + (stats.Length > 0 ? ", " + stats : "");
+                if (spawn.SpawnerCard == null) { Narrator.SaySelf(Narrator.Owned(card), where != null ? Loc.T("{0} on {1}", label, where) : label, stats); continue; }
+                string what = where != null ? Loc.T("{0} on {1}", Narrator.Owned(card), where) : Narrator.Owned(card);
+                if (stats.Length > 0) what += ", " + stats;
                 Narrator.SayEffect(Narrator.CardName(spawn.SpawnerCard), label, null, new List<string> { what });
             }
         });
@@ -780,7 +789,7 @@ namespace GwentAccess
             if (b == ELocation.RevealStack)
             {
                 if (CardReader.Hidden(card, Narrator.Players())) return;
-                string shown = "Revealed" + (a == ELocation.Hand ? " from hand" : a == ELocation.Deck ? " from deck" : "");
+                string shown = a == ELocation.Hand ? Loc.T("Revealed from hand") : a == ELocation.Deck ? Loc.T("Revealed from deck") : Loc.T("Revealed");
                 Narrator.Gather(shown, Narrator.Owned(card));
                 return;
             }
@@ -801,10 +810,10 @@ namespace GwentAccess
                 else if ((a & Board) != 0 && from.PlayerId != to.PlayerId) label = GameText.Term("keyword_seize", "Seize");
                 else if ((a & Board) != 0) label = GameText.Get("arena_card_set_mechanical_move", "Move");
             }
-            else if (b == ELocation.Hand) label = "to hand";
-            else if (b == ELocation.Deck) label = "to " + GameText.Get("panel_deck_name", "deck").ToLowerInvariant();
+            else if (b == ELocation.Hand) label = Loc.T("to hand");
+            else if (b == ELocation.Deck) label = Loc.T("to {0}", GameText.Get("panel_deck_name", "deck").ToLowerInvariant());
             else if (b == ELocation.Graveyard && a == ELocation.Hand) label = GameText.Term("keyword_discard", "Discard");
-            else if (b == ELocation.Graveyard && a == ELocation.Deck) label = "to " + GameText.Get("panel_graveyard_name", "graveyard").ToLowerInvariant();
+            else if (b == ELocation.Graveyard && a == ELocation.Deck) label = Loc.T("to {0}", GameText.Get("panel_graveyard_name", "graveyard").ToLowerInvariant());
             if (label == null) return; // a death: the damage or destroy line already said it
 
             // The card is the subject, named once with its side (the one it is on now): "Your Ard Feainn Heavy
@@ -812,7 +821,7 @@ namespace GwentAccess
             if (row)
             {
                 string name = Narrator.RowName(to.PlayerId, b);
-                if (name != null) label += " to " + GameText.Lower(name);
+                if (name != null) label = Loc.T("{0} to {1}", label, GameText.Lower(name));
                 Narrator.SaySelf(Narrator.Owned(card), label, Narrator.Stats(card));
             }
             else
@@ -1063,7 +1072,7 @@ namespace GwentAccess
             NarrateTauntWho.At = -1;
             if (!NarrateTauntWho.Opponent) NarrateTauntWho.SentAt = -1;
             string text = UiText.Clean(__0);
-            if (text.Length > 0) Narrator.Say((NarrateTauntWho.Opponent ? Narrator.Opponent() : "You") + ": " + text);
+            if (text.Length > 0) Narrator.Say(NarrateTauntWho.Opponent ? Narrator.Opponent() + ": " + text : Loc.T("You: {0}", text));
         });
     }
 }
