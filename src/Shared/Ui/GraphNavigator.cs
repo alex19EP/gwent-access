@@ -13,7 +13,7 @@ namespace GwentAccess.Ui
     /// a rebuild that removed the focused control, or the screen appearing.
     ///
     /// Keys (while a screen is focused): arrows move (Left/Right adjust a slider first), Tab/Shift+Tab cycle
-    /// stops, Home/End jump to the ends, Enter activates, Backspace is the item's secondary action or else the
+    /// stops, Home/End jump to the ends (on screens of cards, of the row: <see cref="RowEdge"/>), Enter activates, Backspace is the item's secondary action or else the
     /// screen's Back, Space reads the details. Escape stays the game's own Back. Ctrl and Alt chords are left
     /// to the screens' own keys.
     ///
@@ -473,6 +473,17 @@ namespace GwentAccess.Ui
 
         /// <summary>For a screen key: an arrow press (Tab as Down on a one-list screen).</summary>
         public static void Step(GraphDir dir) { if (_graph != null) Arrow(dir); }
+
+        /// <summary>For a screen key: Home/End along the focused row only (spec §7.4), to its first or last item,
+        /// where <see cref="Edge"/> goes to the top or bottom of the whole stop. On screens of cards a row is a
+        /// hand or a board row, and End from the hand would otherwise land on your leader. Silent when already
+        /// there, as at any edge.</summary>
+        public static void RowEdge(bool first)
+        {
+            if (_graph?.CurrentNode == null) return;
+            var move = _graph.MoveToEdge(first ? GraphDir.Left : GraphDir.Right);
+            if (move.Moved) Announce(move);
+        }
 
         /// <summary>For a screen key: Enter on the focused node, as the key does.</summary>
         public static void ActivateCurrent() { if (_graph != null) Activate(); }

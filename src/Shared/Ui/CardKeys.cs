@@ -11,8 +11,8 @@ namespace GwentAccess.Ui
     /// card's lines (the summary spoken on landing is line 0; "Beginning of card" / "End of card" past the ends),
     /// I explains its keywords — just the current line's once Up/Down is on an ability that has any — and K reads
     /// its kind and base power. On screens of cards only (the board, the mulligan, choices, piles) Up/Down always
-    /// read; where cards sit among other items (rewards) they read only while a card is focused, and move
-    /// otherwise.
+    /// read and Home/End go to the ends of the current row; where cards sit among other items (rewards) Up/Down
+    /// read only while a card is focused, and move otherwise, and Home/End keep their list meaning.
     /// </summary>
     internal sealed class CardKeys
     {
@@ -34,13 +34,32 @@ namespace GwentAccess.Ui
             _noCard = noCard;
         }
 
-        public IEnumerable<ScreenKey> Keys => new[]
+        /// <summary>The keys. On screens of cards only (<c>always</c>), Home/End also stay in the row: the first or
+        /// last card of the hand or board row the cursor is in, not the top or bottom of the whole screen.</summary>
+        public IEnumerable<ScreenKey> Keys
         {
-            new ScreenKey { Key = KeyCode.DownArrow, Run = () => StepLine(1), When = Reads, Hint = "Down, next line of the card" },
-            new ScreenKey { Key = KeyCode.UpArrow, Run = () => StepLine(-1), When = Reads, Hint = "Up, previous line of the card" },
-            new ScreenKey { Key = KeyCode.I, Run = SayKeywords, Hint = "I, what the card's keywords mean" },
-            new ScreenKey { Key = KeyCode.K, Run = SayStats, Hint = "K, card kind and base power" },
-        };
+            get
+            {
+                var keys = new List<ScreenKey>
+                {
+                    new ScreenKey { Key = KeyCode.DownArrow, Run = () => StepLine(1), When = Reads, Hint = "Down, next line of the card" },
+                    new ScreenKey { Key = KeyCode.UpArrow, Run = () => StepLine(-1), When = Reads, Hint = "Up, previous line of the card" },
+                    new ScreenKey { Key = KeyCode.I, Run = SayKeywords, Hint = "I, what the card's keywords mean" },
+                    new ScreenKey { Key = KeyCode.K, Run = SayStats, Hint = "K, card kind and base power" },
+                };
+                if (_always)
+                {
+                    // Only on a card, or on a spot among the cards that has none (the board's empty rows and
+                    // placement gaps, the screen that says where such a spot is): elsewhere (the mulligan's
+                    // buttons) Home/End keep their list meaning. One hint for the pair: the help lists each once.
+                    const string rowEnds = "Home, End: first and last card in the row";
+                    Func<bool> inRow = () => _noCard != null || _focused() != null;
+                    keys.Add(new ScreenKey { Key = KeyCode.Home, Run = () => GraphNavigator.RowEdge(first: true), When = inRow, Hint = rowEnds });
+                    keys.Add(new ScreenKey { Key = KeyCode.End, Run = () => GraphNavigator.RowEdge(first: false), When = inRow, Hint = rowEnds });
+                }
+                return keys;
+            }
+        }
 
         /// <summary>The cursor moved: the next Ctrl+Up/Down starts from the new card's summary.</summary>
         public void Reset() => _lineCard = null;

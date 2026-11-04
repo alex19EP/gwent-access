@@ -53,6 +53,32 @@ namespace Access.Core.Tests
             Assert.Equal(Id("d"), r.To.Id);
         }
 
+        // Home/End on a screen of cards (a hand above a leader): along the row only, never into the next row.
+        [Fact]
+        public void MoveToEdgeAlongARowStaysInTheRow()
+        {
+            var state = new GraphState();
+            var g = new KeyGraph(() =>
+            {
+                var b = new GraphBuilder();
+                b.StartRow().AddItem(Id("h1"), Vt("h1")).AddItem(Id("h2"), Vt("h2")).AddItem(Id("h3"), Vt("h3")).EndRow();
+                b.StartRow().AddItem(Id("leader"), Vt("leader")).EndRow();
+                b.Connect(Id("h3"), GraphDir.Down, Id("leader"));
+                return b.SetStart(Id("h2")).Build();
+            }, state);
+
+            var r = g.MoveToEdge(GraphDir.Right);
+            Assert.True(r.Moved);
+            Assert.Equal(Id("h3"), r.To.Id);
+
+            r = g.MoveToEdge(GraphDir.Right); // already at the end: not moved
+            Assert.False(r.Moved);
+
+            r = g.MoveToEdge(GraphDir.Left);
+            Assert.True(r.Moved);
+            Assert.Equal(Id("h1"), r.To.Id);
+        }
+
         [Fact]
         public void TransitionLabelIsReported()
         {
