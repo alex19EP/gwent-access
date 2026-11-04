@@ -67,7 +67,7 @@ namespace GwentAccess.Ui
                 {
                     used.Add(t.Pointer);
                     var tab = t;
-                    if (CrimsonNodes.Toggled(tab)) selected = CrimsonNodes.Label(tab);
+                    if (CrimsonNodes.Toggled(tab)) selected = CrimsonNodes.Texts(tab) is var tt && tt.Count > 0 ? tt[0] : null;
                     var v = CrimsonNodes.Button(tab);
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
