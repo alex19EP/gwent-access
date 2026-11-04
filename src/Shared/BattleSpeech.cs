@@ -109,7 +109,18 @@ namespace GwentAccess
             }
             catch { }
             try { parts.Add("Cards in hand: you " + HandCount(gc, Me(gc)) + ", opponent " + HandCount(gc, Them(gc))); } catch { }
+            // The counters on both players' deck and graveyard stacks beside the board.
+            try { parts.Add("Deck: you " + PileCount(gc, Me(gc), ELocation.Deck) + ", opponent " + PileCount(gc, Them(gc), ELocation.Deck)); } catch { }
+            try { parts.Add("Graveyard: you " + PileCount(gc, Me(gc), ELocation.Graveyard) + ", opponent " + PileCount(gc, Them(gc), ELocation.Graveyard)); } catch { }
             return string.Join(". ", parts) + ".";
+        }
+
+        /// <summary>Cards in a player's deck or graveyard: the number on the stack (the opponent's deck counts
+        /// its face-down cards too).</summary>
+        public static int PileCount(GameController gc, EPlayerId who, ELocation where)
+        {
+            try { var loc = gc.BoardManager.GetLocation(who, where); if (loc != null) return loc.NumCards; } catch { }
+            return Cards(gc, who, where).Count;
         }
     }
 }
