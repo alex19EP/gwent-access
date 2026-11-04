@@ -20,7 +20,7 @@ namespace GwentAccess
         internal static void Say(string what, string key)
         {
             if (string.IsNullOrEmpty(what)) return;
-            string line = "Highlighted: " + what + (key != null && !ControllerMode.Force ? ", " + key : "") + ".";
+            string line = key != null && !ControllerMode.Force ? Loc.T("Highlighted: {0}, {1}.", what, key) : Loc.T("Highlighted: {0}.", what);
             if (line == _last && (DateTime.UtcNow - _lastAt).TotalSeconds < 5) return;
             _last = line;
             _lastAt = DateTime.UtcNow;
@@ -41,17 +41,17 @@ namespace GwentAccess
         {
             switch (type)
             {
-                case EHighlightType.Spotlight_Leader: Say(mine ? "your leader" : "the opponent's leader", mine ? "V" : "F"); break;
-                case EHighlightType.Spotlight_MeleeGlyph: Say(mine ? "your melee row" : "the opponent's melee row", mine ? "B" : "G"); break;
-                case EHighlightType.Spotlight_RangedGlyph: Say(mine ? "your ranged row" : "the opponent's ranged row", mine ? "Shift B" : "Shift G"); break;
-                case EHighlightType.Spotlight_Deck: Say(mine ? "your deck" : "the opponent's deck", mine ? "D" : null); break;
-                case EHighlightType.Spotlight_Graveyard: Say(mine ? "your graveyard" : "the opponent's graveyard", mine ? "Y" : "Shift Y"); break;
+                case EHighlightType.Spotlight_Leader: Say(mine ? Loc.T("your leader") : Loc.T("the opponent's leader"), mine ? "V" : "F"); break;
+                case EHighlightType.Spotlight_MeleeGlyph: Say(mine ? Loc.T("your melee row") : Loc.T("the opponent's melee row"), mine ? "B" : "G"); break;
+                case EHighlightType.Spotlight_RangedGlyph: Say(mine ? Loc.T("your ranged row") : Loc.T("the opponent's ranged row"), mine ? Loc.T("Shift B") : Loc.T("Shift G")); break;
+                case EHighlightType.Spotlight_Deck: Say(mine ? Loc.T("your deck") : Loc.T("the opponent's deck"), mine ? "D" : null); break;
+                case EHighlightType.Spotlight_Graveyard: Say(mine ? Loc.T("your graveyard") : Loc.T("the opponent's graveyard"), mine ? "Y" : Loc.T("Shift Y")); break;
                 case EHighlightType.Interactible_AbilityIcon:
-                case EHighlightType.Interactible_AbilityIcon_Scale: Say("the order ability", "Enter on the card to use it"); break;
-                case EHighlightType.Interactible_Coin: Say("the pass coin", "hold E"); break;
-                case EHighlightType.CardViewHighlight_AvailableTargets: Say("the valid targets", "Tab cycles them"); break;
-                case EHighlightType.CardViewHighlight_Hand: Say("your hand", "C"); break;
-                case EHighlightType.CardViewHighlight_PlayStack: Say("the card being played", null); break;
+                case EHighlightType.Interactible_AbilityIcon_Scale: Say(Loc.T("the order ability"), Loc.T("Enter on the card to use it")); break;
+                case EHighlightType.Interactible_Coin: Say(Loc.T("the pass coin"), Loc.T("hold E")); break;
+                case EHighlightType.CardViewHighlight_AvailableTargets: Say(Loc.T("the valid targets"), Loc.T("Tab cycles them")); break;
+                case EHighlightType.CardViewHighlight_Hand: Say(Loc.T("your hand"), "C"); break;
+                case EHighlightType.CardViewHighlight_PlayStack: Say(Loc.T("the card being played"), null); break;
             }
         }
     }
@@ -76,7 +76,7 @@ namespace GwentAccess
                 if (!__instance.On) return;
                 var gc = Battle.Controller();
                 bool mine = gc == null || __instance.Player == Battle.Me(gc);
-                TutorialHighlights.Say(mine ? "your leader" : "the opponent's leader", mine ? "V" : "F");
+                TutorialHighlights.Say(mine ? Loc.T("your leader") : Loc.T("the opponent's leader"), mine ? "V" : "F");
             }
             catch (Exception e) { Plugin.LogInfo("[highlight] leader failed: " + e.Message); }
         }
@@ -92,10 +92,9 @@ namespace GwentAccess
                 if (!__instance.On) return;
                 var gc = Battle.Controller();
                 bool mine = gc == null || __instance.Player == Battle.Me(gc);
-                string who = mine ? "your " : "the opponent's ";
-                if (__instance.Melee && __instance.Ranged) TutorialHighlights.Say(who + "melee and ranged rows", mine ? "B and Shift B" : "G and Shift G");
-                else if (__instance.Melee) TutorialHighlights.Say(who + "melee row", mine ? "B" : "G");
-                else if (__instance.Ranged) TutorialHighlights.Say(who + "ranged row", mine ? "Shift B" : "Shift G");
+                if (__instance.Melee && __instance.Ranged) TutorialHighlights.Say(mine ? Loc.T("your melee and ranged rows") : Loc.T("the opponent's melee and ranged rows"), mine ? Loc.T("B and Shift B") : Loc.T("G and Shift G"));
+                else if (__instance.Melee) TutorialHighlights.Say(mine ? Loc.T("your melee row") : Loc.T("the opponent's melee row"), mine ? "B" : "G");
+                else if (__instance.Ranged) TutorialHighlights.Say(mine ? Loc.T("your ranged row") : Loc.T("the opponent's ranged row"), mine ? Loc.T("Shift B") : Loc.T("Shift G"));
             }
             catch (Exception e) { Plugin.LogInfo("[highlight] row failed: " + e.Message); }
         }
@@ -109,7 +108,7 @@ namespace GwentAccess
             try
             {
                 bool mine = TutorialHighlights.Mine(__instance.PlayerSide);
-                TutorialHighlights.Say(mine ? "the abilities on your cards" : "the abilities on the opponent's cards", "I on a card explains them");
+                TutorialHighlights.Say(mine ? Loc.T("the abilities on your cards") : Loc.T("the abilities on the opponent's cards"), Loc.T("I on a card explains them"));
             }
             catch (Exception e) { Plugin.LogInfo("[highlight] ability indicator failed: " + e.Message); }
         }

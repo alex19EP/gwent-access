@@ -55,8 +55,8 @@ namespace GwentAccess
         {
             string result = ModuleLoader.Reload();
             Plugin.LogInfo("[F11] " + result.Trim());
-            if (result.Contains("unchanged")) Speech.Say("No new build to load.", true);
-            else if (result.Contains("aborted") || result.Contains("failed")) Speech.Say("Reload failed. Restart the game.", true);
+            if (result.Contains("unchanged")) Speech.Say(Loc.T("No new build to load."), true);
+            else if (result.Contains("aborted") || result.Contains("failed")) Speech.Say(Loc.T("Reload failed. Restart the game."), true);
             // A successful reload is announced by the new generation ("Gwent Access reloaded").
         }
 #endif
