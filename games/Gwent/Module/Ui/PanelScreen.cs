@@ -97,6 +97,7 @@ namespace GwentAccess.Ui
             "IntroPanel", // the Versus banner: VersusScreen
             "UIShopProductPreviewPanel", // ProductPreviewScreen
             "UIWelcomeScreenPanel", // WhatsNewScreen
+            "UIOuroborosRerollPanel", // CycleRerollScreen
         };
 
         // Panels a dedicated screen reads once they finish opening: the fallback would read their placeholders
