@@ -18,6 +18,8 @@ namespace GwentAccess
 #endif
             ModConfig.Load();
             Loc.Refresh(); // the mod's language, before the first line (English if the game hasn't set one yet)
+            // Currency icons drawn in texts ("COST: <sprite name=ScrapsNeg> -200") are named: "COST: -200 Scraps".
+            Ui.CrimsonNodes.RichText = Ui.Currency.Caption;
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
                 Speech.Say(first

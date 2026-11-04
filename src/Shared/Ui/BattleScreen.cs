@@ -100,7 +100,19 @@ namespace GwentAccess.Ui
         // opponent's leader, just before the mulligan names both leaders. Wait for the deal.
         private static bool BeforeTheDeal(GameController gc)
         {
-            try { return Narrator.TurnsStartedIn != gc.Pointer && Battle.HandCount(gc, Battle.Me(gc)) == 0; }
+            // Also until the opening mulligan is over (the game's own flag): the hand is dealt a moment before the
+            // mulligan panel opens, before any mulligan request exists, and landing on it then read the first
+            // card before the mulligan's intro, and again after it.
+            try
+            {
+                if (Narrator.TurnsStartedIn == gc.Pointer) return false;
+                if (Battle.HandCount(gc, Battle.Me(gc)) == 0) return true;
+#if GWENT
+                return !gc.RoundManager.HasInitialMulliganFinished();
+#else
+                return Narrator.InMulligan();
+#endif
+            }
             catch { return false; }
         }
 

@@ -44,14 +44,27 @@ namespace GwentAccess.Ui
             {
                 var edit = DeckBuilder.Edit;
                 var quit = edit?.m_QuitAndSaveBinding;
-                if (quit != null && quit.gameObject.activeInHierarchy) { Navigator.ClickControl(quit); return true; }
+                if (quit != null && quit.gameObject.activeInHierarchy) { Plugin.LogInfo("[deck builder] back: quit and save"); Navigator.ClickControl(quit); return true; }
                 // A starter deck can't be changed, so its only Exit is the no-save one: nothing is lost.
                 var noSave = edit?.m_QuitWithoutSavingBinding;
                 bool starter = false;
                 try { starter = DeckBuilder.Deck()?.IsStarterDeck == true; } catch { }
-                if (starter && noSave != null && noSave.gameObject.activeInHierarchy) { Navigator.ClickControl(noSave); return true; }
+                if (starter && noSave != null && noSave.gameObject.activeInHierarchy) { Plugin.LogInfo("[deck builder] back: starter, no save"); Navigator.ClickControl(noSave); return true; }
             }
             catch { }
+            // The deck list: the panel's own Back handler, as its Exit button calls it. The bar's back-key entry
+            // was clicked but ignored after a search (Backspace did nothing and said nothing).
+            try
+            {
+                var p = Panel();
+                if (p != null)
+                {
+                    Plugin.LogInfo("[deck builder] back through the panel's handler");
+                    p.HandleBackButtonClicked();
+                    return true;
+                }
+            }
+            catch (Exception e) { Plugin.LogInfo("[deck builder] back failed: " + e.Message); }
             return PressBack();
         }
 
@@ -275,7 +288,9 @@ namespace GwentAccess.Ui
                         new NodeAnnouncement(() => CardReader.Summary(card.Card), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => Premium(card) ? Loc.T("premium") : null, kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => Owned(card), live: true, kind: AnnouncementKinds.Value),
-                        new NodeAnnouncement(() => InDeck(card), live: true, kind: AnnouncementKinds.Value),
+                        // Not live: adding or removing a copy is said whole by DeckBuilder.Announce ("Added X, 2 in
+                        // deck. …"); live, "1 in deck" was said first and then again in that line.
+                        new NodeAnnouncement(() => InDeck(card), kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => New(data) ? Loc.T("new") : null, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => Click(data, false),

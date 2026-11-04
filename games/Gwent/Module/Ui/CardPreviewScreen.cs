@@ -105,8 +105,9 @@ namespace GwentAccess.Ui
 
         private static ControlId LineId(string cardKey, int i) => ControlId.Structural("preview:" + cardKey + ":" + i);
 
-        // The card's lines: the reader's summary, then the preview's own texts in order (categories, ability,
-        // keywords, flavour), the artist last.
+        // The card's lines: the reader's summary, then the preview's own texts, what the card does before what
+        // it is (Hearthstone Access's order, as the battle's card lines read): ability, categories, keywords,
+        // flavour, the artist last.
         private static List<string> Lines(UICardPreview p)
         {
             var lines = new List<string>();
@@ -116,12 +117,19 @@ namespace GwentAccess.Ui
 
             var details = p.transform.Find(Details);
             if (details != null)
+            {
+                string categories = null;
                 foreach (var t in details.GetComponentsInChildren<TMPro.TMP_Text>(false))
                 {
                     string n = t.gameObject.name;
                     if (n == "Name" || n == "Value") continue; // in the summary
+                    if (n == "Categories") { categories = UiText.Clean(t.text); continue; }
+                    // The categories go after the ability, before the flavour.
+                    if (n == "FlavorText" && categories != null) { Add(lines, categories); categories = null; }
                     Add(lines, UiText.Clean(t.text));
                 }
+                if (categories != null) Add(lines, categories);
+            }
             var keywords = p.transform.Find("Content/SafeArea/CardInformation/Keywords");
             if (keywords != null)
                 foreach (var t in keywords.GetComponentsInChildren<TMPro.TMP_Text>(false)) Add(lines, UiText.Clean(t.text));

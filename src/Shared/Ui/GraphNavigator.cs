@@ -350,7 +350,7 @@ namespace GwentAccess.Ui
             else if (Keys.Down(KeyCode.End)) Edge(GraphDir.Down);
             else if (Keys.Down(KeyCode.Return) && !_screen.LeavesToGame(KeyCode.Return)
                 || Keys.Down(KeyCode.KeypadEnter) && !_screen.LeavesToGame(KeyCode.KeypadEnter)) Activate();
-            else if (Keys.Down(KeyCode.Backspace))
+            else if (Keys.Down(KeyCode.Backspace) && !EditBox.Typing)
             {
                 if (_graph.CurrentNode?.Vtable.OnSecondary != null) Run(_graph.CurrentNode.Vtable.OnSecondary, _graph.Secondary);
                 else Back();
