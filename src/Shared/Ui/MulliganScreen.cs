@@ -277,9 +277,17 @@ namespace GwentAccess.Ui
                 {
                     new ScreenKey { Key = KeyCode.E, Run = Finish, Hint = "E, keep the rest and finish" },
                     new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = "A, score" },
+                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = "Shift T, time left to swap" },
                 };
                 return _keys;
             }
+        }
+
+        // Shift+T: the mulligan's countdown, as on the board (TurnTimer warns at 20 and 8 seconds too).
+        private void SayTimer()
+        {
+            float secs = TurnTimer.MulliganSecondsLeft(_gc ?? Battle.Controller());
+            Speech.Say(secs < 0 ? "No mulligan timer." : Mathf.CeilToInt(secs) + " seconds left to swap.", true);
         }
 
         public override void OnCursorMoved(GraphNode node)

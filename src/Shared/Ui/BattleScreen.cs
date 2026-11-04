@@ -790,7 +790,7 @@ namespace GwentAccess.Ui
                     new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = "F, opponent's leader" },
                     new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = "A, score" },
                     new ScreenKey { Key = KeyCode.T, Run = SayTurn, Hint = "T, whose turn it is" },
-                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = "Shift T, time left in your turn" },
+                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = "Shift T, time left in the turn" },
                     new ScreenKey { Key = KeyCode.O, Run = LogScreen.Toggle, Hint = "O, battle log: everything said this match, newest first" },
                     new ScreenKey { Key = KeyCode.D, Run = () => PileScreen.Open(deck: true, mine: true), Hint = "D, your deck" },
                     new ScreenKey { Key = KeyCode.Y, Run = () => PileScreen.Open(deck: false, mine: true), Hint = "Y, your graveyard" },
@@ -965,14 +965,17 @@ namespace GwentAccess.Ui
             Speech.Say(string.Join(" ", parts), true);
         }
 
-        // Shift+T: the turn clock, as a sighted player glances at it (Accessible Arena's timer key).
+        // Shift+T: the turn clock, yours or the opponent's, as a sighted player glances at it (Accessible
+        // Arena's timer key).
         private void SayTimer()
         {
             var gc = _gc;
             if (gc == null) return;
-            if (!_plays.MyTurn) { Speech.Say("Opponent's turn.", true); return; }
-            float secs = TurnTimer.SecondsLeft(gc);
-            Speech.Say(secs < 0 ? "No turn timer." : Mathf.CeilToInt(secs) + " seconds left in your turn.", true);
+            float mine = TurnTimer.SecondsLeft(gc);
+            if (mine >= 0) { Speech.Say(Mathf.CeilToInt(mine) + " seconds left in your turn.", true); return; }
+            float theirs = TurnTimer.OpponentSecondsLeft(gc);
+            if (theirs >= 0) { Speech.Say(Mathf.CeilToInt(theirs) + " seconds left in the opponent's turn.", true); return; }
+            Speech.Say(_plays.MyTurn ? "No turn timer." : "Opponent's turn, no timer.", true);
         }
 
         private void SayScore()
