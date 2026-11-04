@@ -13,8 +13,9 @@ namespace GwentAccess.Ui
     /// window.
     ///
     /// Options come straight from the open category's entry list, so rows scrolled out of view are reachable.
-    /// Each option is one item: its title and current value, Left/Right step the value through the game's own
-    /// switcher (the value is spoken back), Space reads the whole row. Active while the settings panel is
+    /// Each option is one item: its title, its role (a combo box, an on/off checkbox Enter flips, a slider) and
+    /// current value, Left/Right step the value through the game's own switcher (the value is spoken back),
+    /// Space reads the whole row. The categories are tabs: "Resolution, tab, selected, 3 of 8". Active while the settings panel is
     /// attached to the input layer that has the input; a confirmation popup takes the input and the screen steps
     /// aside for it.
     /// </summary>
@@ -50,10 +51,10 @@ namespace GwentAccess.Ui
 
             if (categories.Count > 0)
             {
+                // No context word: each entry says "tab" ("Resolution, tab, selected, 3 of 8"), which tells the
+                // list apart from the options as "Categories" did.
                 b.BeginStop("categories");
-                b.PushContext(Loc.T("Categories"));
-                foreach (var c in categories) b.AddItem(CrimsonNodes.Id(c), Category(c, categories));
-                b.PopContext();
+                foreach (var c in categories) b.AddItem(CrimsonNodes.Id(c), Category(panel, c, categories));
             }
 
             _categoryIds.Clear();
@@ -63,12 +64,8 @@ namespace GwentAccess.Ui
             if (rows.Count > 0 || buttons.Count > 0)
             {
                 b.BeginStop("options");
-                if (rows.Count > 0)
-                {
-                    b.PushContext(Loc.T("Options"));
-                    foreach (var e in rows) { var id = RowId(e); _optionKeys.Add((string)id.StructuralKey); b.AddItem(id, Row(e)); }
-                    b.PopContext();
-                }
+                // No "Options" context word either: each row says what it is ("combo box", "checkbox", "slider").
+                foreach (var e in rows) { var id = RowId(e); _optionKeys.Add((string)id.StructuralKey); b.AddItem(id, Row(e)); }
                 foreach (var c in buttons) { var id = CrimsonNodes.Id(c); _optionKeys.Add((string)id.StructuralKey); b.AddItem(id, CrimsonNodes.Button(c)); }
             }
 
@@ -147,12 +144,16 @@ namespace GwentAccess.Ui
         // toggle (the toggles then all read off), so the open one is known from the click instead.
         private static string _opened;
 
-        // A category button: its name, and "selected" on the open one.
-        private static NodeVtable Category(AControl c, List<AControl> all)
+        // A category button: its name, "tab" (the list switches the options shown beside it, a vertical tab
+        // list), and "selected" on the open one. The left panel's other toggles (privacy policy, credits,
+        // delete account) open a page or a popup of their own: "button".
+        private static NodeVtable Category(UISettingsPanel panel, AControl c, List<AControl> all)
         {
+            string word = IsCategory(panel, c) ? Loc.T("tab") : Loc.T("button");
             var v = CrimsonNodes.Button(c);
             var toggle = c.TryCast<ToggleButtonControl>();
-            if (toggle == null) return v;
+            if (toggle == null) return CrimsonNodes.WithRole(v, word);
+            var role = CrimsonNodes.RolePart(word);
             string key = CrimsonNodes.PathKey(c.transform, null);
             var click = v.OnActivate;
             v.OnActivate = () =>
@@ -165,9 +166,26 @@ namespace GwentAccess.Ui
             v.Announcements = new[]
             {
                 v.Announcements[0],
+                role,
                 new NodeAnnouncement(() => Selected(toggle, key, all) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
             };
             return v;
+        }
+
+        // One of the panel's settings categories (General, Graphics, Audio…), not a link beside them.
+        private static bool IsCategory(UISettingsPanel panel, AControl c)
+        {
+#if GWENT
+            try
+            {
+                foreach (var link in new AControl[] { panel.m_PrivacyButton, panel.m_EulaButton, panel.m_CreditsButton, panel.m_DeleteAccountButton })
+                    if (link != null && link.Pointer == c.Pointer) return false;
+            }
+            catch { }
+            return true;
+#else
+            return true;
+#endif
         }
 
         private static bool Selected(ToggleButtonControl toggle, string key, List<AControl> all)
@@ -194,11 +212,15 @@ namespace GwentAccess.Ui
         private static NodeVtable Row(UISettingsEntry e)
         {
             var sw = e.Switcher;
+            var kind = KindOf(e);
+            string role = kind == RowKind.Checkbox ? Loc.T("checkbox") : kind == RowKind.Slider ? Loc.T("slider") : Loc.T("combo box");
             return new NodeVtable
             {
                 Announcements = new[]
                 {
                     new NodeAnnouncement(() => Title(e), kind: AnnouncementKinds.Label),
+                    CrimsonNodes.RolePart(role),
+                    // The game's own word for the state ("On", "Off", "75"), as its switcher shows it.
                     new NodeAnnouncement(() => Value(sw), live: true, kind: AnnouncementKinds.Value),
                     new NodeAnnouncement(() => Enabled(sw) ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
                 },
@@ -208,6 +230,8 @@ namespace GwentAccess.Ui
                     if (dir > 0) sw.SelectNextValue();
                     else sw.SelectPreviousValue();
                 },
+                // Enter flips an on/off option, as Space does a screen reader's checkbox.
+                OnActivate = kind == RowKind.Checkbox ? () => { if (Enabled(sw)) sw.SelectNextValue(); } : (System.Action)null,
                 StateText = () => Enabled(sw) ? Value(sw) : Loc.T("unavailable"),
                 OnTooltip = () =>
                 {
@@ -215,6 +239,42 @@ namespace GwentAccess.Ui
                     Speech.Say(Title(e) + ": " + Value(sw) + (info != null ? ". " + info : ""), true);
                 },
             };
+        }
+
+        private enum RowKind { ComboBox, Checkbox, Slider }
+
+        /// <summary>
+        /// How a screen reader would name a row, from the setting's raw possible values (not the words shown):
+        /// two values that are a boolean's ("True"/"False", "0"/"1", "On"/"Off") make an on/off option, a
+        /// checkbox; more than two that are all numbers (a volume) make a slider; anything else is a list of
+        /// choices stepped with Left/Right, a combo box.
+        /// </summary>
+        private static RowKind KindOf(UISettingsEntry e)
+        {
+            try
+            {
+                var values = e.m_PossibleValues;
+                if (values == null || values.Count < 2) return RowKind.ComboBox;
+                if (values.Count == 2 && IsBool(values[0]) && IsBool(values[1])) return RowKind.Checkbox;
+                if (values.Count > 2)
+                {
+                    for (int i = 0; i < values.Count; i++)
+                        if (!float.TryParse(values[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+                            return RowKind.ComboBox;
+                    return RowKind.Slider;
+                }
+            }
+            catch { }
+            return RowKind.ComboBox;
+        }
+
+        private static bool IsBool(string v)
+        {
+            switch ((v ?? "").Trim().ToLowerInvariant())
+            {
+                case "true": case "false": case "0": case "1": case "on": case "off": return true;
+                default: return false;
+            }
         }
 
         // The game ships an explanation for some values that its PC layout never shows ("All sounds will be
