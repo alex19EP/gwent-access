@@ -21,6 +21,7 @@ namespace GwentAccess
     {
         private static string _last;
         private static DateTime _lastAt;
+        private static readonly System.Text.RegularExpressions.Regex Holes = new System.Text.RegularExpressions.Regex(@"\{+[^{}]*\}+");
 
         internal static void Speak(UINotificationsPanel panel, string message, bool isKey, string iconLabel,
             UINotificationData.EPriority priority, bool forceShow = false)
@@ -30,6 +31,9 @@ namespace GwentAccess
             if (!forceShow && !Allowed(panel, priority)) return;
             string text = isKey ? GameText.Get(message, null) : message;
             if (text == null) return;
+            // A translation with its parameters still in it ("Player {0} sent you a gift!") is drawn with them
+            // filled from data the call doesn't carry: say it without the holes rather than with braces.
+            if (isKey) text = Holes.Replace(text, "");
             text = UiText.Join(UiText.Clean(text), UiText.Clean(iconLabel ?? ""));
             if (text.Length == 0) return;
             if (text == _last && (DateTime.UtcNow - _lastAt).TotalSeconds < 2) return;
