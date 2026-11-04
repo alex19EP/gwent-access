@@ -25,13 +25,14 @@ namespace GwentAccess.Ui
     ///   where the game shows no arrow). The new card's first line is spoken.
     ///
     /// Not during a match: the battle's preview shares the class, and the battle screen reads cards its own way.
-    /// Over the screen it was opened from (a reward popup on the same input layer): layer 2, registered after
-    /// the reward popup so it wins the tie.
+    /// The collection's preview sits on layer 1, over the deck builder and under the new-player flow's tutorial
+    /// panels; any other on layer 2, over the screen it was opened from (a reward popup on the same input
+    /// layer), registered after the reward popup so it wins the tie.
     /// </summary>
     internal sealed class CardPreviewScreen : Screen
     {
         public override string Key => "card-preview";
-        public override int Layer => 2;
+        public override int Layer => Collection(CrimsonNodes.ActivePanel<UICardPreview>()) ? 1 : 2;
         public override bool ReturnsToOpener => false;
 
         public override bool IsActive() => Preview() != null;
@@ -42,15 +43,21 @@ namespace GwentAccess.Ui
         {
             var p = CrimsonNodes.ActivePanel<UICardPreview>();
             if (p == null) return null;
-            try
-            {
-                var crafter = p.CraftingComponent;
-                if (crafter != null && crafter.gameObject.activeInHierarchy) return p;
-            }
-            catch { }
+            if (Collection(p)) return p;
             if (Battle.Controller() != null) return null;
             var v = p.Visibility;
             return v == CrimsonUIBehaviour.EVisibility.Shown || v == CrimsonUIBehaviour.EVisibility.Showing ? p : null;
+        }
+
+        // The collection's preview: the one carrying the crafting component.
+        private static bool Collection(UICardPreview p)
+        {
+            try
+            {
+                var crafter = p?.CraftingComponent;
+                return crafter != null && crafter.gameObject.activeInHierarchy;
+            }
+            catch { return false; }
         }
 
         private static GwentGameplay.Card CurrentCard(UICardPreview p)
