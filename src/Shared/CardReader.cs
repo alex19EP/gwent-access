@@ -36,6 +36,7 @@ namespace GwentAccess
             // A leader shows its faction on the board (the deck's colours and crest); other cards only in the preview.
             if (type == ECardType.Leader) Add(parts, Faction(card));
             AddStatuses(parts, card);
+            if (pm != null) AddCondition(parts, card);
             bool cooldown = pm != null && AddOrder(parts, card);
             if (!cooldown) AddTimer(parts, card);
             if (type != ECardType.Leader && (pm == null || At(card) == ELocation.Hand))
@@ -295,6 +296,49 @@ namespace GwentAccess
                     parts.Add(charges.Value == 1 ? "1 charge" : charges.Value + " charges");
             });
             return cooldown;
+        }
+
+        // A conditional keyword the game shows as met. Adrenaline, Initiative, Dominance and Bloodthirst cards
+        // glow while their condition holds (the game's own Adrenaline text: "highlighted when their effect is
+        // stronger"); the glow is the keyword handler's constant effect kept alive on the card, one keyword
+        // per card. So a card is "Dominance met" exactly while that effect is on it: what is drawn, not the
+        // rule worked out again.
+        private static void AddCondition(List<string> parts, Card card)
+        {
+            Try(() =>
+            {
+                var glowing = KeywordGlow()?.m_CardsWithActiveConstantVFXs;
+                if (glowing == null || !glowing.ContainsKey(card)) return;
+                var vfx = glowing[card];
+                if (vfx == null) return;
+                string key = vfx.Keyword switch
+                {
+                    ECardKeyword.Adrenaline => "adrenaline",
+                    ECardKeyword.Initiative => "initiative",
+                    ECardKeyword.Dominance => "dominance",
+                    ECardKeyword.Bloodthrist => "bloodthirst",
+                    _ => null,
+                };
+                if (key == null) return;
+                string fallback = char.ToUpperInvariant(key[0]) + key.Substring(1);
+                parts.Add(GameText.Term(LocalizationHelper.KEYWORD_LOCALIZATION_KEY_PREFIX + key, fallback) + " met");
+            });
+        }
+
+        private static GwentVisuals.Effects.CardKeywordAttackVFXHandler _glow;
+        private static float _glowLookedAt = -100f;
+
+        // The battle's keyword effect handler, kept while it lives; looked for at most once a second while there
+        // is none (before a battle's board has loaded).
+        private static GwentVisuals.Effects.CardKeywordAttackVFXHandler KeywordGlow()
+        {
+            try { if (_glow != null && _glow.Pointer != IntPtr.Zero && _glow.isActiveAndEnabled) return _glow; } catch { }
+            _glow = null;
+            float now = UnityEngine.Time.realtimeSinceStartup;
+            if (now - _glowLookedAt < 1f) return null;
+            _glowLookedAt = now;
+            try { _glow = UnityEngine.Object.FindObjectOfType<GwentVisuals.Effects.CardKeywordAttackVFXHandler>(); } catch { }
+            return _glow;
         }
 
         // The card's timer, or -1 when it has none.
