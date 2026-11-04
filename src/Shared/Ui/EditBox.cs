@@ -70,8 +70,25 @@ namespace GwentAccess.Ui
             return field != null && IsEditing(field);
         }
 
+        // Backspace is not left to the game: its key map makes Backspace the game's back too, and a popup's
+        // field lost its popup on the first deleted character (the deck rename). The field still deletes it:
+        // it reads the keyboard itself, not through the game's map; the navigator only stays out of it
+        // (Typing).
         public bool LeavesToGame(KeyCode key) =>
-            key != KeyCode.Tab && key != KeyCode.UpArrow && key != KeyCode.DownArrow && Editing();
+            key != KeyCode.Tab && key != KeyCode.UpArrow && key != KeyCode.DownArrow && key != KeyCode.Backspace && Editing();
+
+        // The edit box whose field has the caret, if any.
+        private static EditBox _current;
+
+        /// <summary>Whether a field has the caret: Backspace is then the field's (delete a character), not the
+        /// screen's Back.</summary>
+        public static bool Typing
+        {
+            get
+            {
+                try { return _current != null && _current.Editing(); } catch { return false; }
+            }
+        }
 
         /// <summary>Landing anywhere but the field takes the caret out of it. (Landing on the field only reads
         /// it; Enter starts editing.)</summary>
@@ -104,6 +121,8 @@ namespace GwentAccess.Ui
             else if (editing && caret >= 0 && _caret >= 0 && caret != _caret && now != null)
                 Speech.Say(Math.Abs(caret - _caret) == 1 ? CharAt(now, caret) : WordAt(now, caret), true);
             _editing = editing;
+            if (editing) _current = this;
+            else if (_current == this) _current = null;
             _typed = now;
             _caret = caret;
         }

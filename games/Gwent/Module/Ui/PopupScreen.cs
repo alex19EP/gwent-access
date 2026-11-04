@@ -85,6 +85,10 @@ namespace GwentAccess.Ui
                 });
                 b.SetStart(id);
             }
+            // The text field even when the game doesn't report it selectable: the rename popup opens with its
+            // field already typing (seen in the deck builder), and it was left out, nothing to type into.
+            if (field != null && !buttons.Exists(c => c.Pointer == field.Pointer))
+                b.AddItem(CrimsonNodes.Id(field), _field.Vtable(field));
             foreach (var c in buttons)
             {
                 if (field != null && c.Pointer == field.Pointer) b.AddItem(CrimsonNodes.Id(c), _field.Vtable(field));
