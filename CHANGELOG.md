@@ -94,7 +94,7 @@ uses the section for the tag it builds as the release notes, so keep each versio
   out.
 - `RewardText.Of` names a reward in the game's words.
 - F11 loads a newer module build in Debug builds. `just stage` copies one without loading it.
-- Tests: 60 kernel tests, including an item that speaks its own position inside a row.
+- Tests: 91, the kernel's and the translation rules' (plural forms per language, a broken placeholder falling back to English). CI also checks that `assets/lang/en.json` is current.
 
 ## 0.27.0
 

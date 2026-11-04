@@ -24,6 +24,9 @@ jobs:
           dotnet-version: 8.0.x
       - name: Run tests
         run: dotnet test tests/Access.Core.Tests/Access.Core.Tests.csproj
+      - name: Translation table is current
+        # en.json must list every Loc.T/Loc.P/Loc.Mark string in the code (just strings regenerates it).
+        run: python3 scripts/extract-strings.py --check
 
   build:
     name: Build mod (Release)

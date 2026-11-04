@@ -42,12 +42,7 @@ namespace GwentAccess
             if (english == null) return null;
             string text = Lookup(english);
             if (args == null || args.Length == 0) return text;
-            try { return string.Format(CultureInfo.InvariantCulture, text, args); }
-            catch (FormatException)
-            {
-                // A translation with a broken placeholder: say the English rather than nothing.
-                try { return string.Format(CultureInfo.InvariantCulture, english, args); } catch (FormatException) { return english; }
-            }
+            return LocRules.Format(text, english, args);
         }
 
         /// <summary>A count with its noun, "1 card" / "{0} cards": the English singular and plural, keyed as
@@ -59,17 +54,7 @@ namespace GwentAccess
         {
             string key = one + "|" + other;
             string text = Lookup(key);
-            string[] forms = text.Split('|');
-            int i = ReferenceEquals(text, key) ? (n == 1 ? 0 : 1) : PluralIndex(_lang, n);
-            string form = forms[Math.Min(i, forms.Length - 1)];
-            var all = new object[1 + (args?.Length ?? 0)];
-            all[0] = n;
-            if (args != null) Array.Copy(args, 0, all, 1, args.Length);
-            try { return string.Format(CultureInfo.InvariantCulture, form, all); }
-            catch (FormatException)
-            {
-                try { return string.Format(CultureInfo.InvariantCulture, n == 1 ? one : other, all); } catch (FormatException) { return other; }
-            }
+            return LocRules.Plural(ReferenceEquals(text, key) ? null : text, _lang, n, one, other, args);
         }
 
         /// <summary>Marks a literal kept in a table (a static dictionary of English words) as a key for the
@@ -77,40 +62,8 @@ namespace GwentAccess
         /// <see cref="T"/> on the value, so the language in force when it is spoken applies.</summary>
         public static string Mark(string english) => english;
 
-        /// <summary>The form of a plural for <paramref name="n"/> in <paramref name="lang"/>, an index into the
-        /// language's CLDR integer categories in order (see <see cref="P"/>).</summary>
-        public static int PluralIndex(string lang, long n)
-        {
-            n = Math.Abs(n);
-            long d10 = n % 10, d100 = n % 100;
-            switch (Base(lang))
-            {
-                case "ru": case "uk": case "be":
-                    if (d10 == 1 && d100 != 11) return 0;
-                    if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return 1;
-                    return 2;
-                case "pl":
-                    if (n == 1) return 0;
-                    if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return 1;
-                    return 2;
-                case "cs": case "sk":
-                    return n == 1 ? 0 : n >= 2 && n <= 4 ? 1 : 2;
-                case "fr": case "pt":
-                    // CLDR: French and Brazilian Portuguese count 0 as singular too.
-                    return n <= 1 ? 0 : 1;
-                case "ja": case "ko": case "zh":
-                    return 0;
-                default:
-                    return n == 1 ? 0 : 1;
-            }
-        }
-
-        private static string Base(string lang)
-        {
-            if (string.IsNullOrEmpty(lang)) return "en";
-            int dash = lang.IndexOf('-');
-            return dash > 0 ? lang.Substring(0, dash) : lang;
-        }
+        /// <summary>The form of a plural for <paramref name="n"/> in <paramref name="lang"/> (<see cref="LocRules.PluralIndex"/>).</summary>
+        public static int PluralIndex(string lang, long n) => LocRules.PluralIndex(lang, n);
 
         private static string Lookup(string english)
         {
@@ -156,7 +109,7 @@ namespace GwentAccess
 
         private static void Load(string wanted)
         {
-            if (Base(wanted) == "en") { Set("en", null); return; }
+            if (LocRules.Base(wanted) == "en") { Set("en", null); return; }
             string dir = Path.Combine(Plugin.Dir ?? "", "lang");
             string file = FindFile(dir, wanted);
             if (file == null)
@@ -190,7 +143,7 @@ namespace GwentAccess
                 if (!Directory.Exists(dir)) return null;
                 string exact = Path.Combine(dir, code + ".json");
                 if (File.Exists(exact)) return exact;
-                string lang = Base(code);
+                string lang = LocRules.Base(code);
                 string bare = Path.Combine(dir, lang + ".json");
                 if (File.Exists(bare)) return bare;
                 foreach (var f in Directory.GetFiles(dir, lang + "-*.json")) return f;

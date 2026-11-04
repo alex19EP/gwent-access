@@ -13,6 +13,8 @@
        stops building. Keep the kernel game-agnostic so it can be synced with WH40KRTAccess. -->
   <ItemGroup>
     <Compile Include="..\..\src\Access.Core\**\*.cs" LinkBase="Access.Core" />
+    <!-- The translation rules (plural forms, placeholder fallback): pure, no game types either. -->
+    <Compile Include="..\..\src\Shared\LocRules.cs" Link="Shared\LocRules.cs" />
   </ItemGroup>
 
   <ItemGroup>
