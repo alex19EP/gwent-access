@@ -128,10 +128,21 @@ namespace GwentAccess.Ui
                 var q = Quest(slot);
                 if (q == null)
                 {
-                    // An empty slot shows when its next quest comes.
+                    // An empty slot shows when its next quest comes. It counts among the quests ("2 of 3"), as
+                    // the quests themselves say their place, not among the empty slots alone ("1 of 2").
                     var wait = slot.m_TimerCountdownRenderer;
                     if (CrimsonNodes.Shown(wait))
-                        b.AddLabel(ControlId.Structural("quests:slot:" + i), () => string.Join(", ", CrimsonNodes.Texts(wait)));
+                    {
+                        string position = Loc.T("{0} of {1}", at, shown);
+                        b.AddItem(ControlId.Structural("quests:slot:" + i), new NodeVtable
+                        {
+                            Announcements = new[]
+                            {
+                                new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(wait)), kind: AnnouncementKinds.Label),
+                                new NodeAnnouncement(() => position, kind: AnnouncementKinds.Position),
+                            },
+                        });
+                    }
                     continue;
                 }
                 AddQuest(b, i, q, Loc.T("{0} of {1}", at, shown));
