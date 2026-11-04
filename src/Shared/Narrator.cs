@@ -285,7 +285,7 @@ namespace GwentAccess
         }
 
         /// <summary>The first letter raised, for a phrase that starts a line ("hidden card", "your …").</summary>
-        private static string First(string s) =>
+        internal static string First(string s) =>
             string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
 
         /// <summary>"Source: label join target, target.", as in "Tourney Joust: shield on your Ard Feainn Heavy
@@ -302,8 +302,8 @@ namespace GwentAccess
 
         /// <summary>One thing an effect happened to, named once, side first: "Your Ard Feainn Heavy Cavalry,
         /// armor +1: power 3, armor 3." Used for a card acting on itself, and for an effect with no source to
-        /// name (a shield used up, a unit moved, a unit the damage destroyed). <paramref name="stats"/> may be
-        /// empty: "Opponent's Deafening Siren, destroy."</summary>
+        /// name (a shield used up, a unit moved). <paramref name="stats"/> may be empty: "Opponent's Wild Hunt
+        /// Hound, to hand."</summary>
         internal static void SaySelf(string subject, string label, string stats)
         {
             Say(First(subject) + ", " + GameText.Lower(label) + (stats.Length > 0 ? ": " + stats : "") + ".");
@@ -327,6 +327,17 @@ namespace GwentAccess
             foreach (var card in cards) targets.Add(power ? Target(card) : Owned(card));
             if (extra != null) targets.Add(extra);
             SayEffect(source, label, join, targets);
+        }
+
+        /// <summary>Cards destroyed, each named with its side, then what destroyed them when there is a source
+        /// other than the card itself: "Opponent's Deafening Siren destroyed by Geralt: Igni." A unit the damage
+        /// took to 0 has no source here: the damage line just before already named it.</summary>
+        internal static void SayDestroyed(string source, IEntity attacker, List<Card> cards)
+        {
+            if (cards.Count == 0) return;
+            var names = cards.ConvertAll(c => Owned(c));
+            bool self = cards.Count == 1 && Same(attacker, cards[0]);
+            Say(First(string.Join(", ", names)) + " destroyed" + (source != null && !self ? " by " + source : "") + ".");
         }
 
         /// <summary>Whether an effect's source is <paramref name="card"/> itself.</summary>
@@ -353,7 +364,7 @@ namespace GwentAccess
     // ---- effects, as they show on screen ----
 
     /// <summary>Damage, boost, strengthen, weaken, armor, heal and set: one line per effect, each visible target
-    /// with its power after it — and "destroy" for a unit the damage took to 0.</summary>
+    /// with its power after it — and "destroyed" for a unit the damage took to 0.</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnCardPowerAttack))]
     internal static class NarratePowerAttack
     {
@@ -392,7 +403,7 @@ namespace GwentAccess
             string hand = inTheirHand == 0 ? null
                 : inTheirHand == 1 ? "1 card in the opponent's hand" : inTheirHand + " cards in the opponent's hand";
             Narrator.SayOnCards(Narrator.Source(a.Attacker), a.Attacker, label, join, targets, power: true, extra: hand);
-            Narrator.SayOnCards(null, null, GameText.Term("keyword_destroy", "Destroy"), null, killed, power: false);
+            Narrator.SayDestroyed(null, null, killed);
         });
 
         /// <summary>How much the power changed, when it changed by the same amount on every target.</summary>
@@ -437,7 +448,7 @@ namespace GwentAccess
             var targets = new List<Card>();
             foreach (var card in Narrator.List(__0.Targets))
                 if (Narrator.Visible(card, graveyard: true)) targets.Add(card);
-            Narrator.SayOnCards(Narrator.Source(__0.Attacker), __0.Attacker, GameText.Term("keyword_destroy", "Destroy"), null, targets, power: false);
+            Narrator.SayDestroyed(Narrator.Source(__0.Attacker), __0.Attacker, targets);
         });
     }
 
