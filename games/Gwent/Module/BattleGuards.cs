@@ -86,10 +86,10 @@ namespace GwentAccess
                 {
                     bool swapping = false;
                     try { swapping = gc.PlayerManager.LocalUser.CanMulligan; } catch { }
-                    if (swapping) Warn(mull, "20 seconds left to swap.", "Hurry, 8 seconds left to swap!");
+                    if (swapping) Warn(mull, Loc.T("20 seconds left to swap."), Loc.T("Hurry, 8 seconds left to swap!"));
                     return;
                 }
-                Warn(SecondsLeft(gc), "20 seconds left in your turn.", "Hurry, 8 seconds left!");
+                Warn(SecondsLeft(gc), Loc.T("20 seconds left in your turn."), Loc.T("Hurry, 8 seconds left!"));
             }
             catch (Exception e) { Plugin.LogInfo("[timer] " + e.Message); }
         }
@@ -118,10 +118,10 @@ namespace GwentAccess
             try
             {
                 float now = Time.realtimeSinceStartup;
-                if (now < _armedUntil) { _armedUntil = -1; Plugin.LogInfo("Forfeit confirmed"); Speech.Say("Forfeiting.", true); return true; }
+                if (now < _armedUntil) { _armedUntil = -1; Plugin.LogInfo("Forfeit confirmed"); Speech.Say(Loc.T("Forfeiting."), true); return true; }
                 _armedUntil = now + 15f;
                 Plugin.LogInfo("Forfeit blocked (first attempt)");
-                Speech.Say("Forfeit stopped, you're still in the match. If you really want to forfeit, choose forfeit again in the next 15 seconds.", true);
+                Speech.Say(Loc.T("Forfeit stopped, you're still in the match. If you really want to forfeit, choose forfeit again in the next 15 seconds."), true);
                 return false;
             }
             catch { return true; }

@@ -18,7 +18,7 @@ namespace GwentAccess
                 On = false;
                 Ui.ScreenManager.Suspend();
                 ControllerMode.Suspend();
-                Speech.Say("Accessibility off", true);
+                Speech.Say(Loc.T("Accessibility off"), true);
                 Speech.Muted = true;
             }
             else
@@ -26,7 +26,7 @@ namespace GwentAccess
                 Speech.Muted = false;
                 On = true;
                 ControllerMode.Resume();
-                Speech.Say("Accessibility on", true);
+                Speech.Say(Loc.T("Accessibility on"), true);
             }
             Plugin.LogInfo("[switch] accessibility " + (On ? "on" : "off"));
         }
