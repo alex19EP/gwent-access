@@ -109,6 +109,7 @@ namespace GwentAccess.Ui
             var gc = _gc ?? Battle.Controller();
             if (gc == null) return;
             _plays = Plays.Read(gc);
+            if (AwaitingChoiceFollowUp()) return;
             _cards.Clear();
             _rowOf.Clear();
             _locationOf.Clear();
@@ -133,6 +134,17 @@ namespace GwentAccess.Ui
 
             NoticeRequest();
         }
+
+        // A choice just answered ("create and play", "choose a row"): the battle screen is back a frame or two
+        // before the game opens the request for the chosen card, and its landing (the first card in hand) was
+        // announced just before "Place X." / "Choose a row for X.". Until that request opens, or for
+        // ChoiceFollowUpWait at most (a choice whose card resolves on its own asks nothing more), the screen
+        // declares nothing ("no content yet", see Screen.Build): the navigator keeps the cursor and says nothing,
+        // and the first render after it lands and speaks as before.
+        private const float ChoiceFollowUpWait = 1f;
+
+        private bool AwaitingChoiceFollowUp() =>
+            _plays.Pending == null && Time.realtimeSinceStartup - ChoiceScreen.AnsweredAt < ChoiceFollowUpWait;
 
         private void BuildBoard(GraphBuilder b, GameController gc)
         {
