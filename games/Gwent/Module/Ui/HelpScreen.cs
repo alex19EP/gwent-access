@@ -42,10 +42,10 @@ namespace GwentAccess.Ui
             if (!_open) return;
             _open = false;
             _covered = null;
-            Speech.Say("Help closed.", true);
+            Speech.Say(Loc.T("Help closed."), true);
         }
 
-        public override string ScreenName => "Help. Up and Down to move, F1 or Escape to close.";
+        public override string ScreenName => Loc.T("Help. Up and Down to move, F1 or Escape to close.");
 
         public override void OnPop() { _open = false; _covered = null; }
 
@@ -64,34 +64,34 @@ namespace GwentAccess.Ui
                     if (!string.IsNullOrEmpty(k.Hint) && !own.Contains(k.Hint)) own.Add(k.Hint);
             if (own.Count > 0)
             {
-                b.PushContext(Title(covered) + " keys");
+                b.PushContext(Loc.T("{0} keys", Title(covered)));
                 foreach (var h in own) Line(b, ref n, h);
                 b.PopContext();
             }
 
             if (covered != null)
             {
-                b.PushContext("Moving around");
-                Line(b, ref n, "Up and Down arrows, previous or next item; on a card, its lines one by one");
-                Line(b, ref n, "Left and Right arrows, through the cards of a row, or change a setting, a game mode or a deck");
-                Line(b, ref n, "Tab and Shift Tab, next or previous section");
-                Line(b, ref n, "Home and End, first or last item");
-                Line(b, ref n, "Enter, use the item");
-                Line(b, ref n, "Space, details, or read it again");
-                Line(b, ref n, "Backspace, back: out of a list, a window or a screen");
-                Line(b, ref n, "Escape, the game's own Back or menu");
+                b.PushContext(Loc.T("Moving around"));
+                Line(b, ref n, Loc.T("Up and Down arrows, previous or next item; on a card, its lines one by one"));
+                Line(b, ref n, Loc.T("Left and Right arrows, through the cards of a row, or change a setting, a game mode or a deck"));
+                Line(b, ref n, Loc.T("Tab and Shift Tab, next or previous section"));
+                Line(b, ref n, Loc.T("Home and End, first or last item"));
+                Line(b, ref n, Loc.T("Enter, use the item"));
+                Line(b, ref n, Loc.T("Space, details, or read it again"));
+                Line(b, ref n, Loc.T("Backspace, back: out of a list, a window or a screen"));
+                Line(b, ref n, Loc.T("Escape, the game's own Back or menu"));
                 b.PopContext();
             }
 
-            b.PushContext("Anywhere");
-            Line(b, ref n, "F1, open or close this help");
-            Line(b, ref n, "F7, repeat the last thing spoken");
-            Line(b, ref n, "Shift F7, repeat the last popup or tutorial message; again for older ones");
-            Line(b, ref n, "F9, where am I: the current item again, with its screen and section");
-            Line(b, ref n, "F5, switch controller mode by hand. It follows your controller on its own");
-            Line(b, ref n, "F8, accessibility on or off. Off, Gwent Access is silent and gives the game every key back");
+            b.PushContext(Loc.T("Anywhere"));
+            Line(b, ref n, Loc.T("F1, open or close this help"));
+            Line(b, ref n, Loc.T("F7, repeat the last thing spoken"));
+            Line(b, ref n, Loc.T("Shift F7, repeat the last popup or tutorial message; again for older ones"));
+            Line(b, ref n, Loc.T("F9, where am I: the current item again, with its screen and section"));
+            Line(b, ref n, Loc.T("F5, switch controller mode by hand. It follows your controller on its own"));
+            Line(b, ref n, Loc.T("F8, accessibility on or off. Off, Gwent Access is silent and gives the game every key back"));
 #if DEBUG
-            Line(b, ref n, "F11, development builds: load a newer build of the mod without restarting");
+            Line(b, ref n, Loc.T("F11, development builds: load a newer build of the mod without restarting"));
 #endif
             b.PopContext();
         }
@@ -114,7 +114,7 @@ namespace GwentAccess.Ui
             try { name = s.ScreenName; } catch { }
             if (!string.IsNullOrEmpty(name)) return name;
             string k = (s.Key ?? "screen").Replace('-', ' ');
-            return k.Length == 0 ? "Screen" : char.ToUpperInvariant(k[0]) + k.Substring(1);
+            return k.Length == 0 ? Loc.T("Screen") : char.ToUpperInvariant(k[0]) + k.Substring(1);
         }
 
         public override AControl GameSelection() => null;
@@ -124,8 +124,8 @@ namespace GwentAccess.Ui
         private List<ScreenKey> _keys;
         public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new List<ScreenKey>
         {
-            new ScreenKey { Key = KeyCode.Escape, Run = Close, Hint = "Escape, close help" },
-            new ScreenKey { Key = KeyCode.Backspace, Run = Close, Hint = "Backspace, close help" },
+            new ScreenKey { Key = KeyCode.Escape, Run = Close, Hint = Loc.T("Escape, close help") },
+            new ScreenKey { Key = KeyCode.Backspace, Run = Close, Hint = Loc.T("Backspace, close help") },
         };
     }
 }

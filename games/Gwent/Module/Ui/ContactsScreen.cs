@@ -37,7 +37,7 @@ namespace GwentAccess.Ui
         public override int Layer => 1;
 
         // The search field, read and echoed as an edit box; the search result as last spoken, for Tick.
-        private readonly EditBox _search = new EditBox(SearchField, "Find a friend");
+        private readonly EditBox _search = new EditBox(SearchField, Loc.Mark("Find a friend"));
         private string _result;
 
         private static InputFieldControl SearchField() =>
@@ -80,8 +80,8 @@ namespace GwentAccess.Ui
 
         public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new List<ScreenKey>
         {
-            new ScreenKey { Key = KeyCode.Escape, Run = () => { if (!CloseSocialWindow(_opener, "friend")) Speech.Say("Nothing to go back to here.", true); },
-                When = () => !_search.Editing(), Hint = "Escape or Backspace, close the friend list" },
+            new ScreenKey { Key = KeyCode.Escape, Run = () => { if (!CloseSocialWindow(_opener, "friend")) Speech.Say(Loc.T("Nothing to go back to here."), true); },
+                When = () => !_search.Editing(), Hint = Loc.T("Escape or Backspace, close the friend list") },
         };
         private List<ScreenKey> _keys;
 
@@ -159,7 +159,7 @@ namespace GwentAccess.Ui
             if (bar != null)
                 foreach (var c in bar.GetComponentsInChildren<ButtonControl>(false))
                     if (c.IsCurrentlySelectable())
-                        b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => "Search")); // icon only; the game has no word for it
+                        b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => Loc.T("Search"))); // icon only; the game has no word for it
 
             var found = FoundContact(search);
             if (found != null) AddContact(b, found);

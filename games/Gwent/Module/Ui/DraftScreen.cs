@@ -69,7 +69,7 @@ namespace GwentAccess.Ui
                     OnActivate = () =>
                     {
                         if (item.m_IsClickable) Navigator.ClickControl(item.m_ArenaChoiceButtonInstance);
-                        else Speech.Say("Not available right now.", true);
+                        else Speech.Say(Loc.T("Not available right now."), true);
                     },
                     OnTooltip = () => Speech.Say(ChoiceText(item, true), true),
                 });
@@ -154,7 +154,7 @@ namespace GwentAccess.Ui
                         {
                             var names = new List<string>();
                             for (int i = 0; i < cards.Count; i++) { var nm = cards[i] == null ? "" : UiText.Clean(CardReader.Name(cards[i], null) ?? ""); if (nm.Length > 0) names.Add(nm); }
-                            parts.Add(names.Count + " cards: " + string.Join(", ", names));
+                            parts.Add(Loc.P(names.Count, "{0} card: {1}", "{0} cards: {1}", string.Join(", ", names)));
                         }
                     }
                 }
@@ -166,7 +166,7 @@ namespace GwentAccess.Ui
                 if (parts.Count == 0) parts.AddRange(CrimsonNodes.Texts(item));
             }
             catch (Exception e) { Plugin.LogInfo("[draft] choice: " + e.Message); }
-            return parts.Count > 0 ? string.Join(", ", parts) : "Choice";
+            return parts.Count > 0 ? string.Join(", ", parts) : Loc.T("Choice");
         }
 
         private static void Add(List<string> parts, string s)
@@ -186,16 +186,16 @@ namespace GwentAccess.Ui
                 Add(parts, s.m_PickedItemData?.Name);
                 string state = step.State switch
                 {
-                    EStepState.Active => "current",
-                    EStepState.Finished => "done",
-                    EStepState.Skipped => "skipped",
-                    EStepState.Removed => "removed",
-                    _ => "to come",
+                    EStepState.Active => Loc.T("current"),
+                    EStepState.Finished => Loc.T("done"),
+                    EStepState.Skipped => Loc.T("skipped"),
+                    EStepState.Removed => Loc.T("removed"),
+                    _ => Loc.T("to come"),
                 };
                 parts.Add(state);
             }
             catch { }
-            return parts.Count > 0 ? string.Join(", ", parts) : "Step";
+            return parts.Count > 0 ? string.Join(", ", parts) : Loc.T("Step");
         }
     }
 }

@@ -60,7 +60,7 @@ namespace GwentAccess.Ui
                 v.OnActivate = () =>
                 {
                     if (button.IsEnabled) Navigator.MouseClick(button);
-                    else Speech.Say("Not available right now.", true);
+                    else Speech.Say(Loc.T("Not available right now."), true);
                 };
                 var id = CrimsonNodes.Id(button);
                 first ??= id;

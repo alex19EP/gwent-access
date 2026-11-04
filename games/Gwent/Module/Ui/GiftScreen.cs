@@ -42,7 +42,7 @@ namespace GwentAccess.Ui
 
         // ---- the search box ----
 
-        private static readonly EditBox _search = new EditBox(SearchField, "Search");
+        private static readonly EditBox _search = new EditBox(SearchField, Loc.Mark("Search"));
 
         private static InputFieldControl SearchField()
         {
@@ -85,13 +85,13 @@ namespace GwentAccess.Ui
                     var v = CrimsonNodes.Button(item, () => UiText.Join(CrimsonNodes.Text(item.m_NameLabel), CrimsonNodes.Text(item.m_StatusLabel)));
                     v.Announcements = new List<NodeAnnouncement>(v.Announcements)
                     {
-                        new NodeAnnouncement(() => CrimsonNodes.Toggled(item) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        new NodeAnnouncement(() => CrimsonNodes.Toggled(item) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                     };
                     v.OnActivate = () => Navigator.MouseClick(item);
                     b.AddItem(CrimsonNodes.Id(item), v);
                 }
                 if (items.Count == 0 && field != null)
-                    b.AddLabel(ControlId.Structural("gift:no-friends"), () => "No friends listed");
+                    b.AddLabel(ControlId.Structural("gift:no-friends"), () => Loc.T("No friends listed"));
             }
 
             var d = p.m_GeneralDescriptionView;

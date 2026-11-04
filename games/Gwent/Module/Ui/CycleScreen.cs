@@ -116,7 +116,7 @@ namespace GwentAccess.Ui
         private static string LevelText(UIOuroborosLevelListViewData data, int index)
         {
             var item = LevelAt(data, index);
-            return item == null ? "Level " + (index + 1) : LevelText(item);
+            return item == null ? Loc.T("Level {0}", index + 1) : LevelText(item);
         }
 
         /// <summary>A level of the track and its reward: "Level 2, 40 Ore".</summary>
@@ -127,10 +127,10 @@ namespace GwentAccess.Ui
             {
                 var reward = item.StandardRewardData;
                 text = RewardText.Of(reward?.Rewards);
-                if (text == null && reward?.GetReward()?.Type == Modules.Rewards.Entities.ERewardType.ItemTemplateReward) text = "Chest";
+                if (text == null && reward?.GetReward()?.Type == Modules.Rewards.Entities.ERewardType.ItemTemplateReward) text = Loc.T("Chest");
             }
             catch { }
-            return UiText.Join("Level " + item.Level, text);
+            return UiText.Join(Loc.T("Level {0}", item.Level), text);
         }
 
         private static string LevelState(UIOuroborosLevelListViewData data, int index)
@@ -139,9 +139,9 @@ namespace GwentAccess.Ui
             if (item == null) return null;
             try
             {
-                if (item.IsStandardRewardClaimed) return "claimed";
-                if (item.IsNextStep?.Value == true) return "next";
-                return item.Level > data.PlayerLevel ? "locked" : null;
+                if (item.IsStandardRewardClaimed) return Loc.T("claimed");
+                if (item.IsNextStep?.Value == true) return Loc.T("next");
+                return item.Level > data.PlayerLevel ? Loc.T("locked") : null;
             }
             catch { return null; }
         }
@@ -177,7 +177,7 @@ namespace GwentAccess.Ui
                     return;
                 }
             }
-            Speech.Say("Not available right now.", true);
+            Speech.Say(Loc.T("Not available right now."), true);
         }
 
         // ---- the quests ----
@@ -236,7 +236,7 @@ namespace GwentAccess.Ui
                         Announcements = new[]
                         {
                             new NodeAnnouncement(() => QuestText(quest), kind: AnnouncementKinds.Label),
-                            new NodeAnnouncement(() => (slot + 1) + " of " + quests.Length, kind: AnnouncementKinds.Position),
+                            new NodeAnnouncement(() => Loc.T("{0} of {1}", slot + 1, quests.Length), kind: AnnouncementKinds.Position),
                         },
                         SpeaksOwnPosition = true,
                         OnTooltip = () => Speech.Say(QuestText(quest), true),
@@ -267,13 +267,13 @@ namespace GwentAccess.Ui
                 if (q.m_QuestItem == null && CrimsonNodes.Shown(q.m_InactiveLabel)) return CrimsonNodes.Text(q.m_InactiveLabel);
                 parts.Add(CrimsonNodes.Text(q.m_DescriptionLabel));
                 var bar = q.m_ProgressBar;
-                if (CrimsonNodes.Shown(bar)) foreach (var t in CrimsonNodes.Texts(bar)) parts.Add("progress " + t); // drawn "0/5"
+                if (CrimsonNodes.Shown(bar)) foreach (var t in CrimsonNodes.Texts(bar)) parts.Add(Loc.T("progress {0}", t)); // drawn "0/5"
                 var icon = q.m_RewardIcon;
                 if (CrimsonNodes.Shown(icon) && CrimsonNodes.Text(icon.m_Number) is string n && n.Length > 0) parts.Add(GameText.Get("achievements_reward", "Reward:") + " " + n);
             }
             catch (Exception e) { Plugin.LogInfo("[cycle] quest read failed: " + e.Message); }
             parts.RemoveAll(string.IsNullOrEmpty);
-            return parts.Count > 0 ? string.Join(", ", parts) : "Quest";
+            return parts.Count > 0 ? string.Join(", ", parts) : Loc.T("Quest");
         }
 
         // ---- helpers ----
@@ -281,7 +281,7 @@ namespace GwentAccess.Ui
         private static string Level(UIOuroborosProgressionPanel p)
         {
             string n = CrimsonNodes.Text(p.m_LevelLabel);
-            return n.Length > 0 ? "level " + n : null;
+            return n.Length > 0 ? Loc.T("level {0}", n) : null;
         }
 
         private static void AddButton(GraphBuilder b, ButtonControl c, Func<string> label, HashSet<IntPtr> used)
