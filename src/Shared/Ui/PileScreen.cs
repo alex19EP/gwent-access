@@ -14,7 +14,7 @@ namespace GwentAccess.Ui
     /// open the opponent's deck. <see cref="BattleScreen"/>'s D, Y and Shift+Y open them through the game's own
     /// <c>APlayerHandlerComponent.OpenDeck</c> / <c>OpenGraveyard</c>, so the game's panel, sound and the
     /// tutorial's input locks all apply. This screen reads the panel the game then shows: its cards as one row,
-    /// read like a choice (Ctrl+Up/Down, I, K, Space). Backspace closes it through the game's own close; Escape
+    /// read like a choice (Up/Down, I, K, Space). Backspace closes it through the game's own close; Escape
     /// stays the game's Back, which closes it too.
     /// </summary>
     internal sealed class PileScreen : Screen
@@ -109,7 +109,7 @@ namespace GwentAccess.Ui
                 _cards[(string)id.StructuralKey] = card;
                 b.AddItem(id, new NodeVtable
                 {
-                    Announcements = new[] { new NodeAnnouncement(() => CardReader.WithAbilities(card, pm), kind: AnnouncementKinds.Label) },
+                    Announcements = new[] { new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label) },
                     OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
                 });
             }

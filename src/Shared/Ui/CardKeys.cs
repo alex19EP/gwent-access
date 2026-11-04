@@ -61,7 +61,7 @@ namespace GwentAccess.Ui
             }
         }
 
-        /// <summary>The cursor moved: the next Ctrl+Up/Down starts from the new card's summary.</summary>
+        /// <summary>The cursor moved: the next Up/Down starts from the new card's summary.</summary>
         public void Reset() => _lineCard = null;
 
         private bool Reads() => _always || _focused() != null;

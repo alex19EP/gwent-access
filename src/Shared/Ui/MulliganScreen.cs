@@ -9,7 +9,7 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// The mulligan at the start of each round: your hand as one row of cards (read like on the board:
-    /// Ctrl+Up/Down, I, K, Space), Enter swaps the focused card, E keeps the rest and ends your mulligan through
+    /// Up/Down, I, K, Space), Enter swaps the focused card, E keeps the rest and ends your mulligan through
     /// the panel's own finish button (held while E is); Tab
     /// reaches the panel's own buttons (finish, hide cards), which the game itself only offers on glyph keys.
     ///
@@ -96,7 +96,7 @@ namespace GwentAccess.Ui
                     _cards[(string)id.StructuralKey] = card;
                     b.AddItem(id, new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => CardReader.WithAbilities(card, pm), kind: AnnouncementKinds.Label) },
+                        Announcements = new[] { new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label) },
                         OnActivate = () => Swap(card),
                         OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
                     });

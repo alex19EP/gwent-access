@@ -7,9 +7,9 @@ namespace GwentAccess
 {
     /// <summary>
     /// Turns any Gwent card into speech, in the shape the battle, deck builder, collection, shop and pack
-    /// screens all share: a summary line spoken on focus, then the lines a sighted player finds in the game's
-    /// big card preview — categories, each ability, type and look, flavor, illustrator — and, apart, the
-    /// preview's keyword and status explanations.
+    /// screens all share (Hearthstone Access's): a short summary line spoken on focus, then the lines a sighted
+    /// player finds in the game's big card preview, read one by one — each ability, categories, type and look,
+    /// flavor, illustrator — and, apart, the preview's keyword and status explanations.
     ///
     /// Speaks only what the game shows (the parity rule): live power with its colour as a word ("boosted" for
     /// the green number), the status icons with the numbers they carry, the order icon's state; base power
@@ -19,13 +19,16 @@ namespace GwentAccess
     /// </summary>
     internal static class CardReader
     {
-        /// <summary>The line spoken on focus: "Name, power 9, boosted, armor 2, Bleeding 2, order ready".
-        /// <paramref name="pm"/> is the match's player manager (null outside a match): in a match the card is
-        /// checked against what the local player may see, and stats read live.</summary>
-        public static string Summary(Card card, PlayerManager pm = null)
+        /// <summary>The line spoken on focus, for every card, yours and the opponent's alike (Hearthstone
+        /// Access's short line; the abilities are Down's): "Name, power 9, boosted, armor 2, Bleeding 2, Dominance
+        /// met, order recharging, 2 turns, 7 provisions". <paramref name="pm"/> is the match's player manager
+        /// (null outside a match): in a match the card is checked against what the local player may see, and
+        /// stats read live. <paramref name="preview"/>: the card sits in a panel of cards (a choice, the deck or
+        /// a graveyard), checked against what the game shows there (<see cref="Hidden"/>).</summary>
+        public static string Summary(Card card, PlayerManager pm = null, bool preview = false)
         {
             if (card == null) return "";
-            if (Hidden(card, pm)) return "hidden card";
+            if (Hidden(card, pm, preview)) return "hidden card";
             var parts = new List<string> { Name(card) };
             var type = Type(card);
             if (type == ECardType.Unit) AddPower(parts, card);
@@ -38,20 +41,6 @@ namespace GwentAccess
             if (type != ECardType.Leader && (pm == null || At(card) == ELocation.Hand))
                 Try(() => { int p = card.Template.Provision; if (p > 0) parts.Add(p + " provisions"); });
             return string.Join(", ", parts);
-        }
-
-        /// <summary>The summary followed by the card's abilities: "Name, power 9, 7 provisions. Deploy: …". The
-        /// focus line for your own cards (hand, rows, mulligan, choices), where what a card does decides the
-        /// play — as the first version of the mod read them; the opponent's board keeps the short
-        /// <see cref="Summary"/> so scanning it stays quick.</summary>
-        public static string WithAbilities(Card card, PlayerManager pm = null)
-        {
-            string summary = Summary(card, pm);
-            if (card == null || Hidden(card, pm)) return summary;
-            var abilities = new List<string>();
-            foreach (var ability in Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false).Split('\n'))
-                Add(abilities, UiText.Clean(ability));
-            return abilities.Count == 0 ? summary : summary + ". " + string.Join(" ", abilities);
         }
 
         /// <summary>Only the card's ability text ("Deploy: Boost adjacent units by 2."), or "" when it has none or
@@ -72,13 +61,14 @@ namespace GwentAccess
             public readonly List<string> Keywords = new List<string>();
         }
 
-        /// <summary>The card itself, line by line, the summary first: what Ctrl+Up/Down step through. Keyword
-        /// explanations are separate (<see cref="Explanations"/>), as the game keeps them beside the card.</summary>
-        public static List<CardLine> Lines(Card card, PlayerManager pm = null)
+        /// <summary>The card itself, line by line, the summary first: what Up/Down step through. Then, as
+        /// Hearthstone Access reads a card, what it does before what it is: each ability line, the categories,
+        /// the kind and base power (<see cref="Stats"/>), the flavor, the illustrator. Keyword explanations are
+        /// separate (<see cref="Explanations"/>), as the game keeps them beside the card.</summary>
+        public static List<CardLine> Lines(Card card, PlayerManager pm = null, bool preview = false)
         {
-            var lines = new List<CardLine> { new CardLine { Text = Summary(card, pm) } };
-            if (card == null || Hidden(card, pm)) return lines;
-            Add(lines, Text(() => LocalizationHelper.LocalizeCategories(card)));
+            var lines = new List<CardLine> { new CardLine { Text = Summary(card, pm, preview) } };
+            if (card == null || Hidden(card, pm, preview)) return lines;
             // Each keyword in the ability text is a <link=key> tag: that is how a line knows its keywords.
             foreach (var ability in Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false).Split('\n'))
             {
@@ -87,6 +77,7 @@ namespace GwentAccess
                 foreach (System.Text.RegularExpressions.Match m in LinkTag.Matches(ability))
                     if (!line.Keywords.Contains(m.Groups[1].Value)) line.Keywords.Add(m.Groups[1].Value);
             }
+            Add(lines, Text(() => LocalizationHelper.LocalizeCategories(card)));
             Add(lines, Stats(card));
             Add(lines, Text(() => LocalizationHelper.GetCardFlavor(card)));
             Add(lines, Text(() => LocalizationHelper.GetArtistDescription(card.Template)));
@@ -100,10 +91,10 @@ namespace GwentAccess
         /// status list (a status's explanation sits with the keywords, under the status's name). With
         /// <paramref name="only"/>, just those keywords, in that order — the words of one line.
         /// </summary>
-        public static List<string> Explanations(Card card, PlayerManager pm = null, IReadOnlyList<string> only = null)
+        public static List<string> Explanations(Card card, PlayerManager pm = null, IReadOnlyList<string> only = null, bool preview = false)
         {
             var found = new List<string>();
-            if (card == null || Hidden(card, pm)) return found;
+            if (card == null || Hidden(card, pm, preview)) return found;
             var known = new Dictionary<string, string>();
             var order = new List<string>();
             Try(() =>
@@ -135,11 +126,11 @@ namespace GwentAccess
         }
 
         /// <summary>The whole card for Space: its lines, then its keywords explained.</summary>
-        public static string Whole(Card card, PlayerManager pm = null)
+        public static string Whole(Card card, PlayerManager pm = null, bool preview = false)
         {
             var parts = new List<string>();
-            foreach (var line in Lines(card, pm)) parts.Add(line.Text);
-            parts.AddRange(Explanations(card, pm));
+            foreach (var line in Lines(card, pm, preview)) parts.Add(line.Text);
+            parts.AddRange(Explanations(card, pm, preview: preview));
             return string.Join(". ", parts);
         }
 
@@ -173,14 +164,25 @@ namespace GwentAccess
             return string.Join(", ", parts);
         }
 
-        public static bool Hidden(Card card, PlayerManager pm)
+        /// <summary>Whether the local player sees this card's back. On the board and in hands that is the
+        /// match's own visibility. With <paramref name="preview"/>, the card sits in a panel of cards (a choice,
+        /// your deck, a graveyard): the cards a panel offers are made for it and sit where the board's rule
+        /// reports them hidden, yet the panel shows them face up, so the game's preview rule
+        /// (<c>IsVisibleToLocalPreview</c>, the one meant for such panels) decides; a card either rule shows is
+        /// read. A check that throws reads a panel's card as shown, a board card as hidden.</summary>
+        public static bool Hidden(Card card, PlayerManager pm, bool preview = false)
         {
             if (pm == null) return false;
-            try { return !card.IsVisibleToLocal(pm); } catch { return true; }
+            try
+            {
+                if (card.IsVisibleToLocal(pm)) return false;
+                return !preview || !card.IsVisibleToLocalPreview(pm);
+            }
+            catch { return !preview; }
         }
 
         /// <summary>Just the name, or "hidden card" for one the local player can't see.</summary>
-        public static string Name(Card card, PlayerManager pm) => Hidden(card, pm) ? "hidden card" : Name(card);
+        public static string Name(Card card, PlayerManager pm, bool preview = false) => Hidden(card, pm, preview) ? "hidden card" : Name(card);
 
         private static string Name(Card card)
         {

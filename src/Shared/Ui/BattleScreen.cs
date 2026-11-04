@@ -14,9 +14,9 @@ namespace GwentAccess.Ui
     /// and melee rows, your melee and ranged rows, your hand, your leader. Zones as in Hearthstone Access and
     /// Accessible Arena: Left/Right move along the row you are in (silent at the ends), the zone keys below and
     /// Tab change the row, and Up/Down read the focused card line by line (on a spot with no card they say
-    /// where the cursor is). Each card reads <see cref="CardReader.Summary"/>, your own cards with their
-    /// abilities (<see cref="CardReader.WithAbilities"/>); I explains its keywords, K reads its kind and base
-    /// power, Space the whole card.
+    /// where the cursor is). Each card, yours and the opponent's alike, says only its short line
+    /// (<see cref="CardReader.Summary"/>, Hearthstone Access's); Down then reads its abilities line by line, I
+    /// explains its keywords, K reads its kind and base power, Space the whole card.
     ///
     /// Playing works like a gamepad player's (Hearthstone Access in spirit): the game's own selection — the
     /// hover the opponent sees too — follows the cursor, and Enter is the game's A, so picking up, ordering,
@@ -179,7 +179,7 @@ namespace GwentAccess.Ui
                 foreach (var card in cards)
                 {
                     var id = ControlId.Structural(row.Where == ELocation.Leader ? LeaderKey(row.Key) : "battle:card:" + card.Id);
-                    b.AddItem(id, CardNode(card, pm, loc, row.Mine));
+                    b.AddItem(id, CardNode(card, pm, loc));
                     rowIds.Add(id);
                     Remember(id, card, row.Key, loc);
                     if (row.Where == ELocation.Hand && firstInHand == null) firstInHand = id;
@@ -275,11 +275,10 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>A card's line on the board. A leader card is led by the character standing beside it
-        /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both. With
-        /// <paramref name="abilities"/> (your own cards on focus), the card's abilities follow.</summary>
-        private static string Label(Card card, PlayerManager pm, bool abilities = false)
+        /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both.</summary>
+        private static string Label(Card card, PlayerManager pm)
         {
-            string summary = abilities ? CardReader.WithAbilities(card, pm) : CardReader.Summary(card, pm);
+            string summary = CardReader.Summary(card, pm);
             try
             {
                 if (card.Position.Location != ELocation.Leader) return summary;
@@ -289,13 +288,13 @@ namespace GwentAccess.Ui
             catch { return summary; }
         }
 
-        private NodeVtable CardNode(Card card, PlayerManager pm, Location loc, bool mine)
+        private NodeVtable CardNode(Card card, PlayerManager pm, Location loc)
         {
             return new NodeVtable
             {
                 Announcements = new[]
                 {
-                    new NodeAnnouncement(() => Label(card, pm, abilities: mine), kind: AnnouncementKinds.Label),
+                    new NodeAnnouncement(() => Label(card, pm), kind: AnnouncementKinds.Label),
                     new NodeAnnouncement(() => _plays.IsChosen(card) ? "chosen" : null, live: true, kind: AnnouncementKinds.Selected),
                 },
                 OnActivate = () => EnterOnCard(card, loc),
@@ -818,7 +817,7 @@ namespace GwentAccess.Ui
             {
                 var card = FocusedCard();
                 string name = Array.Find(Rows, r => r.Key == row)?.Name;
-                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players(), abilities: Array.Find(Rows, r => r.Key == row)?.Mine == true) : "empty"), true);
+                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players()) : "empty"), true);
                 return;
             }
             // The card last visited in that row, if it is still there: a card played from the hand keeps its

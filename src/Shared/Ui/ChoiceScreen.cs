@@ -10,7 +10,7 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// A card choice (create, pick from the deck, discard…): the offered cards as one row, read like on the
-    /// board (Ctrl+Up/Down, I, K, Space). Enter picks the focused card — or toggles it when several may be
+    /// board (Up/Down, I, K, Space). Enter picks the focused card — or toggles it when several may be
     /// picked — E finishes a multi-pick, Backspace cancels when the game allows it. Every press goes through
     /// the game's own choice panel handler, as its buttons and card clicks do.
     /// </summary>
@@ -94,7 +94,7 @@ namespace GwentAccess.Ui
                 {
                     Announcements = new[]
                     {
-                        new NodeAnnouncement(() => CardReader.WithAbilities(card, pm), kind: AnnouncementKinds.Label),
+                        new NodeAnnouncement(() => CardReader.Summary(card, pm), kind: AnnouncementKinds.Label),
                         new NodeAnnouncement(() => enabled ? (Chosen(card) ? "chosen" : null) : "unavailable", live: true, kind: AnnouncementKinds.Selected),
                     },
                     OnActivate = () => Pick(card, enabled),
