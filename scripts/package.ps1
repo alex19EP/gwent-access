@@ -10,6 +10,7 @@
         BepInEx\plugins\GwentAccess\prism.dll                       speech (built from third_party/prism)
         BepInEx\plugins\GwentAccess\NAudio.dll                      the sound mixer; the module does not load without it
         BepInEx\plugins\GwentAccess\audio\                          the sound stems (assets/audio)
+        BepInEx\plugins\GwentAccess\lang\                           the mod's speech in other languages (assets/lang)
         BepInEx\plugins\GwentAccess\THIRD-PARTY-NOTICES.md          licenses of what the zip carries
         BepInEx\plugins\GwentAccess\build.txt                       what was built, for bug reports
         BepInEx\config\BepInEx.cfg                                  UnityLogListening off, or the game crashes at boot
@@ -64,6 +65,8 @@ $naudioDll = Join-Path $nugetRoot 'naudio/1.10.0/lib/netcoreapp3.0/NAudio.dll'
 if (-not (Test-Path $naudioDll)) { throw "NAudio.dll not found: $naudioDll (a zip without it can't load the module)" }
 $audioDir = Join-Path $repo 'assets/audio'
 if (-not (Get-ChildItem $audioDir -Recurse -Filter '*.wav' -ErrorAction SilentlyContinue)) { throw "No sounds under $audioDir" }
+$langDir = Join-Path $repo 'assets/lang'
+if (-not (Get-ChildItem $langDir -Filter '*.json' -ErrorAction SilentlyContinue)) { throw "No translations under $langDir" }
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
@@ -90,6 +93,8 @@ Copy-Item $modDll.FullName (Join-Path $plugin 'Module/GwentAccess.Module.dll')
 Copy-Item $prismDll $plugin
 Copy-Item $naudioDll $plugin
 Copy-Item $audioDir (Join-Path $plugin 'audio') -Recurse
+New-Item -ItemType Directory -Path (Join-Path $plugin 'lang') -Force | Out-Null
+Copy-Item (Join-Path $langDir '*.json') (Join-Path $plugin 'lang')
 Copy-Item (Join-Path $repo 'THIRD-PARTY-NOTICES.md') $plugin
 Copy-Item (Join-Path $repo 'package/*') $stage
 

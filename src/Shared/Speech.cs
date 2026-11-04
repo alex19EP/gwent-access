@@ -37,14 +37,14 @@ namespace GwentAccess
             lock (_messages)
             {
                 count = _messages.Count;
-                if (count == 0) { Say("No messages yet.", true); return; }
+                if (count == 0) { Say(Loc.T("No messages yet."), true); return; }
                 bool continuing = (DateTime.UtcNow - _lastMsgKey).TotalSeconds < 5 && _msgIndex >= 0;
                 _msgIndex = continuing ? Math.Max(0, _msgIndex - 1) : count - 1;
                 pos = count - _msgIndex;
                 text = _messages[_msgIndex];
             }
             _lastMsgKey = DateTime.UtcNow;
-            Say((pos > 1 ? "Message " + pos + " back. " : "") + text, true);
+            Say(pos > 1 ? Loc.T("Message {0} back. {1}", pos, text) : text, true);
         }
 
 #if DEBUG

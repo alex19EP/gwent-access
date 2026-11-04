@@ -51,8 +51,9 @@ namespace GwentAccess.Ui
 
         static GraphNavigator()
         {
-            GraphAnnouncer.PositionText = (i, n) => i + " of " + n;
-            GraphAnnouncer.ExpandedStateText = expanded => expanded ? "expanded" : "collapsed";
+            // The kernel's own words, through its injectable hooks (it stays game- and language-agnostic).
+            GraphAnnouncer.PositionText = (i, n) => Loc.T("{0} of {1}", i, n);
+            GraphAnnouncer.ExpandedStateText = expanded => expanded ? Loc.T("expanded") : Loc.T("collapsed");
         }
 
         public static void Attach(Screen screen)

@@ -16,14 +16,15 @@ namespace GwentAccess
 #if DEBUG
             Speech.Observer = Dev.DevServer.TapSpeech; // before the first Say, so /speech sees it
 #endif
+            ModConfig.Load();
+            Loc.Refresh(); // the mod's language, before the first line (English if the game hasn't set one yet)
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
                 Speech.Say(first
-                    ? Plugin.Name + " " + Plugin.Version + " loaded. Press F1 for help."
-                    : "Gwent Access reloaded.");
+                    ? Loc.T("{0} {1} loaded. Press F1 for help.", Plugin.Name, Plugin.Version)
+                    : Loc.T("{0} reloaded.", Plugin.Name));
             Hotkeys.Start();
             KeyGlyphs.Install();
-            ModConfig.Load();
 
             // Per-generation id: Dispose unpatches by id, and a fixed id would also strip a newer generation's
             // patches if an old Dispose ran late. Each class is patched separately so one failure can't disable the mod.
@@ -85,6 +86,7 @@ namespace GwentAccess
         {
             if (!ModSwitch.On) return; // F8 switched the mod off: the game runs as without it
             ModConfig.Tick();
+            Loc.Tick();
             TurnTimer.Tick();
             ControllerMode.Tick();
             Narrator.Tick();
