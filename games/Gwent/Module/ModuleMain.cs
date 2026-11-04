@@ -38,6 +38,7 @@ namespace GwentAccess
             Plugin.LogInfo("Patches applied: " + ok + ", failed: " + bad);
 
             Ui.ScreenManager.Register(new Ui.MainMenuScreen());
+            Ui.ScreenManager.Register(new Ui.MatchmakingScreen());
             Ui.ScreenManager.Register(new Ui.SettingsScreen());
             Ui.ScreenManager.Register(new Ui.BattleScreen());
             Ui.ScreenManager.Register(new Ui.MulliganScreen());
