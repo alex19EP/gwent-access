@@ -169,7 +169,7 @@ namespace GwentAccess.Ui
             b.EndRow();
         }
 
-        private static string JourneyQuestText(UIQuestJourneyListItem q)
+        internal static string JourneyQuestText(UIQuestJourneyListItem q)
         {
             var parts = new List<string>();
             try
