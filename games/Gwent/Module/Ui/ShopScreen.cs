@@ -287,7 +287,7 @@ namespace GwentAccess.Ui
 
         // ---- the details panel ----
 
-        private static void AddDetails(GraphBuilder b, UIGeneralDescriptionView d)
+        internal static void AddDetails(GraphBuilder b, UIGeneralDescriptionView d)
         {
             var lines = DetailLines(d);
             var quantity = d.m_QuantityControl;
