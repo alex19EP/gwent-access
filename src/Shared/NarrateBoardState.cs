@@ -80,6 +80,9 @@ namespace GwentAccess
         {
             var a = __0;
             if (a == null || a.Operation == ETapChargesOperation.Remove) return;
+            // A leader's starting charges are set as the match opens, before its first turn: the counter is
+            // simply there, not an effect ("Opponent's Fruits of Ysgith, charge 1: 1 charge" was read).
+            try { if (Battle.Controller()?.Pointer != Narrator.TurnsStartedIn) return; } catch { return; }
             string label = GameText.Term("keyword_charge", "Charge") + (a.Operation == ETapChargesOperation.Add ? " +" : " ") + a.Value;
             var cards = new List<Card>();
             foreach (var card in Narrator.List(a.Targets))
