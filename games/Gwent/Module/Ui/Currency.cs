@@ -107,15 +107,44 @@ namespace GwentAccess.Ui
         public static string Caption(string raw)
         {
             if (string.IsNullOrEmpty(raw)) return "";
-            var m = SpriteTag.Match(raw);
-            string text = UiText.Clean(raw);
-            if (!m.Success) return text;
-            string sprite = m.Groups[1].Value;
-            string name = sprite.IndexOf("scrap", StringComparison.OrdinalIgnoreCase) >= 0 ? Scraps()
-                : sprite.IndexOf("powder", StringComparison.OrdinalIgnoreCase) >= 0 ? Powder()
-                : sprite.IndexOf("ore", StringComparison.OrdinalIgnoreCase) >= 0 ? Ore()
-                : null;
-            return name == null ? text : text + " " + name;
+            // Each currency icon drawn before an amount reads after it: an event's "Daily Logins <Blood_Drop>1,
+            // Wins <Blood_Drop>3" → "Daily Logins 1 Blood Drops, Wins 3 Blood Drops".
+            bool named = false;
+            string withNames = IconAmount.Replace(raw, m =>
+            {
+                string name = SpriteCurrency(m.Groups["name"].Value);
+                if (name == null) return m.Value;
+                named = true;
+                return m.Groups["n"].Value + " " + name;
+            });
+            // A paragraph that ends without a stop ("Wins 3 Blood Drops" before a blank line) gets one, or it runs
+            // into the next once the line breaks are spaces.
+            withNames = ParagraphEnd.Replace(withNames, "$1.\n\n");
+            string text = UiText.Clean(withNames);
+            if (named) return text;
+            // An icon with no amount right after it: the currency named at the end, once.
+            var tag = SpriteTag.Match(raw);
+            string single = tag.Success ? SpriteCurrency(tag.Groups[1].Value) : null;
+            return single == null ? text : text + " " + single;
+        }
+
+        // A currency icon and the amount drawn right after it ("<sprite name="ScrapsNeg"> -800").
+        private static readonly Regex IconAmount = new Regex(
+            @"<sprite[^>]*?\bname=""?(?<name>[^"" >]+)""?[^>]*>\s*(?<n>[-+]?\d+(?:[.,]\d+)*)", RegexOptions.IgnoreCase);
+
+        // A blank line: real line breaks, or the literal "\n" escapes some of the game's texts carry (TextMeshPro
+        // draws both as breaks).
+        private static readonly Regex ParagraphEnd = new Regex(@"([^\s.!?:;,>\\])[ \t]*(?:\r?\n|\\n)[ \t]*(?:\r?\n|\\n)");
+
+        // The currency an inline sprite stands for, by a part of its name ("ScrapsNeg", "Blood_Drop").
+        private static string SpriteCurrency(string sprite)
+        {
+            string s = sprite.ToLowerInvariant();
+            if (s.Contains("scrap")) return Scraps();
+            if (s.Contains("powder")) return Powder();
+            if (s.Contains("blood") || s.Contains("event")) return Event();
+            if (s.Contains("ore") || s.Contains("gold")) return Ore();
+            return null;
         }
     }
 }

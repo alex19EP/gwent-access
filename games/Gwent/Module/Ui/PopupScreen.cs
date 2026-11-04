@@ -70,7 +70,16 @@ namespace GwentAccess.Ui
                 var texts = new List<string>();
                 foreach (var t in CrimsonNodes.Texts(popup.transform)) if (!buttonTexts.Contains(t)) texts.Add(t);
                 title = texts.Count > 1 ? texts[0] : "";
-                message = string.Join(" ", texts.Count > 1 ? texts.GetRange(1, texts.Count - 1) : texts);
+                // Its texts are separate lines and paragraphs: one that ends without a stop ("October 26th —
+                // November 9th") gets one, or it ran into the next ("November 9th Obtain").
+                var lines = texts.Count > 1 ? texts.GetRange(1, texts.Count - 1) : texts;
+                var sb = new System.Text.StringBuilder();
+                foreach (var line in lines)
+                {
+                    if (sb.Length > 0) sb.Append(".!?:;".IndexOf(sb[sb.Length - 1]) >= 0 ? " " : ". ");
+                    sb.Append(line);
+                }
+                message = sb.ToString();
             }
 
             b.BeginStop("popup");
