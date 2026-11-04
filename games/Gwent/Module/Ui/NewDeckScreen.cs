@@ -50,6 +50,7 @@ namespace GwentAccess.Ui
                         Announcements = new[]
                         {
                             new NodeAnnouncement(name, kind: AnnouncementKinds.Label),
+                            CrimsonNodes.RolePart(Loc.T("radio button")), // one faction, the picked one selected
                             new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                             new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? FactionDescription(p, name()) : null, kind: AnnouncementKinds.Tooltip),
                         },
@@ -83,6 +84,7 @@ namespace GwentAccess.Ui
                         Announcements = new[]
                         {
                             new NodeAnnouncement(() => AbilityName(item), kind: AnnouncementKinds.Label),
+                            CrimsonNodes.RolePart(Loc.T("button")), // Enter creates the deck
                             new NodeAnnouncement(() => Provisions(item), kind: AnnouncementKinds.Value),
                             new NodeAnnouncement(() => AbilityText(item), kind: AnnouncementKinds.Tooltip),
                         },

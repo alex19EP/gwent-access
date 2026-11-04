@@ -98,6 +98,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => LevelText(data, index), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("button")), // Enter claims it, as the mouse clicks the level's reward
                         new NodeAnnouncement(() => LevelState(data, index), live: true, kind: AnnouncementKinds.Value),
                     },
                     OnActivate = () => ClickLevel(p, index),

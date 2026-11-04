@@ -144,6 +144,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => SlotLabel(slot), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("button")),
                         new NodeAnnouncement(() => Interactable(slot) ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
                     },
                     OnActivate = () => Send(slot),
@@ -160,6 +161,7 @@ namespace GwentAccess.Ui
                     // A toggle speaks one line, the new label in the game's words ("Unmute opponent" once muted);
                     // the state word is read with it when the item is reached, not again on the toggle.
                     new NodeAnnouncement(() => MuteLabel(tm), live: true, kind: AnnouncementKinds.Label),
+                    CrimsonNodes.RolePart(Loc.T("button")),
                     new NodeAnnouncement(() => Muted(tm) ? Loc.T("muted") : null, kind: AnnouncementKinds.Value),
                 },
                 OnActivate = () => ToggleMute(v),

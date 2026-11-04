@@ -144,6 +144,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(label, kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("button")),
                         new NodeAnnouncement(() => Enabled(gg) ? null : _goodGameSent ? Loc.T("sent") : Loc.T("unavailable"),
                             live: true, kind: AnnouncementKinds.Enabled),
                     },

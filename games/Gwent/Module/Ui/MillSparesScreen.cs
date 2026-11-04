@@ -82,6 +82,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => Text(element.m_StrategyName), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("radio button")), // one strategy of the three, the chosen one selected
                         new NodeAnnouncement(() => CrimsonNodes.Shown(element.m_RecomendedText) ? GoText(element.m_RecomendedText) : null, kind: AnnouncementKinds.Value),
                         new NodeAnnouncement(() => CrimsonNodes.Shown(element.m_SelectedBackground) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                         new NodeAnnouncement(() => Text(element.m_StrategyDescription), kind: AnnouncementKinds.Tooltip),
@@ -160,7 +161,7 @@ namespace GwentAccess.Ui
                 var control = c;
                 var toggle = control.TryCast<ToggleButtonControl>();
                 if (toggle == null) { b.AddItem(CrimsonNodes.Id(control), CrimsonNodes.Button(control)); continue; }
-                var v = CrimsonNodes.Button(control);
+                var v = CrimsonNodes.WithRole(CrimsonNodes.Button(control), Loc.T("checkbox")); // says checked or not
                 var anns = new List<NodeAnnouncement>(v.Announcements)
                 {
                     new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("checked") : Loc.T("not checked"), live: true, kind: AnnouncementKinds.Value),

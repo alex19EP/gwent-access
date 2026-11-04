@@ -686,16 +686,16 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>
-        /// A social-bar button (journey, season cycle, quests, friends): not a menu card's twin but a toggle
+        /// A social-bar button (journey, season cycle, quests, friends): not a menu card's twin but a tab
         /// opening the side panel on its section, one at a time (the game's toggle group). The open one reads
-        /// "pressed", as a sighted player sees it lit; pressing it again closes the panel.
+        /// "selected", as a sighted player sees it lit; pressing it again closes the panel.
         /// </summary>
         private static NodeVtable SocialToggle(AControl c, SocialButton toggle)
         {
-            var v = CrimsonNodes.Button(c);
+            var v = CrimsonNodes.WithRole(CrimsonNodes.Button(c), Loc.T("tab"));
             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
             {
-                new NodeAnnouncement(() => toggle.IsToggled ? Loc.T("pressed") : null, live: true, kind: AnnouncementKinds.Selected),
+                new NodeAnnouncement(() => toggle.IsToggled ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
             };
             return v;
         }
@@ -921,7 +921,11 @@ namespace GwentAccess.Ui
                     var l = list;
                     b.AddItem(ControlId.Structural("cosmetics:expand"), new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => Collapsed(l) ? Loc.T("Show all") : Loc.T("Show fewer"), live: true, kind: AnnouncementKinds.Label) },
+                        Announcements = new[]
+                        {
+                            new NodeAnnouncement(() => Collapsed(l) ? Loc.T("Show all") : Loc.T("Show fewer"), live: true, kind: AnnouncementKinds.Label),
+                            CrimsonNodes.RolePart(Loc.T("button")),
+                        },
                         // The game moves its selection as the lists swap; the cursor stays on the arrow.
                         OnActivate = () =>
                         {
@@ -997,6 +1001,7 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(t)), kind: AnnouncementKinds.Label),
+                        CrimsonNodes.RolePart(Loc.T("radio button")), // one of VERSUS AI / VERSUS PLAYER
                         new NodeAnnouncement(() => t.IsToggled ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                         new NodeAnnouncement(() => t.IsCurrentlySelectable() ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
                     },
