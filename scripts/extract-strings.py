@@ -14,6 +14,7 @@ This script scans src/Shared and games/*/Module for those calls with literal str
     python scripts/extract-strings.py              write en.json, summary per language
     python scripts/extract-strings.py -v           also list every missing / stale / mismatched key
     python scripts/extract-strings.py --check      write nothing; exit 1 if en.json is out of date
+    python scripts/extract-strings.py --where      also print where each key is first used (file:line), for context
 
 Calls whose first string is not a literal (Loc.T(variable)) are not keys: such a value must be marked where it is
 written (Loc.Mark) or be game text, which is translated by the game already.
@@ -146,6 +147,9 @@ def main():
         with open(en_path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
     print("%d keys -> assets/lang/en.json%s" % (len(keys), "" if old != text or check else " (unchanged)"))
+    if "--where" in sys.argv:
+        for k, where in keys.items():
+            print("%s	%s" % (where, json.dumps(k, ensure_ascii=False)))
 
     for f in sorted(os.listdir(LANG)) if os.path.isdir(LANG) else []:
         if not f.endswith(".json") or f == "en.json":
