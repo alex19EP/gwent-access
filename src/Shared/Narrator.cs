@@ -14,8 +14,11 @@ namespace GwentAccess
 {
     /// <summary>
     /// Speaks the match as it plays out, the way Hearthstone Access does: what the opponent plays, then every
-    /// effect grouped by its source — "Тридамская пехота: Урон 1: Димун: легкий драккар 4." — and the turn,
-    /// pass, round and match banners with the scores a sighted player reads beside the board.
+    /// effect grouped by its source — "Alzur's Thunder: damage 5 to opponent's Ducal Guard, power 0." — and the
+    /// turn, pass, round and match banners with the scores a sighted player reads beside the board. A card is
+    /// named with its side ("your", "opponent's"), as a sighted player sees which half of the board it is on;
+    /// a card acting on itself alone is named once, side first: "Your Ard Feainn Heavy Cavalry, armor +1:
+    /// power 3, armor 3."
     ///
     /// Everything comes from the game's own handlers, not a poll. Effects come from the visual effects handler,
     /// which the game only binds to the real match and which holds the game's logic while each animation
@@ -141,7 +144,7 @@ namespace GwentAccess
             _myDraws.Clear();
             _theirDraws = 0;
             string label = GameText.Term("keyword_draw", "Draw");
-            if (mine.Count > 0) SayEffect(null, label, mine);
+            if (mine.Count > 0) SayEffect(null, label, null, mine);
             if (theirs > 0) Say(Opponent() + ": " + label + " " + theirs + ".");
         }
 
@@ -228,7 +231,8 @@ namespace GwentAccess
             return GameText.Term(key, token.ToString());
         }
 
-        /// <summary>"Темерский барабанщик 5": a card's name with its power number (and armor) as drawn now.</summary>
+        /// <summary>"Темерский барабанщик 5": a card's name with its power number (and armor) as drawn now, for
+        /// the opponent's play line. Effects name their cards with <see cref="Target"/>.</summary>
         internal static string WithPower(Card card)
         {
             string text = CardName(card);
@@ -243,12 +247,86 @@ namespace GwentAccess
             return text;
         }
 
-        /// <summary>"Source: Label: target, target." — or without the source when there is none.</summary>
-        internal static void SayEffect(string source, string label, List<string> targets)
+        /// <summary>"your" or "opponent's": whose side of the board a card is on (where it is now).</summary>
+        internal static string Side(Card card)
+        {
+            try { return Mine(card.Position.PlayerId) ? "your" : "opponent's"; } catch { return null; }
+        }
+
+        /// <summary>"your Ard Feainn Heavy Cavalry": a card named with its side. <paramref name="name"/> overrides
+        /// the name (<see cref="PlainName"/> for a card seen just before it went somewhere hidden).</summary>
+        internal static string Owned(Card card, string name = null)
+        {
+            name ??= CardName(card);
+            string side = Side(card);
+            return side != null ? side + " " + name : name;
+        }
+
+        /// <summary>"power 3, armor 3": a unit's power (and armor) as drawn now, worded as the card reader words
+        /// them; empty for a card that shows no power, or one hidden from you.</summary>
+        internal static string Stats(Card card)
+        {
+            if (!IsUnit(card) || CardReader.Hidden(card, Players())) return "";
+            try
+            {
+                var power = card.Data.Power;
+                string text = "power " + power.CurrentPower;
+                if (power.CurrentArmor > 0) text += ", " + GameText.Lower(GameText.Term("keyword_armor", "armor")) + " " + power.CurrentArmor;
+                return text;
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>"opponent's Ducal Guard, power 0": a target with its side and what the effect left it at.</summary>
+        internal static string Target(Card card)
+        {
+            string stats = Stats(card);
+            return stats.Length > 0 ? Owned(card) + ", " + stats : Owned(card);
+        }
+
+        /// <summary>The first letter raised, for a phrase that starts a line ("hidden card", "your …").</summary>
+        private static string First(string s) =>
+            string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+
+        /// <summary>"Source: label join target, target.", as in "Tourney Joust: shield on your Ard Feainn Heavy
+        /// Cavalry, power 2, armor 2." <paramref name="join"/> is the word between the effect and its targets
+        /// ("to", "on", "from"), or null for an effect that takes them straight ("destroy opponent's …").
+        /// Without a source: "Label: target, target." (your draws: "Draw: Wild Hunt Hound, Adda: Striga.").</summary>
+        internal static void SayEffect(string source, string label, string join, List<string> targets)
         {
             if (targets.Count == 0) return;
-            string head = source != null ? source + ": " + label : label;
-            Say(head + ": " + string.Join(", ", targets) + ".");
+            string list = string.Join(", ", targets);
+            if (source == null) { Say(label + ": " + list + "."); return; }
+            Say(First(source) + ": " + GameText.Lower(label) + (join != null ? " " + join : "") + " " + list + ".");
+        }
+
+        /// <summary>One thing an effect happened to, named once, side first: "Your Ard Feainn Heavy Cavalry,
+        /// armor +1: power 3, armor 3." Used for a card acting on itself, and for an effect with no source to
+        /// name (a shield used up, a unit moved, a unit the damage destroyed). <paramref name="stats"/> may be
+        /// empty: "Opponent's Deafening Siren, destroy."</summary>
+        internal static void SaySelf(string subject, string label, string stats)
+        {
+            Say(First(subject) + ", " + GameText.Lower(label) + (stats.Length > 0 ? ": " + stats : "") + ".");
+        }
+
+        /// <summary>
+        /// An effect on cards, each named with its side (<see cref="Target"/>, or just <see cref="Owned"/> without
+        /// <paramref name="power"/>): "Alzur's Thunder: damage 5 to opponent's Ducal Guard, power 0." When the
+        /// one card hit is the source itself, or there is no source, the card is named once (<see cref="SaySelf"/>).
+        /// <paramref name="extra"/> is a target that isn't a named card (cards lit up in the opponent's hand).
+        /// </summary>
+        internal static void SayOnCards(string source, IEntity attacker, string label, string join, List<Card> cards, bool power, string extra = null)
+        {
+            if (cards.Count == 0 && extra == null) return;
+            if (cards.Count == 1 && extra == null && (source == null || Same(attacker, cards[0])))
+            {
+                SaySelf(Owned(cards[0]), label, power ? Stats(cards[0]) : "");
+                return;
+            }
+            var targets = new List<string>();
+            foreach (var card in cards) targets.Add(power ? Target(card) : Owned(card));
+            if (extra != null) targets.Add(extra);
+            SayEffect(source, label, join, targets);
         }
 
         /// <summary>Whether an effect's source is <paramref name="card"/> itself.</summary>
@@ -284,11 +362,15 @@ namespace GwentAccess
             var a = __0;
             if (a == null) return;
             string label = Label(a.Operation, a.PowerType);
+            // The armor sign sits on its number ("armor +1"); "damage 6", "armor 0" take a space.
+            string gap = label.EndsWith("+") || label.EndsWith("−") ? "" : " ";
             if (a.Operation == ECardPowerOp.Add || a.Operation == ECardPowerOp.Remove || a.Operation == ECardPowerOp.Set)
-                label += " " + Math.Abs(a.Value);
+                label += gap + Math.Abs(a.Value);
             else if (Amount(a) is int amount) label += " " + amount; // heal and reset carry no value; the change does
-            var targets = new List<string>();
-            var killed = new List<string>();
+            // "damage 6 to …", "boost 4 to …"; a value set or restored sits on the card ("power 5 on …").
+            string join = a.Operation == ECardPowerOp.Add || a.Operation == ECardPowerOp.Remove ? "to" : "on";
+            var targets = new List<Card>();
+            var killed = new List<Card>();
             int inTheirHand = 0;
             foreach (var card in Narrator.List(a.Targets))
             {
@@ -297,19 +379,20 @@ namespace GwentAccess
                     if (Narrator.InOpponentHand(card)) inTheirHand++;
                     continue;
                 }
-                targets.Add(Narrator.WithPower(card));
+                targets.Add(card);
                 try
                 {
                     var at = card.Position.Location;
                     if (Narrator.IsUnit(card) && (at == ELocation.Melee || at == ELocation.Ranged) && card.Data.Power.CurrentPower <= 0)
-                        killed.Add(Narrator.CardName(card));
+                        killed.Add(card);
                 }
                 catch { }
             }
             // Face-down cards in the opponent's hand light up as they're hit: a sighted player sees how many.
-            if (inTheirHand > 0) targets.Add(inTheirHand == 1 ? "1 card in the opponent's hand" : inTheirHand + " cards in the opponent's hand");
-            Narrator.SayEffect(Narrator.Source(a.Attacker), label, targets);
-            if (killed.Count > 0) Narrator.SayEffect(null, GameText.Term("keyword_destroy", "Destroy"), killed);
+            string hand = inTheirHand == 0 ? null
+                : inTheirHand == 1 ? "1 card in the opponent's hand" : inTheirHand + " cards in the opponent's hand";
+            Narrator.SayOnCards(Narrator.Source(a.Attacker), a.Attacker, label, join, targets, power: true, extra: hand);
+            Narrator.SayOnCards(null, null, GameText.Term("keyword_destroy", "Destroy"), null, killed, power: false);
         });
 
         /// <summary>How much the power changed, when it changed by the same amount on every target.</summary>
@@ -351,10 +434,10 @@ namespace GwentAccess
         static void Postfix(CardDestroyAttack __0) => Narrator.Guard("destroy", () =>
         {
             if (__0 == null) return;
-            var targets = new List<string>();
+            var targets = new List<Card>();
             foreach (var card in Narrator.List(__0.Targets))
-                if (Narrator.Visible(card, graveyard: true)) targets.Add(Narrator.CardName(card));
-            Narrator.SayEffect(Narrator.Source(__0.Attacker), GameText.Term("keyword_destroy", "Destroy"), targets);
+                if (Narrator.Visible(card, graveyard: true)) targets.Add(card);
+            Narrator.SayOnCards(Narrator.Source(__0.Attacker), __0.Attacker, GameText.Term("keyword_destroy", "Destroy"), null, targets, power: false);
         });
     }
 
@@ -366,16 +449,16 @@ namespace GwentAccess
         static void Postfix(CardBanishAttack __0) => Narrator.Guard("banish", () =>
         {
             if (__0 == null) return;
-            var targets = new List<string>();
+            var targets = new List<Card>();
             foreach (var card in Narrator.List(__0.Targets))
-                if (Narrator.Visible(card) && !Narrator.Same(__0.Attacker, card)) targets.Add(Narrator.CardName(card));
-            Narrator.SayEffect(Narrator.Source(__0.Attacker), GameText.Term("keyword_banish", "Banish"), targets);
+                if (Narrator.Visible(card) && !Narrator.Same(__0.Attacker, card)) targets.Add(card);
+            Narrator.SayOnCards(Narrator.Source(__0.Attacker), __0.Attacker, GameText.Term("keyword_banish", "Banish"), null, targets, power: false);
         });
     }
 
 #if GWENT // Thronebreaker's AbilityVFXHandler has no OnCardStatusAttack (nor a CardStatusAttack type); its hook is still to be found
-    /// <summary>A status put on or taken off: "Флот налетчиков: Кровотечение: Тридамская пехота 5." Removal is
-    /// worded with the game's "purify".</summary>
+    /// <summary>A status put on or taken off: "Tourney Joust: shield on your Ard Feainn Heavy Cavalry, power 2,
+    /// armor 2." Removal is worded with the game's "purify": "… purify shield from …".</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnCardStatusAttack))]
     internal static class NarrateStatusAttack
     {
@@ -387,16 +470,18 @@ namespace GwentAccess
             if (token == 0) try { if (a.ChangedStatuses != null && a.ChangedStatuses.Count > 0) token = a.ChangedStatuses[0]; } catch { }
             string label = Narrator.StatusName(token);
             string source = Narrator.Source(a.Attacker);
+            string join = "on";
             if (a.DeltaOperation == ETokenOp.Remove)
             {
                 // A status ending itself — a shield used up — has no source but the status already named.
                 if (source == label) source = null;
                 label = GameText.Term("keyword_purify", "Remove") + " " + GameText.Lower(label);
+                join = "from";
             }
-            var targets = new List<string>();
+            var targets = new List<Card>();
             foreach (var card in Narrator.List(a.Targets))
-                if (Narrator.Visible(card)) targets.Add(Narrator.WithPower(card));
-            Narrator.SayEffect(source, label, targets);
+                if (Narrator.Visible(card)) targets.Add(card);
+            Narrator.SayOnCards(source, a.Attacker, label, join, targets, power: true);
         });
     }
 #endif
@@ -407,10 +492,10 @@ namespace GwentAccess
         static void Postfix(CardTransformAttack __0) => Narrator.Guard("transform", () =>
         {
             if (__0 == null) return;
-            var targets = new List<string>();
+            var targets = new List<Card>();
             foreach (var card in Narrator.List(__0.Targets))
-                if (Narrator.Visible(card)) targets.Add(Narrator.WithPower(card));
-            Narrator.SayEffect(Narrator.Source(__0.Attacker), GameText.Term("keyword_transform", "Transform"), targets);
+                if (Narrator.Visible(card)) targets.Add(card);
+            Narrator.SayOnCards(Narrator.Source(__0.Attacker), __0.Attacker, GameText.Term("keyword_transform", "Transform"), null, targets, power: true);
         });
     }
 
@@ -420,15 +505,17 @@ namespace GwentAccess
         static void Postfix(CardResetAttack __0) => Narrator.Guard("reset", () =>
         {
             if (__0 == null) return;
-            var targets = new List<string>();
+            var targets = new List<Card>();
             foreach (var card in Narrator.List(__0.Targets))
-                if (Narrator.Visible(card)) targets.Add(Narrator.WithPower(card));
-            Narrator.SayEffect(Narrator.Source(__0.Attacker), GameText.Term("keyword_reset", "Reset"), targets);
+                if (Narrator.Visible(card)) targets.Add(card);
+            Narrator.SayOnCards(Narrator.Source(__0.Attacker), __0.Attacker, GameText.Term("keyword_reset", "Reset"), null, targets, power: true);
         });
     }
 
 #if GWENT // Thronebreaker has no LocationStatusAttack, and its CardSpawnVFXHandler no HandleOnCardsSpawned
-    /// <summary>A row effect laid or cleared: "Ледяной великан: Мороз: Вражеский рукопашный ряд."</summary>
+    /// <summary>A row effect laid or cleared: "White Frost: frost on enemy ranged.", "Naglfar Taskmaster: purify
+    /// frost from enemy melee." A row clearing its own effect, or an effect with no source, names the row
+    /// once: "Enemy melee, purify frost."</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnLocationTokensAttack))]
     internal static class NarrateRowAttack
     {
@@ -439,7 +526,8 @@ namespace GwentAccess
             var token = a.DeltaStatus;
             if (token == 0) try { if (a.ChangedStatuses != null && a.ChangedStatuses.Count > 0) token = a.ChangedStatuses[0]; } catch { }
             string label = Narrator.RowEffectName(token);
-            if (a.DeltaOperation == ETokenOp.Remove) label = GameText.Term("keyword_purify", "Remove") + " " + GameText.Lower(label);
+            bool remove = a.DeltaOperation == ETokenOp.Remove;
+            if (remove) label = GameText.Term("keyword_purify", "Remove") + " " + GameText.Lower(label);
             var rows = new List<string>();
             try
             {
@@ -451,11 +539,19 @@ namespace GwentAccess
                 }
             }
             catch { }
-            Narrator.SayEffect(Narrator.Source(a.Attacker), label, rows);
+            if (rows.Count == 0) return;
+            string source = Narrator.Source(a.Attacker);
+            if (source == null || (rows.Count == 1 && source == rows[0]))
+            {
+                Narrator.SaySelf(string.Join(", ", rows), label, "");
+                return;
+            }
+            Narrator.SayEffect(source, label, remove ? "from" : "on", rows.ConvertAll(GameText.Lower));
         });
     }
 
-    /// <summary>Cards created on the board or in your hand: "Горячка: Создать: Кэльпи 4, Вражеский рукопашный ряд."</summary>
+    /// <summary>Cards created on the board or in your hand: "Patricidal Fury: spawn opponent's Deafening Siren
+    /// on enemy ranged, power 2."</summary>
     [HarmonyPatch(typeof(CardSpawnVFXHandler), nameof(CardSpawnVFXHandler.HandleOnCardsSpawned))]
     internal static class NarrateSpawn
     {
@@ -468,15 +564,17 @@ namespace GwentAccess
                 var spawn = __0[i];
                 var card = spawn?.SpawnedCard;
                 if (card == null || !Narrator.Visible(card)) continue;
-                string what = Narrator.WithPower(card);
+                string where = "";
                 try
                 {
                     string row = Narrator.RowName(card.Position.PlayerId, card.Position.Location);
-                    if (row != null) what += ", " + row;
+                    if (row != null) where = " on " + GameText.Lower(row);
                 }
                 catch { }
-                string source = spawn.SpawnerCard != null ? Narrator.CardName(spawn.SpawnerCard) : null;
-                Narrator.SayEffect(source, label, new List<string> { what });
+                string stats = Narrator.Stats(card);
+                if (spawn.SpawnerCard == null) { Narrator.SaySelf(Narrator.Owned(card), label + where, stats); continue; }
+                string what = Narrator.Owned(card) + where + (stats.Length > 0 ? ", " + stats : "");
+                Narrator.SayEffect(Narrator.CardName(spawn.SpawnerCard), label, null, new List<string> { what });
             }
         });
     }
@@ -522,28 +620,26 @@ namespace GwentAccess
                 else if ((a & Board) != 0 && from.PlayerId != to.PlayerId) label = GameText.Term("keyword_seize", "Seize");
                 else if ((a & Board) != 0) label = GameText.Get("arena_card_set_mechanical_move", "Move");
             }
-            else if (b == ELocation.Hand) label = "To hand";
-            else if (b == ELocation.Deck) label = GameText.Capitalized(GameText.Get("panel_deck_name", "Deck"));
+            else if (b == ELocation.Hand) label = "to hand";
+            else if (b == ELocation.Deck) label = "to " + GameText.Get("panel_deck_name", "deck").ToLowerInvariant();
             else if (b == ELocation.Graveyard && a == ELocation.Hand) label = GameText.Term("keyword_discard", "Discard");
-            else if (b == ELocation.Graveyard && a == ELocation.Deck) label = GameText.Capitalized(GameText.Get("panel_graveyard_name", "Graveyard"));
+            else if (b == ELocation.Graveyard && a == ELocation.Deck) label = "to " + GameText.Get("panel_graveyard_name", "graveyard").ToLowerInvariant();
             if (label == null) return; // a death: the damage or destroy line already said it
 
-            string what;
+            // The card is the subject, named once with its side (the one it is on now): "Your Ard Feainn Heavy
+            // Cavalry, move to ally melee: power 3, armor 6." / "Opponent's Wild Hunt Hound, to hand."
             if (row)
             {
-                what = Narrator.WithPower(card);
                 string name = Narrator.RowName(to.PlayerId, b);
-                if (name != null) what += ", " + name;
+                if (name != null) label += " to " + GameText.Lower(name);
+                Narrator.SaySelf(Narrator.Owned(card), label, Narrator.Stats(card));
             }
             else
             {
                 // Going somewhere hidden (a hand, a deck): named as it was seen leaving, if it was seen at all.
                 bool seen = (a & Board) != 0 || a == ELocation.Graveyard || (a == ELocation.Hand && Narrator.Mine(from.PlayerId));
-                what = seen ? Narrator.PlainName(card) : Narrator.CardName(card);
+                Narrator.SaySelf(Narrator.Owned(card, seen ? Narrator.PlainName(card) : Narrator.CardName(card)), label, "");
             }
-            string who = Narrator.Mine(to.PlayerId) ? null : Narrator.Opponent();
-            if (!row && who != null) label = who + ": " + label;
-            Narrator.SayEffect(null, label, new List<string> { what });
         });
     }
 
