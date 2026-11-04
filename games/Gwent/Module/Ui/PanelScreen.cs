@@ -38,7 +38,7 @@ namespace GwentAccess.Ui
                 var p = Panel();
                 if (p == null) return null;
                 if (Titles.TryGetValue(p.gameObject.name, out var t)) return GameText.Get(t.Key, t.Fallback);
-                if (p.TryCast<UILoadingScreenBase>() != null) return "Loading"; // its tip is read as its content
+                if (p.TryCast<UILoadingScreenBase>() != null) return Loc.T("Loading"); // its tip is read as its content
                 return UiText.FriendlyName(p.gameObject.name.Replace("(Clone)", "").Replace("Prefab", "").Replace("UIDB", "").Replace("UI", ""));
             }
         }

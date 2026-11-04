@@ -121,7 +121,7 @@ namespace GwentAccess.Ui
 
         // ---- the text field ----
 
-        private static readonly EditBox _field = new EditBox(CurrentField, "Name");
+        private static readonly EditBox _field = new EditBox(CurrentField, Loc.Mark("Name"));
 
         // The popup's shown text field, if it has one.
         private static InputFieldControl Field(AControl popup)
