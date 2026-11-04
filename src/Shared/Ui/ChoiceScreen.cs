@@ -173,6 +173,21 @@ namespace GwentAccess.Ui
         /// (<see cref="BattleScreen"/>'s Build) instead of announcing a landing that is gone at once.</summary>
         public static float AnsweredAt { get; private set; } = -100f;
 
+        /// <summary>The card a single pick chose, and where it was then: the game's own sign that the answer
+        /// went through is the card leaving that spot (to be placed, or played on its own). Null after a
+        /// multi-pick's Finish, which waits on <see cref="AnsweredAt"/> alone.</summary>
+        public static Card AnsweredCard { get; private set; }
+        private static ELocation _answeredFrom;
+
+        /// <summary>Whether the picked card still sits where the choice offered it: the game has not acted on
+        /// the answer yet.</summary>
+        public static bool AnswerPending()
+        {
+            var card = AnsweredCard;
+            if (card == null) return false;
+            try { return card.Position.Location == _answeredFrom; } catch { return false; }
+        }
+
         private void Pick(Card card, bool enabled)
         {
             if (!enabled) { Speech.Say("Unavailable.", true); return; }
@@ -184,6 +199,8 @@ namespace GwentAccess.Ui
                 if (max > 1) h.ToggleChoice(card);
                 else h.SelectChoice(card);
                 AnsweredAt = Time.realtimeSinceStartup;
+                AnsweredCard = max > 1 ? null : card;
+                try { _answeredFrom = card.Position.Location; } catch { AnsweredCard = null; }
                 Plugin.LogInfo("[choice] pick " + card.Id);
             }
             catch (Exception e) { Plugin.LogInfo("[choice] pick failed: " + e); Speech.Say("Couldn't pick.", true); }
@@ -193,7 +210,7 @@ namespace GwentAccess.Ui
         {
             var h = Handler();
             if (h == null) return;
-            try { h.HandleFinishBtnClicked(); AnsweredAt = Time.realtimeSinceStartup; Plugin.LogInfo("[choice] finish"); }
+            try { h.HandleFinishBtnClicked(); AnsweredAt = Time.realtimeSinceStartup; AnsweredCard = null; Plugin.LogInfo("[choice] finish"); }
             catch (Exception e) { Plugin.LogInfo("[choice] finish failed: " + e); Speech.Say("Couldn't finish.", true); }
         }
 

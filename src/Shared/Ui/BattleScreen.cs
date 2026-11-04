@@ -144,10 +144,22 @@ namespace GwentAccess.Ui
         // ChoiceFollowUpWait at most (a choice whose card resolves on its own asks nothing more), the screen
         // declares nothing ("no content yet", see Screen.Build): the navigator keeps the cursor and says nothing,
         // and the first render after it lands and speaks as before.
-        private const float ChoiceFollowUpWait = 1f;
+        // The game's own sign is the picked card leaving the choice (ChoiceScreen.AnswerPending): the wait ends
+        // as soon as it moves or a request opens. The time is only a safety net for an answer the game never
+        // acts on visibly (a multi-pick's Finish waits on it alone). Against a person the follow-up comes over
+        // the network: a fixed second was too short (a ranked match read the leader the cursor was on before
+        // "Place Ducal Guard.").
+        private const float ChoiceFollowUpWait = 5f;
+        private const float FinishFollowUpWait = 1f;
 
-        private bool AwaitingChoiceFollowUp() =>
-            _plays.Pending == null && Time.realtimeSinceStartup - ChoiceScreen.AnsweredAt < ChoiceFollowUpWait;
+        private bool AwaitingChoiceFollowUp()
+        {
+            if (_plays.Pending != null) return false;
+            float since = Time.realtimeSinceStartup - ChoiceScreen.AnsweredAt;
+            return ChoiceScreen.AnsweredCard != null
+                ? ChoiceScreen.AnswerPending() && since < ChoiceFollowUpWait
+                : since < FinishFollowUpWait;
+        }
 
         private void BuildBoard(GraphBuilder b, GameController gc)
         {
@@ -594,7 +606,11 @@ namespace GwentAccess.Ui
             // targeting, and that counts as something happening.
             int chosen = 0;
             try { chosen = _plays.Chosen; } catch { }
-            return BattleInput.Mode + "|" + P(_plays.Pending) + P(_plays.Placing) + P(_plays.Confirming) + P(_plays.Targets) + P(_plays.Rows) + P(_plays.Choice) + "|" + chosen + "|" + hand + "|" + board;
+            // The pending request by id: Buhurt's second target is a new request of the same kind, and its
+            // first pick did happen ("Not available right now" was said after it in a ranked match).
+            string pending = "-";
+            try { if (_plays.Pending != null) pending = _plays.Pending.Id.ToString(); } catch { }
+            return BattleInput.Mode + "|" + pending + P(_plays.Placing) + P(_plays.Confirming) + P(_plays.Targets) + P(_plays.Rows) + P(_plays.Choice) + "|" + chosen + "|" + hand + "|" + board;
         }
 
         private bool Mine(Card c)
@@ -880,7 +896,12 @@ namespace GwentAccess.Ui
                 bool full = false;
                 try { full = target != null && _gc != null && RowLocation(_gc, target)?.IsFull() == true; } catch { }
                 if (lastGap == null) Speech.Say("Can't place in " + name?.ToLowerInvariant() + (full ? ", full." : "."), true);
-                else if (here != null && here.StartsWith(prefix, StringComparison.Ordinal)) Speech.Say(name, true);
+                // Already in that row's gaps: the row again, with what it shows (score, effect, full), as B or
+                // Shift+B to another row says it; not just its name.
+                else if (here != null && here.StartsWith(prefix, StringComparison.Ordinal))
+                    Speech.Say(target != null && target.Scored && _gc != null
+                        ? name + ", " + RowDetail(Battle.Cards(_gc, target.Mine ? Battle.Me(_gc) : Battle.Them(_gc), target.Where), RowLocation(_gc, target))
+                        : name, true);
                 else GraphNavigator.FocusNode(ControlId.Structural(lastGap));
                 return;
             }
@@ -890,6 +911,7 @@ namespace GwentAccess.Ui
             if (node != null && _rowOf.TryGetValue((string)node.Id.StructuralKey, out var at) && at == row)
             {
                 var card = FocusedCard();
+                _cardKeys?.Reset(); // the card is said again: Down starts from its first line, as after a landing
                 var here = Array.Find(Rows, r => r.Key == row);
                 string name = here?.Name;
                 // A board row also says what the row shows (score, effect, full), as landing in it does.
