@@ -159,8 +159,22 @@ namespace GwentAccess.Ui
             var info = banner.m_PlayerInfo;
             if (info != null && info.gameObject.activeInHierarchy)
             {
+                // The name, and the avatar it sits beside: one item. The avatar is the cosmetics button (Enter opens
+                // the avatar and border picker, as clicking it does); read by its own texts it repeated the name and
+                // title as a third item ("blindndanger, CARDSMITH") after the name and the title.
                 var name = info.m_PlayerNameText;
-                if (CrimsonNodes.Shown(name))
+                var cosmetics = info.m_CosmeticsButton;
+                bool avatar = CrimsonNodes.Shown(cosmetics) && used.Add(cosmetics.Pointer);
+                if (avatar)
+                {
+                    var v = CrimsonNodes.Button(cosmetics, () => UiText.Clean(name?.text));
+                    v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+                    {
+                        new NodeAnnouncement(() => CrimsonNodes.TooltipText(cosmetics) ?? "avatar and border", kind: AnnouncementKinds.Role),
+                    };
+                    b.AddItem(CrimsonNodes.Id(cosmetics), v);
+                }
+                else if (CrimsonNodes.Shown(name))
                     b.AddItem(ControlId.Structural("profile:name"), new NodeVtable
                     {
                         Announcements = new[] { new NodeAnnouncement(() => UiText.Clean(name.text), kind: AnnouncementKinds.Label) },
@@ -420,7 +434,7 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>
-        /// The day the contract was done, in the game's own short-date format (<c>ToLocalizedShortDateString</c>),
+        /// The day the contract was done, as the card draws it ("01.11.2026": the game's localized short date gave "11/1/2026"),
         /// or null. Read straight from the achievement's <c>&lt;DateUnlocked&gt;k__BackingField</c>, because the
         /// interop's <c>DateUnlocked</c> (the property and the field accessor alike) misreads a
         /// <c>Nullable&lt;DateTime&gt;</c>: il2cpp boxes a nullable as its bare DateTime (or null), and the
@@ -439,7 +453,7 @@ namespace GwentAccess.Ui
             byte* field = (byte*)pub.Pointer + IL2CPP.il2cpp_field_get_offset(_dateField);
             if (*field == 0) return null;
             var date = *(Il2CppSystem.DateTime*)(field + 8);
-            string said = UiText.NullIfEmpty(date.ToLocalTime().ToLocalizedShortDateString());
+            string said = UiText.NullIfEmpty(date.ToLocalTime().ToString("dd.MM.yyyy"));
             CheckDrawnDate(e, said);
             return said;
         }
