@@ -581,5 +581,9 @@
   "{0} north {1} east": "{0} ao norte, {1} a leste",
   "{0} north {1} west": "{0} ao norte, {1} a oeste",
   "{0} south {1} east": "{0} ao sul, {1} a leste",
-  "{0} south {1} west": "{0} ao sul, {1} a oeste"
+  "{0} south {1} west": "{0} ao sul, {1} a oeste",
+  "tab": "guia",
+  "radio button": "botão de opção",
+  "checkbox": "caixa de seleção",
+  "button": "botão"
 }

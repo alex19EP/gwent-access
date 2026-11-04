@@ -192,11 +192,50 @@ namespace GwentAccess.Ui
         /// describer's names), Space = all its texts, Enter = the game's click. <paramref name="label"/>
         /// overrides the label when the recipe knows better.
         /// </summary>
+        /// <summary>Set by a screen whose radio toggles are tabs the game draws as such (the leaderboard's
+        /// regions): checked by <see cref="Role"/> before the control's own kind.</summary>
+        public static Func<AControl, bool> IsTab = null;
+
+        /// <summary>
+        /// What kind of control <paramref name="c"/> is, as a screen reader names it after the label: "tab" for
+        /// one of a radio group's toggles drawn as a tab (its object or type named so, or a screen saying so
+        /// through <see cref="IsTab"/>), "radio button" for another radio choice (VERSUS AI / VERSUS PLAYER),
+        /// "checkbox" for a toggle on its own or in a checkbox group (the deck builder's filters), "button" for
+        /// anything else clicked. Null for what isn't a control.
+        /// </summary>
+        public static string Role(AControl c)
+        {
+            try
+            {
+                if (c == null) return null;
+                if (IsTab != null && IsTab(c)) return Loc.T("tab");
+                var t = c.TryCast<ToggleButtonControl>();
+                if (t != null)
+                {
+#if GWENT
+                    var group = t.GetComponentInParent<ToggleGroup>();
+                    if (group != null && group.m_ToggleMode == ToggleGroup.ToggleGroupMode.Radio)
+                    {
+                        string n = (c.gameObject.name + " " + c.GetIl2CppType().Name).ToLowerInvariant();
+                        return n.Contains("tab") ? Loc.T("tab") : Loc.T("radio button");
+                    }
+#endif
+                    return Loc.T("checkbox");
+                }
+                string type = c.GetIl2CppType().Name.ToLowerInvariant();
+                if (type.Contains("tab")) return Loc.T("tab");
+                if (c.TryCast<ButtonControl>() != null) return Loc.T("button");
+            }
+            catch { }
+            return null;
+        }
+
         public static NodeVtable Button(AControl c, Func<string> label = null)
         {
             var anns = new List<NodeAnnouncement>
             {
                 new NodeAnnouncement(label ?? (() => Label(c)), kind: AnnouncementKinds.Label),
+                new NodeAnnouncement(() => Role(c), kind: AnnouncementKinds.Role),
                 new NodeAnnouncement(() => SafeEnabled(c) ? null : Loc.T("unavailable"), live: true, kind: AnnouncementKinds.Enabled),
             };
 #if GWENT // cosmetics thumbnails: Gwent's vanity UI, absent from Thronebreaker

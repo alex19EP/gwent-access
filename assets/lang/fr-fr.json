@@ -581,5 +581,9 @@
   "{0} north {1} east": "{0} nord {1} est",
   "{0} north {1} west": "{0} nord {1} ouest",
   "{0} south {1} east": "{0} sud {1} est",
-  "{0} south {1} west": "{0} sud {1} ouest"
+  "{0} south {1} west": "{0} sud {1} ouest",
+  "tab": "onglet",
+  "radio button": "bouton radio",
+  "checkbox": "case à cocher",
+  "button": "bouton"
 }

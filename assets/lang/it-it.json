@@ -581,5 +581,9 @@
   "{0} north {1} east": "{0} a nord e {1} a est",
   "{0} north {1} west": "{0} a nord e {1} a ovest",
   "{0} south {1} east": "{0} a sud e {1} a est",
-  "{0} south {1} west": "{0} a sud e {1} a ovest"
+  "{0} south {1} west": "{0} a sud e {1} a ovest",
+  "tab": "scheda",
+  "radio button": "pulsante di opzione",
+  "checkbox": "casella di controllo",
+  "button": "pulsante"
 }

@@ -581,5 +581,9 @@
   "{0} north {1} east": "{0} na północ, {1} na wschód",
   "{0} north {1} west": "{0} na północ, {1} na zachód",
   "{0} south {1} east": "{0} na południe, {1} na wschód",
-  "{0} south {1} west": "{0} na południe, {1} na zachód"
+  "{0} south {1} west": "{0} na południe, {1} na zachód",
+  "tab": "karta",
+  "radio button": "przycisk opcji",
+  "checkbox": "pole wyboru",
+  "button": "przycisk"
 }

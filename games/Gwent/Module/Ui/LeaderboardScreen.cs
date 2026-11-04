@@ -66,6 +66,10 @@ namespace GwentAccess.Ui
                 var toggles = CrimsonNodes.Leaves(filters, used);
                 if (toggles.Count > 0)
                 {
+                    // The regions are tabs: picking one shows its board.
+                    var ptrs = new HashSet<IntPtr>();
+                    foreach (var c in toggles) ptrs.Add(c.Pointer);
+                    CrimsonNodes.IsTab = c => ptrs.Contains(c.Pointer);
                     b.BeginStop("lb:filters");
                     foreach (var c in toggles)
                     {
@@ -109,7 +113,17 @@ namespace GwentAccess.Ui
             if (bar.Count > 0)
             {
                 b.BeginStop("lb:bar");
-                foreach (var c in bar) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+                IntPtr next = IntPtr.Zero, prev = IntPtr.Zero, top = IntPtr.Zero;
+                try { next = p.m_NextPage?.Button?.Pointer ?? IntPtr.Zero; prev = p.m_PreviousPage?.Button?.Pointer ?? IntPtr.Zero; top = p.m_TopPage?.Button?.Pointer ?? IntPtr.Zero; } catch { }
+                foreach (var c in bar)
+                {
+                    var v = CrimsonNodes.Button(c);
+                    // The page buttons turn the table's page, as their keys do (a click paged the filters).
+                    if (c.Pointer == next) v.OnActivate = () => Turn(x => x.m_NextPage, x => x.HandleInputNextPage());
+                    else if (c.Pointer == prev) v.OnActivate = () => Turn(x => x.m_PreviousPage, x => x.HandleInputPreviousPage());
+                    else if (c.Pointer == top) v.OnActivate = () => Turn(x => x.m_TopPage, x => x.HandleInputTopPage());
+                    b.AddItem(CrimsonNodes.Id(c), v);
+                }
             }
         }
 
@@ -187,8 +201,9 @@ namespace GwentAccess.Ui
                     return;
                 }
                 _turnedFrom = Page(p);
-                if (button != null) Navigator.ClickControl(button);
-                else handler(p);
+                // The panel's own page handler, as its page key calls it. Clicking the Page Down button acted on
+                // the list holding the game's selection, the region filters, and picked Pro Rank instead.
+                handler(p);
             }
             catch (Exception e) { Plugin.LogInfo("[leaderboard] page turn failed: " + e.Message); }
         }
@@ -210,6 +225,6 @@ namespace GwentAccess.Ui
             _turnedFrom = int.MinValue;
         }
 
-        public override void OnPop() => _turnedFrom = int.MinValue;
+        public override void OnPop() { _turnedFrom = int.MinValue; CrimsonNodes.IsTab = null; }
     }
 }

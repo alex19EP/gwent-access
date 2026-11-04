@@ -581,5 +581,9 @@
   "{0} north {1} east": "{0} Nord, {1} Ost",
   "{0} north {1} west": "{0} Nord, {1} West",
   "{0} south {1} east": "{0} Süd, {1} Ost",
-  "{0} south {1} west": "{0} Süd, {1} West"
+  "{0} south {1} west": "{0} Süd, {1} West",
+  "tab": "Registerkarte",
+  "radio button": "Optionsfeld",
+  "checkbox": "Kontrollkästchen",
+  "button": "Schalter"
 }

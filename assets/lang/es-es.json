@@ -581,5 +581,9 @@
   "{0} north {1} east": "{0} al norte, {1} al este",
   "{0} north {1} west": "{0} al norte, {1} al oeste",
   "{0} south {1} east": "{0} al sur, {1} al este",
-  "{0} south {1} west": "{0} al sur, {1} al oeste"
+  "{0} south {1} west": "{0} al sur, {1} al oeste",
+  "tab": "pestaña",
+  "radio button": "botón de opción",
+  "checkbox": "casilla de verificación",
+  "button": "botón"
 }

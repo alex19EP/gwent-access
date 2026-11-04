@@ -59,6 +59,9 @@ namespace GwentAccess
         public static void Say(string text, bool interrupt = false)
         {
             if (string.IsNullOrWhiteSpace(text) || Muted) return;
+            // A label ending in a colon joined to its value with ", " ("New Quest:, 07h: 32m"): the colon is
+            // the separator already.
+            if (text.IndexOf(":, ", StringComparison.Ordinal) >= 0) text = text.Replace(":, ", ": ");
 #if DEBUG
             Observer?.Invoke(text);
 #endif
