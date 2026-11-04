@@ -70,6 +70,7 @@ namespace GwentAccess
             Ui.ScreenManager.Register(new Ui.JourneyStoryScreen());
             Ui.ScreenManager.Register(new Ui.WhatsNewScreen());
             Ui.ScreenManager.Register(new Ui.LeaderboardScreen());
+            Ui.ScreenManager.Register(new Ui.SeasonTransitionScreen());
             Ui.ScreenManager.Register(new Ui.TutorialPanelScreen());
             Ui.ScreenManager.Register(new Ui.RewardPopupScreen());
             Ui.ScreenManager.Register(new Ui.CardPreviewScreen());
