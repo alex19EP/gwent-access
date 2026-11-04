@@ -48,6 +48,42 @@ namespace GwentAccess.Ui
 
         private static readonly Regex SpriteTag = new Regex("<sprite[^>]*name=\"([^\"]+)\"[^>]*>", RegexOptions.IgnoreCase);
 
+        // A popup-icon sprite (<sprite="PopupIcons" name="Scraps">, name quoted or not), with the "5 x " drawn
+        // before it when there is one.
+        private static readonly Regex IconTag = new Regex(
+            @"(?:(?<n>\d+)\s*x\s*)?<sprite[^>]*?\bname=""?(?<name>[^"" >]+)""?[^>]*>", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Rich text with its currency icons named where they are drawn, the tags still in it for
+        /// <see cref="UiText.Clean"/>: "{1} x {2}" with an Ore icon reads "5 Ore". Sprites that aren't a currency
+        /// (input glyphs, the well-rested icon) are left as they are.
+        /// </summary>
+        public static string Inline(string raw)
+        {
+            if (string.IsNullOrEmpty(raw) || raw.IndexOf("<sprite", StringComparison.OrdinalIgnoreCase) < 0) return raw;
+            return IconTag.Replace(raw, m =>
+            {
+                string name = OfIcon(m.Groups["name"].Value);
+                if (name == null) return m.Value;
+                return m.Groups["n"].Success ? m.Groups["n"].Value + " " + name : " " + name + " ";
+            });
+        }
+
+        /// <summary>The currency a popup icon (a sprite name: "Ore", "Scraps") stands for, in the game's words;
+        /// null for any other icon.</summary>
+        public static string OfIcon(string sprite)
+        {
+            switch (sprite.ToLowerInvariant())
+            {
+                case "ore": case "gold": return Of(EVirtualCurrencyType.Gold);
+                case "scraps": return Of(EVirtualCurrencyType.Scraps);
+                case "powder": return Of(EVirtualCurrencyType.Powder);
+                case "rewardpoint": case "rewardpoints": return Of(EVirtualCurrencyType.RewardPoints);
+                case "keg": return Kegs() ?? GameText.Get("panel_currency_keg", null);
+                default: return null;
+            }
+        }
+
         /// <summary>
         /// A rich-text caption with an inline currency sprite, said with the currency named after the amount:
         /// "Создать: &lt;sprite name="ScrapsNeg"&gt; -800" → "Создать: -800 Обрывки". Captions without a known

@@ -24,7 +24,7 @@ namespace GwentAccess
         private static readonly System.Text.RegularExpressions.Regex Holes = new System.Text.RegularExpressions.Regex(@"\{+[^{}]*\}+");
 
         internal static void Speak(UINotificationsPanel panel, string message, bool isKey, string iconLabel,
-            UINotificationData.EPriority priority, bool forceShow = false)
+            UINotificationData.EPriority priority, bool forceShow = false, string iconSprite = null)
         {
             if (string.IsNullOrEmpty(message)) return;
             if (priority == UINotificationData.EPriority.FriendMatchIncoming) return; // InviteScreen
@@ -34,7 +34,18 @@ namespace GwentAccess
             // A translation with its parameters still in it ("Player {0} sent you a gift!") is drawn with them
             // filled from data the call doesn't carry: say it without the holes rather than with braces.
             if (isKey) text = Holes.Replace(text, "");
-            text = UiText.Join(UiText.Clean(text), UiText.Clean(iconLabel ?? ""));
+            if (text.IndexOf("<sprite", StringComparison.OrdinalIgnoreCase) >= 0) Plugin.LogInfo("[notification] raw: " + text);
+            // The GG reward ("... AN ADDITIONAL REWARD! {1} x {2}") draws its currency as an icon: named in place,
+            // "5 Ore", rather than dropped with the other tags ("5 x").
+            text = Ui.Currency.Inline(text);
+            string cased = SentenceCase(text);
+            bool shouted = cased != text;
+            string clean = UiText.Clean(cased);
+            // An amount whose icon is the notification's own picture rather than a sprite in the text.
+            var bare = BareAmount.Match(clean);
+            if (bare.Success && !string.IsNullOrEmpty(iconSprite) && Ui.Currency.OfIcon(iconSprite) is string currency)
+                clean = clean.Substring(0, bare.Index) + bare.Groups[1].Value + " " + currency;
+            text = UiText.Join(shouted ? Capitalize(clean) : clean, UiText.Clean(iconLabel ?? ""));
             if (text.Length == 0) return;
             if (text == _last && (DateTime.UtcNow - _lastAt).TotalSeconds < 2) return;
             _last = text;
@@ -42,6 +53,45 @@ namespace GwentAccess
             Plugin.LogInfo("[notification] " + priority + ": " + text);
             Speech.Say(text, false);
         }
+
+        // "5 x" at the end: an amount drawn before an icon the text doesn't carry.
+        private static readonly System.Text.RegularExpressions.Regex BareAmount = new System.Text.RegularExpressions.Regex(@"(\d+)\s*x$");
+        private static readonly System.Text.RegularExpressions.Regex Tags = new System.Text.RegularExpressions.Regex("(<[^>]*>)");
+        private static readonly System.Text.RegularExpressions.Regex Word = new System.Text.RegularExpressions.Regex(@"(?<![\p{L}\d_])[\p{L}']{2,}(?![\p{L}\d_])");
+        private static readonly System.Text.RegularExpressions.Regex SentenceStart = new System.Text.RegularExpressions.Regex(@"(^|[.!?]\s+)(\p{Ll})");
+
+        /// <summary>
+        /// Some notifications are written in capitals in the translation itself ("GOOD GAME! THANKS TO YOUR
+        /// OPPONENT {0} ..."), as the banner draws them; a screen reader shouts those or spells short words. Text
+        /// that is mostly capitals has its all-capital words put in lower case (the inserted player name, mixed
+        /// case, is kept, as are the tags and "GG"); <see cref="Capitalize"/> then starts each sentence with a
+        /// capital. The words stay the game's.
+        /// </summary>
+        private static string SentenceCase(string raw)
+        {
+            string plain = UiText.Clean(raw);
+            int letters = 0, upper = 0;
+            foreach (char ch in plain)
+                if (char.IsLetter(ch)) { letters++; if (char.IsUpper(ch)) upper++; }
+            if (letters < 8 || upper * 10 < letters * 7) return raw;
+            var parts = Tags.Split(raw);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].StartsWith("<")) continue;
+                parts[i] = Word.Replace(parts[i], m =>
+                {
+                    string w = m.Value;
+                    if (w == "GG") return w;
+                    foreach (char ch in w) if (char.IsLetter(ch) && !char.IsUpper(ch)) return w;
+                    return w.ToLowerInvariant();
+                });
+            }
+            return string.Concat(parts);
+        }
+
+        // Each sentence starts with a capital ("good game! thanks" → "Good game! Thanks").
+        private static string Capitalize(string s) =>
+            string.IsNullOrEmpty(s) ? s : SentenceStart.Replace(s, m => m.Groups[1].Value + m.Groups[2].Value.ToUpperInvariant());
 
         private static bool Allowed(UINotificationsPanel panel, UINotificationData.EPriority priority)
         {
@@ -69,7 +119,8 @@ namespace GwentAccess
         static void Postfix(UINotificationsPanel __instance, UINotificationData data) => NotificationSpeech.Guard(() =>
         {
             if (data != null)
-                NotificationSpeech.Speak(__instance, data.message, data.messageIsLocKey, data.iconLabel, data.priority, data.ForceShow);
+                NotificationSpeech.Speak(__instance, data.message, data.messageIsLocKey, data.iconLabel, data.priority, data.ForceShow,
+                    data.IconSpriteName);
         });
     }
 
