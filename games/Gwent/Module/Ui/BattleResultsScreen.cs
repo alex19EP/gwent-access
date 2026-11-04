@@ -215,9 +215,10 @@ namespace GwentAccess.Ui
             try
             {
                 // A banner leads with its big number (rank, level) before its title: read the title first, then
-                // the number named as what it is ("Ranked, Rank 30", "Experience, Level 6, 173 of 225 XP",
-                // "Journey, Level 3, 8 of 24, 9 bonus left"). The quest list is read as items of its own.
-                var parts = BannerTexts(banner);
+                // the number named as what it is ("Ranked, Rank 30", "Experience, Level 6, progress 173 of 225 XP",
+                // "Journey, Level 3, progress 8 of 24, 9 bonus left"). The quest list is read as items of its own.
+                // Its bar's counter says it is progress ("progress 8 of 24"), not a position.
+                var parts = BannerTexts(banner).ConvertAll(UiText.AsProgress);
                 if (parts.Count > 1 && int.TryParse(parts[0], out _))
                 {
                     string number = parts[0];

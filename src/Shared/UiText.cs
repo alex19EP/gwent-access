@@ -212,15 +212,17 @@ namespace GwentAccess
         public static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
 
         private static readonly System.Text.RegularExpressions.Regex BareCounter =
-            new System.Text.RegularExpressions.Regex(@"^(\d+)\s+\D{1,6}\s+(\d+)$");
+            new System.Text.RegularExpressions.Regex(@"^(\d+)\s+\D{1,6}\s+(\d+)(?:\s+(?<unit>\p{L}{1,8}))?$");
 
-        /// <summary>A progress bar's counter alone ("7/142", which <see cref="Clean"/> made "7 of 142") said as
-        /// progress, as the quests say theirs: "General, progress 7 of 142, 2 of 11", not two positions in a
-        /// row. Any other text comes back as it is.</summary>
+        /// <summary>A progress bar's counter alone ("7/142", which <see cref="Clean"/> made "7 of 142"; "173 of
+        /// 225 XP" with its unit) said as progress, as the quests say theirs: "General, progress 7 of 142, 2 of
+        /// 11", not two positions in a row. Any other text comes back as it is.</summary>
         public static string AsProgress(string s)
         {
             var m = BareCounter.Match(s ?? "");
-            return m.Success ? Loc.T("progress {0} of {1}", m.Groups[1].Value, m.Groups[2].Value) : s;
+            if (!m.Success) return s;
+            string said = Loc.T("progress {0} of {1}", m.Groups[1].Value, m.Groups[2].Value);
+            return m.Groups["unit"].Success ? said + " " + m.Groups["unit"].Value : said;
         }
 
         /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers. A tag becomes a space (it may
