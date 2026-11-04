@@ -207,13 +207,31 @@ namespace GwentAccess
             return null;
         }
 
+        /// <summary>A status's name, as its icon shows it. A combined token (several statuses at once, as a
+        /// purify takes them all off: "card_token_-9", every status but Ambush) has no string of its own and is
+        /// named status by status.</summary>
         internal static string StatusName(ECardToken token)
         {
+            if (!Single(token))
+            {
+                var names = new List<string>();
+                for (int bit = 0; bit < 16; bit++)
+                    if (((int)token & (1 << bit)) != 0) names.Add(StatusName((ECardToken)(1 << bit)));
+                return string.Join(", ", names);
+            }
             string name = "";
             try { name = UiText.Clean(LocalizationHelper.GetCardStatus(token)); } catch { }
+            if (name.StartsWith("[MISSING]")) name = "";
             int colon = name.IndexOf(':');
             if (colon > 0) name = name.Substring(0, colon).Trim();
             return name.Length > 0 ? name : token.ToString();
+        }
+
+        /// <summary>Whether <paramref name="token"/> is one status, not several (or All).</summary>
+        internal static bool Single(ECardToken token)
+        {
+            int v = (int)token;
+            return v > 0 && (v & (v - 1)) == 0;
         }
 
         internal static string RowEffectName(ELocationToken token)
@@ -469,7 +487,9 @@ namespace GwentAccess
 
 #if GWENT // Thronebreaker's AbilityVFXHandler has no OnCardStatusAttack (nor a CardStatusAttack type); its hook is still to be found
     /// <summary>A status put on or taken off: "Tourney Joust: shield on your Ard Feainn Heavy Cavalry, power 2,
-    /// armor 2." Removal is worded with the game's "purify": "… purify shield from …".</summary>
+    /// armor 2." Removal is worded with the game's "purify": "… purify shield from …"; a purify that takes
+    /// every status off (one combined token) is just the game's word: "Imperial Diviner: purify opponent's
+    /// Ducal Guard, power 4."</summary>
     [HarmonyPatch(typeof(AbilityVFXHandler), nameof(AbilityVFXHandler.OnCardStatusAttack))]
     internal static class NarrateStatusAttack
     {
@@ -479,10 +499,16 @@ namespace GwentAccess
             if (a == null) return;
             var token = a.DeltaStatus;
             if (token == 0) try { if (a.ChangedStatuses != null && a.ChangedStatuses.Count > 0) token = a.ChangedStatuses[0]; } catch { }
+            bool remove = a.DeltaOperation == ETokenOp.Remove;
             string label = Narrator.StatusName(token);
             string source = Narrator.Source(a.Attacker);
             string join = "on";
-            if (a.DeltaOperation == ETokenOp.Remove)
+            if (remove && !Narrator.Single(token))
+            {
+                label = GameText.Term("keyword_purify", "Purify");
+                join = null;
+            }
+            else if (remove)
             {
                 // A status ending itself — a shield used up — has no source but the status already named.
                 if (source == label) source = null;
