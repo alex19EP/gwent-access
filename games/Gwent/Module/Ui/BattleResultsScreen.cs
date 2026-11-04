@@ -94,6 +94,19 @@ namespace GwentAccess.Ui
                     Announcements = new[] { new NodeAnnouncement(() => BannerText(banner), kind: AnnouncementKinds.Label) },
                     OnTooltip = () => Speech.Say(BannerText(banner) ?? "", true),
                 });
+                // The Journey banner opens its quest list under the bar once it has filled: each quest is its own
+                // item, read as the Journey side window reads it ("..., progress 4 of 10, Reward: 20 ..."), so a
+                // quest's counter isn't glued onto the banner and taken for a list position.
+                var quests = Quests(banner);
+                for (int j = 0; j < quests.Count; j++)
+                {
+                    var quest = quests[j];
+                    b.AddItem(last = ControlId.Structural("results:reward:" + i + ":quest:" + j), new NodeVtable
+                    {
+                        Announcements = new[] { new NodeAnnouncement(() => SideWindowScreen.JourneyQuestText(quest), kind: AnnouncementKinds.Label) },
+                        OnTooltip = () => Speech.Say(SideWindowScreen.JourneyQuestText(quest), true),
+                    });
+                }
             }
 
             foreach (var info in new[] { panel.m_P1Info, panel.m_P2Info })
@@ -200,18 +213,67 @@ namespace GwentAccess.Ui
         {
             try
             {
-                // A banner leads with its big number (rank, level) before its title: read the title first
-                // ("Рейтинг 30", "Опыт 3, 46 / 150 ОПЫТ").
-                var parts = CrimsonNodes.Texts(banner);
+                // A banner leads with its big number (rank, level) before its title: read the title first, then
+                // the number named as what it is ("Ranked, Rank 30", "Experience, Level 6, 173 of 225 XP",
+                // "Journey, Level 3, 8 of 24, 9 bonus left"). The quest list is read as items of its own.
+                var parts = BannerTexts(banner);
                 if (parts.Count > 1 && int.TryParse(parts[0], out _))
                 {
                     string number = parts[0];
                     parts.RemoveAt(0);
-                    parts[0] = parts[0] + " " + number;
+                    string word = NumberWord(banner);
+                    if (word != null) parts.Insert(1, word + " " + number);
+                    else parts[0] = parts[0] + " " + number;
                 }
                 return parts.Count > 0 ? string.Join(", ", parts) : null;
             }
             catch { return null; }
+        }
+
+        // What a banner's big number is: the rank on the ranked banner, the level on the experience and Journey
+        // banners; null for the others (daily, arena), read as before ("title number").
+        private static string NumberWord(UIBattleResultsRewardBanner banner)
+        {
+            switch (banner.m_CurrentMode)
+            {
+                case UIBattleResultsRewardBanner.BannerMode.Rank: return GameText.Get("outcome_rank", "Rank");
+                case UIBattleResultsRewardBanner.BannerMode.Experience:
+                case UIBattleResultsRewardBanner.BannerMode.Journey: return GameText.Get("player_profile_level", "Level");
+                default: return null;
+            }
+        }
+
+        // A banner's shown texts in order, each once, less those of its quest list.
+        private static List<string> BannerTexts(UIBattleResultsRewardBanner banner)
+        {
+            var parts = new List<string>();
+            var skip = new List<UnityEngine.Transform>();
+            try { if (banner.m_QuestListRoot != null) skip.Add(banner.m_QuestListRoot); } catch { }
+            try { if (banner.m_ScrollArea != null) skip.Add(banner.m_ScrollArea.transform); } catch { }
+            try { if (banner.m_QuestList != null) skip.Add(banner.m_QuestList.transform); } catch { }
+            foreach (var q in Quests(banner)) skip.Add(q.transform);
+            foreach (var t in banner.GetComponentsInChildren<TMPro.TMP_Text>(false))
+            {
+                bool inQuests = false;
+                foreach (var root in skip) if (t.transform.IsChildOf(root)) { inQuests = true; break; }
+                if (inQuests) continue;
+                string s = UiText.Clean(t.text);
+                if (s.Length > 0 && !s.StartsWith("[MISSING]") && !UiText.IsPlaceholder(s) && !parts.Contains(s)) parts.Add(s);
+            }
+            return parts;
+        }
+
+        // The Journey banner's shown quests, in list order (under its quest list root, wherever the game puts
+        // the list's scroll area).
+        private static List<GwentUnity.UIQuestJourneyListItem> Quests(UIBattleResultsRewardBanner banner)
+        {
+            var list = new List<GwentUnity.UIQuestJourneyListItem>();
+            try
+            {
+                foreach (var q in banner.GetComponentsInChildren<GwentUnity.UIQuestJourneyListItem>(false)) list.Add(q);
+            }
+            catch { }
+            return list;
         }
 
         // A player's card: their name and title (an AI opponent's name is blank, so only its title shows), then
