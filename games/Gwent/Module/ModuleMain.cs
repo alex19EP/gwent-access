@@ -51,6 +51,7 @@ namespace GwentAccess
             Ui.ScreenManager.Register(new Ui.ProductPreviewScreen());
             Ui.ScreenManager.Register(new Ui.KegOpeningScreen());
             Ui.ScreenManager.Register(new Ui.ProfileScreen());
+            Ui.ScreenManager.Register(new Ui.ShowcasePickerScreen());
             Ui.ScreenManager.Register(new Ui.ContactsScreen());
             Ui.ScreenManager.Register(new Ui.QuestsScreen());
             Ui.ScreenManager.Register(new Ui.SideWindowScreen());

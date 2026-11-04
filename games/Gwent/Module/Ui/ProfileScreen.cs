@@ -120,6 +120,13 @@ namespace GwentAccess.Ui
                 {
                     new NodeAnnouncement(() => SafeChosen(box, c) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
                 };
+            var trinket = c.TryCast<UIATrinketItem>();
+            if (trinket != null)
+                v.Announcements = new List<NodeAnnouncement>(v.Announcements)
+                {
+                    new NodeAnnouncement(() => Equipped(trinket) ? GameText.Get("interface_mainmenu_equipped", "Equipped") : null,
+                        live: true, kind: AnnouncementKinds.Selected),
+                };
             var t = c.TryCast<ToggleButtonControl>();
             if (t != null)
                 v.Announcements = new List<NodeAnnouncement>(v.Announcements)
@@ -624,6 +631,7 @@ namespace GwentAccess.Ui
         /// </summary>
         private static string Describe(AControl c)
         {
+            if (TrinketText(c) is string trinket) return trinket;
             var own = CrimsonNodes.Texts(c);
             if (own.Count > 0)
             {
@@ -647,6 +655,34 @@ namespace GwentAccess.Ui
                 if (!parts.Contains(s) && !(tip != null && !IsCount(s) && tip.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0)) parts.Add(s);
             if (tip != null && named && !parts.Contains(tip)) parts.Add(tip);
             return parts.Count > 0 ? Joined(parts) : CrimsonNodes.Label(c);
+        }
+
+        /// <summary>
+        /// An item of the cosmetics tab's avatar, border and title pickers (<see cref="UIATrinketItem"/>): a
+        /// picture (or a title's words) a sighted player knows by sight. Named by the item's own name, then
+        /// "Locked" when the player doesn't own it, as the picker greys it out. Equipped is said apart (see
+        /// <see cref="Toggle"/>). Null for any other control.
+        /// </summary>
+        private static string TrinketText(AControl c)
+        {
+            var item = c.TryCast<UIATrinketItem>();
+            if (item == null) return null;
+            var parts = new List<string>();
+            try
+            {
+                var def = item.m_Data?.Item;
+                string key = def?.NameLocalizationKey;
+                if (key != null && GameText.Get(key, null) is string name) parts.Add(name);
+                if (parts.Count == 0) parts.AddRange(CrimsonNodes.Texts(c));
+                if (def != null && !def.IsOwned) parts.Add(GameText.Get("cosmetic_locked", "Locked"));
+            }
+            catch (Exception e) { Plugin.LogInfo("[profile] trinket read failed: " + e.Message); }
+            return parts.Count > 0 ? Joined(parts) : null;
+        }
+
+        private static bool Equipped(UIATrinketItem item)
+        {
+            try { return CrimsonNodes.Shown(item.m_Equiped) || item.m_Data?.IsEquiped == true; } catch { return false; }
         }
 
         private static bool IsCount(string s)
