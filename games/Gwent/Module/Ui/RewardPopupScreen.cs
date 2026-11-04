@@ -30,7 +30,7 @@ namespace GwentAccess.Ui
             {
                 var p = Panel();
                 string title = p == null ? "" : UiText.Clean(p.m_TitleLabel?.Text?.text);
-                return title.Length > 0 ? title : "Rewards";
+                return title.Length > 0 ? title : Loc.T("Rewards");
             }
         }
 
@@ -53,7 +53,7 @@ namespace GwentAccess.Ui
             if (slots.Count > 0)
             {
                 b.BeginStop("rewards");
-                b.PushContext("Rewards");
+                b.PushContext(Loc.T("Rewards"));
                 b.StartRow("rewards"); // side by side as drawn: Left/Right move, Up/Down read a card reward
                 foreach (var s in slots)
                 {
@@ -124,7 +124,7 @@ namespace GwentAccess.Ui
             string s = RewardText.Of(slot.m_Reward);
             if (s != null) return s;
             var texts = CrimsonNodes.Texts(slot);
-            return texts.Count > 0 ? string.Join(", ", texts) : "Reward";
+            return texts.Count > 0 ? string.Join(", ", texts) : Loc.T("Reward");
         }
 
         // A card reward reads as the card in full; anything else as everything its slot prints.
