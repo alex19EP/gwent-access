@@ -519,6 +519,10 @@ namespace GwentAccess.Ui
 
         // Settle calls OnCursorMoved only when the cursor changes; a new request over the same card (an order
         // asking for targets) needs the game's selection put back where the cursor is.
+        /// <summary>Between rounds the board clears under the cursor: its landings stay quiet until the next
+        /// turn starts (keys still read).</summary>
+        public override bool QuietLanding(GraphNode node) => Narrator.BetweenRounds;
+
         public override void OnFocus()
         {
             _mirrorNow = true;

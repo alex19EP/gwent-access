@@ -91,7 +91,12 @@ namespace GwentAccess
             string source = Narrator.Source(a.Attacker);
             if (cards.Count == 1 && (source == null || Narrator.Same(a.Attacker, cards[0])))
             {
-                Narrator.SaySelf(Narrator.Owned(cards[0]), label, Charges(cards[0]));
+                // Charges set, not added (a leader's charge back at a round's start): the counter's new number,
+                // "Opponent's Fruits of Ysgith: 1 charge.", not "charge 1: 1 charge".
+                if (a.Operation == ETapChargesOperation.Set)
+                    Narrator.Say(Narrator.First(Narrator.Owned(cards[0])) + ": " + Charges(cards[0]) + ".");
+                else
+                    Narrator.SaySelf(Narrator.Owned(cards[0]), label, Charges(cards[0]));
                 return;
             }
             var targets = cards.ConvertAll(c =>

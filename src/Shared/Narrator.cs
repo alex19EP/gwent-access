@@ -224,10 +224,40 @@ namespace GwentAccess
 
         /// <summary>A round ended: the next draws are the next round's deal, which comes before its mulligan
         /// and its round banner (seen in a practice match: round 2's deal said as three lines).</summary>
-        internal static void DealNext() => _dealNext = true;
+        internal static void DealNext() { _dealNext = true; BetweenRounds = true; }
+
+        /// <summary>From a round's end until the next turn starts: the board clears and the next hand is dealt,
+        /// and the battle screen's cursor moving with it is not news (the hand was read before the mulligan's
+        /// intro, then again after it).</summary>
+        internal static bool BetweenRounds;
+
+        // The power last said for a card in your hand, by card id.
+        private static readonly Dictionary<int, int> _handPower = new Dictionary<int, int>();
+
+        internal static bool InMyHand(Card card)
+        {
+            try { return card.Position.Location == ELocation.Hand && Mine(card.Position.PlayerId); } catch { return false; }
+        }
+
+        /// <summary>A card in your hand that recomputes its power each turn (Caranthir: Golden Child resets, then
+        /// boosts itself by the Frost damage dealt) shows the same number when nothing changed; it is said only
+        /// when the number on it is a new one. Its reset is never said (<see cref="NarrateResetAttack"/>).</summary>
+        internal static bool HandPowerUnchanged(Card card)
+        {
+            if (!InMyHand(card)) return false;
+            try
+            {
+                int id = card.Id, now = card.Data.Power.CurrentPower;
+                if (_handPower.TryGetValue(id, out int was) && was == now) return true;
+                if (_handPower.Count > 100) _handPower.Clear();
+                _handPower[id] = now;
+            }
+            catch { }
+            return false;
+        }
 
         /// <summary>A turn started: any deal is over, and its draws are said before the turn's banner.</summary>
-        internal static void EndDeal() => _dealAt = -1;
+        internal static void EndDeal() { _dealAt = -1; BetweenRounds = false; }
 
         /// <summary>A card drawn: yours by name, the opponent's as a count (their hand is face down).</summary>
         internal static void Drawn(Card card, EPlayerId who)
@@ -546,6 +576,10 @@ namespace GwentAccess
                     if (Narrator.InOpponentHand(card)) inTheirHand++;
                     continue;
                 }
+                if (Narrator.HandPowerUnchanged(card)) continue;
+                // A card in your hand that recomputes its power (reset, then boost) shows only its new number:
+                // "boost 6" read as a gain when it went from 13 to 7.
+                if (Narrator.InMyHand(card) && (a.Attacker == null || Narrator.Same(a.Attacker, card))) { Narrator.Say(Narrator.First(Narrator.Owned(card)) + ": " + Narrator.Stats(card) + "."); continue; }
                 targets.Add(card);
                 try
                 {
@@ -695,7 +729,7 @@ namespace GwentAccess
 #endif
             var targets = new List<Card>();
             foreach (var card in Narrator.List(__0.Targets))
-                if (Narrator.Visible(card)) targets.Add(card);
+                if (Narrator.Visible(card) && !Narrator.InMyHand(card)) targets.Add(card);
             Narrator.SayOnCards(Narrator.Source(__0.Attacker), __0.Attacker, GameText.Term("keyword_reset", "Reset"), null, targets, power: true);
         });
     }
@@ -729,6 +763,21 @@ namespace GwentAccess
             catch { }
             if (rows.Count == 0) return;
             string source = Narrator.Source(a.Attacker);
+            // The effect gone from every row with nothing that took it away (it ran out, or the round's end
+            // cleared the board): "Frost ends on enemy melee, enemy ranged." The clear came as a plain status
+            // change and read "Enemy melee, Enemy ranged, frost.", as if it had been put there.
+            bool gone = true;
+            try
+            {
+                for (int i = 0; a.Targets != null && i < a.Targets.Count; i++)
+                    if (a.Targets[i] != null && (a.Targets[i].Status.Value & token) != 0) gone = false;
+            }
+            catch { gone = false; }
+            if (gone && (source == null || rows.Count == 1 && source == rows[0]) && token != 0)
+            {
+                Narrator.Say(Loc.T("{0} ends on {1}.", Narrator.First(Narrator.RowEffectName(token)), string.Join(", ", rows.ConvertAll(GameText.Lower))));
+                return;
+            }
             if (source == null || (rows.Count == 1 && source == rows[0]))
             {
                 Narrator.SaySelf(string.Join(", ", rows), label, "");
