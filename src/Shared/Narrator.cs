@@ -321,7 +321,15 @@ namespace GwentAccess
                 var status = o.TryCast<CardStatus>();
                 if (status != null) return StatusName(status.Status);
                 var row = o.TryCast<Location>();
-                if (row != null) return RowName(row.PlayerId, row.Loc);
+                // A row's effect hurting a unit (Frost, Fog…): the effect is what a sighted player sees act, so it
+                // is named with its row ("Frost on enemy melee: damage 2 to …"), not the row alone.
+                if (row != null)
+                {
+                    string name = RowName(row.PlayerId, row.Loc);
+                    string effect = null;
+                    try { var st = row.Status.Value; if (st != 0) effect = RowEffectName(st); } catch { }
+                    return string.IsNullOrEmpty(effect) ? name : Loc.T("{0} on {1}", effect, GameText.Lower(name));
+                }
             }
             catch { }
             return null;
