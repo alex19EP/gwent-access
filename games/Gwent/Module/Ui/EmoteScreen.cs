@@ -173,17 +173,53 @@ namespace GwentAccess.Ui
             return s.Length > 0 ? s : CrimsonNodes.Label(slot);
         }
 
+        /// <summary>Whether the slot is drawn usable: the wheel greys a slot's words out (its
+        /// <c>DisabledTextColor</c>) when an emote can't be sent. The slot's own <c>IsInteractable</c> reads false
+        /// on a wheel drawn fully usable (seen in a practice match), so it isn't what the player sees.</summary>
         private static bool Interactable(TauntCategorySelectorView slot)
         {
-            try { return slot.IsInteractable; } catch { return true; }
+            try
+            {
+                var c = slot.Text.color;
+                var d = slot.DisabledTextColor;
+                return !(Mathf.Abs(c.r - d.r) < 0.01f && Mathf.Abs(c.g - d.g) < 0.01f && Mathf.Abs(c.b - d.b) < 0.01f);
+            }
+            catch { return true; }
         }
 
+        /// <summary>
+        /// Sends the emote the way the wheel takes it: the slot selected (as the pointer or stick points at it),
+        /// then the wheel's own press handler, which raises its request to the taunts manager. A cursor click on
+        /// the slot doesn't do it: the radial wheel reads clicks from the pointer's angle over the whole view, so
+        /// a click sent to the slot only closed the wheel, nothing sent (practice match, taunt count unchanged).
+        /// </summary>
         private static void Send(TauntCategorySelectorView slot)
         {
             if (!Interactable(slot)) { Speech.Say(Unavailable, true); return; }
+            var v = View();
+            if (v == null) return;
             Plugin.LogInfo("[emotes] send: " + SlotLabel(slot));
             NarrateTauntWho.SentAt = Time.realtimeSinceStartup;
-            Navigator.ClickControl(slot);
+            try
+            {
+                v.SelectSlot(slot);
+                v.OnCategoryPressed(slot.Cast<ButtonControl>());
+            }
+            catch (Exception e) { Plugin.LogInfo("[emotes] send failed: " + e.Message); Speech.Say(Unavailable, true); }
+        }
+
+        /// <summary>The wheel's highlight follows the cursor, as it follows the pointer's angle.</summary>
+        public override void OnCursorMoved(GraphNode node)
+        {
+            base.OnCursorMoved(node);
+            try
+            {
+                var v = View();
+                if (v == null || node?.Id.Reference is not AControl c) return;
+                foreach (var slot in v.m_SlotViews)
+                    if (slot != null && slot.Pointer == c.Pointer) { v.SelectSlot(slot); return; }
+            }
+            catch (Exception e) { Plugin.LogInfo("[emotes] select failed: " + e.Message); }
         }
 
         private static bool Muted(TauntsManager tm)
