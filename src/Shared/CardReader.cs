@@ -15,7 +15,7 @@ namespace GwentAccess
     /// the green number), the status icons with the numbers they carry, the order icon's state; base power
     /// only in the details, where the preview's header shows it. A card the game hides from the local player
     /// reads "hidden card" and nothing else. Card text stays in the game's language; the few words the mod
-    /// adds are English, like the rest of the mod.
+    /// adds go through <see cref="Loc"/>, like the rest of the mod.
     /// </summary>
     internal static class CardReader
     {

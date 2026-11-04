@@ -171,7 +171,7 @@ namespace GwentAccess.Ui
                 return data.RewardState switch
                 {
                     EJourneyRewardState.Locked => Loc.T("locked"),
-                    EJourneyRewardState.ReadyToClaim => Loc.T("readytoclaim"),
+                    EJourneyRewardState.ReadyToClaim => Loc.T("ready to claim"),
                     EJourneyRewardState.Claimed => Loc.T("claimed"),
                     var other => other.ToString().ToLowerInvariant(),
                 };
