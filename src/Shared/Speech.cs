@@ -53,7 +53,7 @@ namespace GwentAccess
 #endif
 
         /// <summary>The mod is switched off (Gwent's F8): nothing is spoken.</summary>
-        public static bool Muted;
+        public static bool Muted = false;
 
         /// <summary>Speak text. interrupt=true stops whatever is being said first.</summary>
         public static void Say(string text, bool interrupt = false)

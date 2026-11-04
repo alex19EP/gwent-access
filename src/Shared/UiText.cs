@@ -197,7 +197,7 @@ namespace GwentAccess
 
         /// <summary>Names an inline sprite (asset, sprite name) in words, or null to drop it as decoration. Set by
         /// a game module (Gwent: <c>KeyGlyphs</c>, which names input glyphs by the mod's or the controller's key).</summary>
-        public static Func<string, string, string> SpriteWords;
+        public static Func<string, string, string> SpriteWords = null;
         private static readonly System.Text.RegularExpressions.Regex SpaceBeforeClose = new System.Text.RegularExpressions.Regex(@" ([.,:;!?)»])");
         private static readonly System.Text.RegularExpressions.Regex SpaceAfterOpen = new System.Text.RegularExpressions.Regex(@"([(«]) ");
 
