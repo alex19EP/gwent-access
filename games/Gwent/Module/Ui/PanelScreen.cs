@@ -98,12 +98,17 @@ namespace GwentAccess.Ui
         };
 
         // Panels a dedicated screen reads once they finish opening: the fallback would read their placeholders
-        // meanwhile. The journey's story is still the fallback's.
+        // meanwhile. The journey's main view and its story are dedicated (JourneyScreen, JourneyStoryScreen).
         private static bool Dedicated(AGwentPanel p)
         {
             if (p.TryCast<GwentVisuals.UIOuroborosProgressionPanel>() != null) return true;
             var journey = p.TryCast<GwentVisuals.UIJourneyPanel>();
-            try { return journey != null && journey.m_CurrentState == GwentVisuals.JourneyViewState.Main; } catch { return false; }
+            try
+            {
+                return journey != null && (journey.m_CurrentState == GwentVisuals.JourneyViewState.Main
+                    || journey.m_CurrentState == GwentVisuals.JourneyViewState.Story);
+            }
+            catch { return false; }
         }
 
         // The first attached, shown panel on the active layer with something to read or press.

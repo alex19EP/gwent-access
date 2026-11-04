@@ -119,7 +119,7 @@ namespace GwentAccess.Ui
             b.BeginStop("side:journey:buttons");
             AddButton(b, w.m_BuyButton, () => CrimsonNodes.Text(w.m_BuyButton.m_TitleLabel), used);
             AddButton(b, w.m_ProgressionButton, null, used);
-            AddButton(b, w.m_StoryButton, () => "Story", used);
+            AddButton(b, w.m_StoryButton, () => GameText.Get("ui_journey_main_panel_story", "Journey Story"), used);
             AddButton(b, w.m_InfoButton, () => GameText.Capitalized(GameText.Get("ouroboros_info_title", "Information")), used);
         }
 
