@@ -115,7 +115,8 @@ namespace GwentAccess.Ui
         /// still the one focused a second later), so the game turned it down without a word.</summary>
         public static void WatchOpen()
         {
-            if (_openAt < 0 || Time.realtimeSinceStartup - _openAt < 1f) return;
+            // Two seconds: the wheel counts as open only once its show animation is over.
+            if (_openAt < 0 || Time.realtimeSinceStartup - _openAt < 2f) return;
             _openAt = -1;
             Plugin.LogInfo("[emotes] the wheel did not open");
             Speech.Say(Unavailable, true);

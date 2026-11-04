@@ -725,7 +725,8 @@ namespace GwentAccess
         static void Postfix(string __0) => Narrator.Guard("taunt text", () =>
         {
             bool recent = NarrateTauntWho.At > 0 && Time.realtimeSinceStartup - NarrateTauntWho.At < 5f;
-            if (!recent || NarrateTauntWho.Muted) return;
+            // The mute silences only the opponent's emotes; yours still show their bubble.
+            if (!recent || NarrateTauntWho.Opponent && NarrateTauntWho.Muted) return;
             // Your own emote only when just sent from the wheel, once: its bubble says it went.
             bool sent = NarrateTauntWho.SentAt > 0 && Time.realtimeSinceStartup - NarrateTauntWho.SentAt < 5f;
             if (!NarrateTauntWho.Opponent && !sent) return;
