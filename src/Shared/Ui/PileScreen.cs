@@ -26,6 +26,9 @@ namespace GwentAccess.Ui
         private enum Pile { None, Deck, Graveyard }
 
         private Pile _open;
+        private bool _hadCards;
+
+        public override void OnPush() => _hadCards = false; // each opening starts afresh
         private GameController _gc;
 
         public override bool IsActive()
@@ -99,9 +102,13 @@ namespace GwentAccess.Ui
             b.BeginStop("pile");
             if (cards.Count == 0)
             {
+                // A pile that had cards and now shows none is closing (its list empties before it hides): no
+                // content, nothing said. One empty from the start says so.
+                if (_hadCards) return;
                 b.AddLabel(ControlId.Structural("pile:empty"), () => Loc.T("Empty"));
                 return;
             }
+            _hadCards = true;
             b.StartRow();
             foreach (var card in cards)
             {
