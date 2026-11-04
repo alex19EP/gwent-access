@@ -85,6 +85,18 @@ uses the section for the tag it builds as the release notes, so keep each versio
 - The mod's own speech follows the game's language. Machine translations for Russian, German, French, Spanish,
   Polish, Brazilian Portuguese and Italian; corrections from native speakers are welcome (assets/lang).
 - The controller is detected from the game's connect and disconnect events instead of a check every second.
+- Every item says what it is after its name: tab, button, checkbox, radio button, combo box or slider. Settings
+  categories are tabs, and "Categories" and "Options" are no longer said before them.
+- Progress counts say so ("General, progress 7 of 142", "Journey level 3, progress 8 of 24"), so they aren't
+  taken for list positions. Contracts also say their score ("Score 5").
+- Profile: Favorite Cards read as cards, and the faction backs as their faction. The avatar, border and title
+  pickers no longer say "Locked" on the defaults; an item with no name says "Avatar" or "Border".
+- Draft: Show deck opens the deck, read like the deck builder's (cards with no role, Up and Down read a card).
+  Backspace closes it back to Show deck.
+- Claiming a reward lands on the reward instead of Exit.
+- The event window names its currency ("Daily Logins 1 Blood Drops") and its Go to the Shop opens on the
+  products. Empty daily quest slots count among the quests ("2 of 3").
+- Deck builder: Save and exit no longer reads a filter on the way out.
 
 ### For developers
 
