@@ -50,7 +50,7 @@ namespace GwentAccess.Ui
             Announcements = new[]
             {
                 new NodeAnnouncement(() => Placeholder(field) ?? Loc.T(_fallbackName), kind: AnnouncementKinds.Label),
-                NodeAnnouncement.Static(Loc.T("edit")),
+                CrimsonNodes.RolePart(Loc.T("edit")),
                 new NodeAnnouncement(() => Typed(field) is string t && t.Length > 0 ? t : null, kind: AnnouncementKinds.Value),
                 // Arrows don't enter the field (they move between items): say how to, until typing starts.
                 new NodeAnnouncement(() => Editing() ? null : Loc.T("Enter to type"), live: true, kind: AnnouncementKinds.Tooltip),

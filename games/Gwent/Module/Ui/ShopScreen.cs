@@ -108,7 +108,8 @@ namespace GwentAccess.Ui
                 foreach (var c in prices)
                 {
                     var tile = c;
-                    b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => PricedLabel(tile)));
+                    // A toggle in no group picking one price ("x2, $4.99, button"): the page has no tab bar.
+                    b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => PricedLabel(tile)), Loc.T("button")));
                 }
             }
             foreach (var d in view.GetComponentsInChildren<UIGeneralDescriptionView>(false)) AddDetails(b, d);
@@ -193,7 +194,8 @@ namespace GwentAccess.Ui
         // A front-page tile reads all its words ("Выгодно!, Стартовый набор").
         private static void AddOther(GraphBuilder b, AControl c)
         {
-            var v = CrimsonNodes.Button(c, () => PromoLabel(c) ?? AllTexts(c));
+            // The category tiles lead to a page of their own (Back returns), drawn as tiles, not a tab bar.
+            var v = CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => PromoLabel(c) ?? AllTexts(c)), Loc.T("button"));
             v.OnTooltip = () => Speech.Say(PromoLabel(c) ?? CrimsonNodes.Details(c), true);
             b.AddItem(CrimsonNodes.Id(c), v);
         }
@@ -258,7 +260,8 @@ namespace GwentAccess.Ui
                     continue;
                 }
                 var c = e.Tile;
-                var v = CrimsonNodes.Button(c, () => TileLabel(c));
+                // A product tile picks the product the details panel shows: a button, not a checkbox.
+                var v = CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => TileLabel(c)), Loc.T("button"));
                 // Space: the details panel, which shows the product under the cursor.
                 v.OnTooltip = () =>
                 {
@@ -366,6 +369,7 @@ namespace GwentAccess.Ui
                 Announcements = new[]
                 {
                     new NodeAnnouncement(Title, kind: AnnouncementKinds.Label),
+                    CrimsonNodes.RolePart(Loc.T("spin button")),
                     new NodeAnnouncement(Value, live: true, kind: AnnouncementKinds.Value),
                 },
                 OnAdjust = (dir, large) =>

@@ -66,14 +66,11 @@ namespace GwentAccess.Ui
                 var toggles = CrimsonNodes.Leaves(filters, used);
                 if (toggles.Count > 0)
                 {
-                    // The regions are tabs: picking one shows its board.
-                    var ptrs = new HashSet<IntPtr>();
-                    foreach (var c in toggles) ptrs.Add(c.Pointer);
-                    CrimsonNodes.IsTab = c => ptrs.Contains(c.Pointer);
                     b.BeginStop("lb:filters");
                     foreach (var c in toggles)
                     {
-                        var v = CrimsonNodes.Button(c);
+                        // The regions are tabs: picking one shows its board.
+                        var v = CrimsonNodes.WithRole(CrimsonNodes.Button(c), Loc.T("tab"));
                         var t = c.TryCast<ToggleButtonControl>();
                         if (t != null)
                             v.Announcements = new List<NodeAnnouncement>(v.Announcements)
@@ -225,6 +222,6 @@ namespace GwentAccess.Ui
             _turnedFrom = int.MinValue;
         }
 
-        public override void OnPop() { _turnedFrom = int.MinValue; CrimsonNodes.IsTab = null; }
+        public override void OnPop() { _turnedFrom = int.MinValue; }
     }
 }

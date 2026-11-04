@@ -188,39 +188,38 @@ namespace GwentAccess.Ui
         }
 
         /// <summary>
-        /// A button-like control: label = its first text (the title; icon-only controls fall back to the legacy
-        /// describer's names), Space = all its texts, Enter = the game's click. <paramref name="label"/>
-        /// overrides the label when the recipe knows better.
-        /// </summary>
-        /// <summary>Set by a screen whose radio toggles are tabs the game draws as such (the leaderboard's
-        /// regions): checked by <see cref="Role"/> before the control's own kind.</summary>
-        public static Func<AControl, bool> IsTab = null;
-
-        /// <summary>
-        /// What kind of control <paramref name="c"/> is, as a screen reader names it after the label: "tab" for
-        /// one of a radio group's toggles drawn as a tab (its object or type named so, or a screen saying so
-        /// through <see cref="IsTab"/>), "radio button" for another radio choice (VERSUS AI / VERSUS PLAYER),
-        /// "checkbox" for a toggle on its own or in a checkbox group (the deck builder's filters), "button" for
-        /// anything else clicked. Null for what isn't a control.
+        /// What kind of control <paramref name="c"/> is, as a screen reader names it after the label:
+        /// - "tab" for a tab container's menu entry (a *MenuItem toggle: the profile's tabs, the cosmetics
+        ///   picker's Avatars / Borders) or a radio group's toggle drawn as a tab (its object or type named so);
+        ///   a screen that knows its toggles are tabs (the leaderboard's regions) says so through
+        ///   <see cref="WithRole"/>;
+        /// - "radio button" for another radio choice (VERSUS AI / VERSUS PLAYER);
+        /// - "checkbox" for a toggle in a checkbox group (the deck builder's filters);
+        /// - "button" for anything else clicked, a toggle in no group too (the shop's products and price options
+        ///   pick one thing; a screen that speaks such a toggle's checked state passes "checkbox" itself).
+        /// Null for what isn't a control.
         /// </summary>
         public static string Role(AControl c)
         {
             try
             {
                 if (c == null) return null;
-                if (IsTab != null && IsTab(c)) return Loc.T("tab");
                 var t = c.TryCast<ToggleButtonControl>();
                 if (t != null)
                 {
 #if GWENT
+                    // A tab container's menu entry (UIMenuItem<,>: the profile's tabs, the cosmetics picker's
+                    // Avatars / Borders / Titles, the contracts' categories) is a tab, whatever group holds it.
+                    if (c.GetIl2CppType().Name.EndsWith("MenuItem", StringComparison.Ordinal)) return Loc.T("tab");
                     var group = t.GetComponentInParent<ToggleGroup>();
                     if (group != null && group.m_ToggleMode == ToggleGroup.ToggleGroupMode.Radio)
                     {
                         string n = (c.gameObject.name + " " + c.GetIl2CppType().Name).ToLowerInvariant();
                         return n.Contains("tab") ? Loc.T("tab") : Loc.T("radio button");
                     }
+                    if (group != null && group.m_ToggleMode == ToggleGroup.ToggleGroupMode.Checkbox) return Loc.T("checkbox");
 #endif
-                    return Loc.T("checkbox");
+                    return Loc.T("button");
                 }
                 string type = c.GetIl2CppType().Name.ToLowerInvariant();
                 if (type.Contains("tab")) return Loc.T("tab");
@@ -230,6 +229,33 @@ namespace GwentAccess.Ui
             return null;
         }
 
+        /// <summary>
+        /// The role part for a node a screen builds by hand: <paramref name="role"/> is the word already
+        /// translated (<c>Loc.T("button")</c>) or null for none. It goes right after the label part, where
+        /// <see cref="Button"/> puts <see cref="Role"/>: "Rerolls, button, 2 of 3".
+        /// </summary>
+        public static NodeAnnouncement RolePart(string role) => new NodeAnnouncement(() => role, kind: AnnouncementKinds.Role);
+
+        /// <summary>
+        /// <paramref name="v"/> with its role part set to <paramref name="role"/> (null drops it): a
+        /// <see cref="Button"/> whose control is a card in a row of cards says no role, as Hearthstone Access
+        /// reads cards; a header the game draws as a plain button but that opens a list keeps "button".
+        /// The part replaces the existing role part, or goes right after the label.
+        /// </summary>
+        public static NodeVtable WithRole(NodeVtable v, string role)
+        {
+            var anns = new List<NodeAnnouncement>(v.Announcements);
+            anns.RemoveAll(a => a != null && a.Kind == AnnouncementKinds.Role);
+            if (role != null) anns.Insert(anns.Count > 0 ? 1 : 0, RolePart(role));
+            v.Announcements = anns;
+            return v;
+        }
+
+        /// <summary>
+        /// A button-like control: label = its first text (the title; icon-only controls fall back to the legacy
+        /// describer's names), Space = all its texts, Enter = the game's click. <paramref name="label"/>
+        /// overrides the label when the recipe knows better.
+        /// </summary>
         public static NodeVtable Button(AControl c, Func<string> label = null)
         {
             var anns = new List<NodeAnnouncement>
