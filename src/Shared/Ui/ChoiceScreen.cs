@@ -12,7 +12,9 @@ namespace GwentAccess.Ui
     /// A card choice (create, pick from the deck, discard…): the offered cards as one row, read like on the
     /// board (Up/Down, I, K, Space). Enter picks the focused card — or toggles it when several may be
     /// picked — E finishes a multi-pick, Backspace cancels when the game allows it. Every press goes through
-    /// the game's own choice panel handler, as its buttons and card clicks do.
+    /// the game's own choice panel handler, as its buttons and card clicks do. The board stays readable
+    /// behind the choice, as a sighted player looks past the panel before picking: 1 to 4 (and Shift+1 to 4)
+    /// read a board row, the battle screen's own row read (<see cref="BattleScreen.RowKeys"/>).
     /// </summary>
     internal sealed class ChoiceScreen : Screen
     {
@@ -169,6 +171,7 @@ namespace GwentAccess.Ui
                     new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = "Backspace, cancel" },
                     new ScreenKey { Key = KeyCode.A, Run = () => { if (_gc != null) Speech.Say(Battle.StatusText(_gc), true); }, Hint = "A, score" },
                 };
+                _keys.AddRange(BattleScreen.RowKeys(() => _gc, jump: null));
                 return _keys;
             }
         }
