@@ -127,7 +127,7 @@ namespace GwentAccess.Ui
             AddButton(b, w.m_InfoButton, () => GameText.Capitalized(GameText.Get("ouroboros_info_title", "Information")), used);
         }
 
-        // "Journey level 12, 3/10, Reward: 50 Ore, 2 bonus left": the level badge, the bar toward the next level,
+        // "Level 12, progress 3 of 10, Reward: 50 Ore, 2 bonus left": the level badge, the bar toward the next level,
         // the reward at its end, the well-rested counter.
         private static string JourneyProgress(UIJourneyProgressInSocial p)
         {
@@ -138,7 +138,7 @@ namespace GwentAccess.Ui
                 if (CrimsonNodes.Shown(level) && CrimsonNodes.Text(level.m_Level) is string l && l.Length > 0)
                     parts.Add(GameText.Get("player_profile_level", "Level") + " " + l);
                 var bar = p.m_JourneyProgressBar;
-                if (CrimsonNodes.Shown(bar)) parts.AddRange(CrimsonNodes.Texts(bar));
+                if (CrimsonNodes.Shown(bar)) parts.AddRange(CrimsonNodes.Texts(bar).ConvertAll(UiText.AsProgress));
                 if (Reward(p.m_RewardIcon) is string r) parts.Add(r);
                 var rested = p.m_WellRestedReward;
                 if (CrimsonNodes.Shown(rested)) parts.Add(CrimsonNodes.Text(rested.m_Label));
