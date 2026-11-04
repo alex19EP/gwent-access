@@ -50,6 +50,10 @@ namespace GwentAccess.Ui
             var slots = new List<UIPopupRewardSlot>();
             foreach (var s in p.GetComponentsInChildren<UIPopupRewardSlot>(false))
                 if (s.ButtonControl != null && s.ButtonControl.gameObject.activeInHierarchy) slots.Add(s);
+            // The rewards fly in a moment after the popup opens, when the cursor has already landed on Exit: it moves
+            // to the first one as they arrive, so they are read as a sighted player sees them come in.
+            bool arrived = slots.Count > 0 && !_hadSlots;
+            _hadSlots = slots.Count > 0;
             if (slots.Count > 0)
             {
                 b.BeginStop("rewards");
@@ -62,6 +66,7 @@ namespace GwentAccess.Ui
                     used.Add(btn.Pointer);
                     foreach (var t in CrimsonNodes.Texts(slot)) claimed.Add(t);
                     var id = CrimsonNodes.Id(btn);
+                    if (arrived) { GraphNavigator.Suggest(id); b.SetStart(id); arrived = false; }
                     _cards[(string)id.StructuralKey] = slot;
                     b.AddItem(id, new NodeVtable
                     {
@@ -152,6 +157,9 @@ namespace GwentAccess.Ui
         private readonly Dictionary<string, UIPopupRewardSlot> _cards = new Dictionary<string, UIPopupRewardSlot>();
         private CardKeys _cardKeys;
         private List<ScreenKey> _keys;
+
+        private bool _hadSlots;
+        public override void OnPush() => _hadSlots = false;
 
         public override IReadOnlyList<ScreenKey> ExtraKeys
         {
