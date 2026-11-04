@@ -286,7 +286,6 @@
   "Couldn't open it.": "Impossible de l'ouvrir.",
   "Backspace, close": "Retour arrière, fermer",
   "Categories": "Catégories",
-  "Options": "Options",
   "Escape or Backspace, back to the categories": "Échap ou Retour arrière, retour aux catégories",
   "20 seconds left to swap.": "20 secondes restantes pour échanger.",
   "Hurry, 8 seconds left to swap!": "Vite, plus que 8 secondes pour échanger !",
@@ -475,7 +474,6 @@
   "No other decks.": "Aucun autre jeu.",
   "Only one deck.": "Un seul jeu.",
   "Couldn't change the deck.": "Impossible de changer de jeu.",
-  "pressed": "enfoncé",
   "Show fewer": "Afficher moins",
   "No timer shown.": "Aucun minuteur affiché.",
   "T, time searching": "T, temps de recherche",
@@ -483,7 +481,6 @@
   "Leader ability, Enter creates the deck": "Capacité de chef, Entrée crée le jeu",
   "adds {0} provisions": "ajoute {0} à la limite de recrutement",
   "Name": "Nom",
-  "Tabs": "Onglets",
   "avatar and border": "avatar et bordure",
   "Contract": "Contrat",
   "T, track the contract": "T, suivre le contrat",
@@ -585,5 +582,8 @@
   "tab": "onglet",
   "radio button": "bouton radio",
   "checkbox": "case à cocher",
-  "button": "bouton"
+  "button": "bouton",
+  "combo box": "liste déroulante",
+  "slider": "curseur",
+  "spin button": "compteur"
 }

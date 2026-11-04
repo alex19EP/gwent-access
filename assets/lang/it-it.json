@@ -286,7 +286,6 @@
   "Couldn't open it.": "Impossibile aprirlo.",
   "Backspace, close": "Backspace, chiudi",
   "Categories": "Categorie",
-  "Options": "Opzioni",
   "Escape or Backspace, back to the categories": "Esc o Backspace, torna alle categorie",
   "20 seconds left to swap.": "Restano 20 secondi per ripescare.",
   "Hurry, 8 seconds left to swap!": "Sbrigati, restano 8 secondi per ripescare!",
@@ -475,7 +474,6 @@
   "No other decks.": "Nessun altro mazzo.",
   "Only one deck.": "C'è un solo mazzo.",
   "Couldn't change the deck.": "Impossibile cambiare mazzo.",
-  "pressed": "premuto",
   "Show fewer": "Mostra meno",
   "No timer shown.": "Nessun timer visibile.",
   "T, time searching": "T, tempo di ricerca",
@@ -483,7 +481,6 @@
   "Leader ability, Enter creates the deck": "Abilità del comandante, Invio crea il mazzo",
   "adds {0} provisions": "aggiunge {0} al limite di reclutamento",
   "Name": "Nome",
-  "Tabs": "Schede",
   "avatar and border": "avatar e bordo",
   "Contract": "Contratto",
   "T, track the contract": "T, segui il contratto",
@@ -585,5 +582,8 @@
   "tab": "scheda",
   "radio button": "pulsante di opzione",
   "checkbox": "casella di controllo",
-  "button": "pulsante"
+  "button": "pulsante",
+  "combo box": "casella combinata",
+  "slider": "cursore",
+  "spin button": "pulsante di selezione"
 }

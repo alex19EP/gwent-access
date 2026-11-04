@@ -286,7 +286,6 @@
   "Couldn't open it.": "Nie udało się tego otworzyć.",
   "Backspace, close": "Backspace, zamknij",
   "Categories": "Kategorie",
-  "Options": "Opcje",
   "Escape or Backspace, back to the categories": "Escape lub Backspace, powrót do kategorii",
   "20 seconds left to swap.": "20 sekund do końca wymiany.",
   "Hurry, 8 seconds left to swap!": "Pospiesz się, 8 sekund do końca wymiany!",
@@ -475,7 +474,6 @@
   "No other decks.": "Brak innych talii.",
   "Only one deck.": "Tylko jedna talia.",
   "Couldn't change the deck.": "Nie udało się zmienić talii.",
-  "pressed": "wciśnięty",
   "Show fewer": "Pokaż mniej",
   "No timer shown.": "Nie wyświetlono licznika czasu.",
   "T, time searching": "T, czas wyszukiwania",
@@ -483,7 +481,6 @@
   "Leader ability, Enter creates the deck": "Umiejętność dowódcy, Enter tworzy talię",
   "adds {0} provisions": "dodaje {0} pkt werbunku",
   "Name": "Nazwa",
-  "Tabs": "Zakładki",
   "avatar and border": "awatar i ramka",
   "Contract": "Kontrakt",
   "T, track the contract": "T, śledź kontrakt",
@@ -585,5 +582,8 @@
   "tab": "karta",
   "radio button": "przycisk opcji",
   "checkbox": "pole wyboru",
-  "button": "przycisk"
+  "button": "przycisk",
+  "combo box": "pole kombi",
+  "slider": "suwak",
+  "spin button": "pokrętło"
 }
