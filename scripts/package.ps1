@@ -12,6 +12,7 @@
         BepInEx\plugins\GwentAccess\audio\                          the sound stems (assets/audio)
         BepInEx\plugins\GwentAccess\lang\                           the mod's speech in other languages (assets/lang)
         BepInEx\plugins\GwentAccess\THIRD-PARTY-NOTICES.md          licenses of what the zip carries
+        BepInEx\plugins\GwentAccess\licenses\                       their full texts (third_party/licenses)
         BepInEx\plugins\GwentAccess\build.txt                       what was built, for bug reports
         BepInEx\config\BepInEx.cfg                                  UnityLogListening off, or the game crashes at boot
         Install.bat, Update.bat, Uninstall.bat, MakeShortcut.bat, Gwent-NoLauncher.bat, README.txt   (from package/)
@@ -96,6 +97,7 @@ Copy-Item $audioDir (Join-Path $plugin 'audio') -Recurse
 New-Item -ItemType Directory -Path (Join-Path $plugin 'lang') -Force | Out-Null
 Copy-Item (Join-Path $langDir '*.json') (Join-Path $plugin 'lang')
 Copy-Item (Join-Path $repo 'THIRD-PARTY-NOTICES.md') $plugin
+Copy-Item (Join-Path $repo 'third_party/licenses') (Join-Path $plugin 'licenses') -Recurse
 Copy-Item (Join-Path $repo 'package/*') $stage
 
 # BepInEx's Unity log hook converts a delegate through Il2CppInterop's ClassInjector, which dies with an access
