@@ -6,8 +6,6 @@
     <GameDefine>GWENT</GameDefine>
     <GameDirEnvVar>GWENT_DIR</GameDirEnvVar>
     <DefaultGameDir>C:\Program Files (x86)\Steam\steamapps\common\GWENT The Witcher Card Game</DefaultGameDir>
-    <!-- The name the build took before there were other games: dotnet build -p:GwentDir=... -->
-    <GameDir Condition="'$(GameDir)' == ''">$(GwentDir)</GameDir>
   </PropertyGroup>
   <Import Project="..\..\..\build\Module.props" />
 </Project>

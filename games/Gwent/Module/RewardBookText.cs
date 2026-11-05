@@ -21,23 +21,23 @@ namespace GwentAccess
                 string type = d.NodeType.ToString();
                 switch (type)
                 {
-                    case "Combat": type = "Tutorial battle"; break;
-                    case "Story": type = "Story"; break;
-                    case "Quest": type = "Quest"; break;
-                    case "Mosaic": type = "Mosaic reward"; break;
-                    case "Large": type = "Large reward"; break;
-                    case "Small": type = "Small reward"; break;
-                    case "Starting": type = "Starting node"; break;
-                    case "Exchange": type = "Exchange"; break;
+                    case "Combat": type = Loc.T("Tutorial battle"); break;
+                    case "Story": type = Loc.T("Story"); break;
+                    case "Quest": type = Loc.T("Quest"); break;
+                    case "Mosaic": type = Loc.T("Mosaic reward"); break;
+                    case "Large": type = Loc.T("Large reward"); break;
+                    case "Small": type = Loc.T("Small reward"); break;
+                    case "Starting": type = Loc.T("Starting node"); break;
+                    case "Exchange": type = Loc.T("Exchange"); break;
                 }
                 parts.Add(type);
-                try { parts.Add(d.Claimed ? "claimed" : (d.Claimable ? "can claim" : "locked")); } catch { }
+                try { parts.Add(d.Claimed ? Loc.T("claimed") : (d.Claimable ? Loc.T("can claim") : Loc.T("locked"))); } catch { }
             }
             catch (Exception e) { Plugin.LogInfo("Reward node read failed: " + e.Message); }
             try
             {
                 string cost = UiText.Clean(node.m_CostText?.text);
-                if (cost.Length > 0) parts.Add("cost " + cost + " reward points");
+                if (cost.Length > 0) parts.Add(Loc.T("cost {0} reward points", cost));
             }
             catch { }
             try
@@ -47,7 +47,7 @@ namespace GwentAccess
                     for (int i = 0; i < cards.Count; i++)
                     {
                         string n = UiText.Clean(Localization.LocalizationHelper.GetCardName(cards[i]));
-                        if (n.Length > 0) parts.Add("reward: " + n);
+                        if (n.Length > 0) parts.Add(Loc.T("reward: {0}", n));
                     }
             }
             catch { }

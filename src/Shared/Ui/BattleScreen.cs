@@ -11,26 +11,29 @@ namespace GwentAccess.Ui
 {
     /// <summary>
     /// The battle board as one graph, laid out the way it sits on screen: opponent's leader, opponent's ranged
-    /// and melee rows, your melee and ranged rows, your hand, your leader. Up/Down move between rows keeping
-    /// the spot along the row (rows are centred, so the card nearest above or below); Left/Right move along a
-    /// row, silent at the ends. Each card reads <see cref="CardReader.Summary"/>, your own cards with their
-    /// abilities (<see cref="CardReader.WithAbilities"/>); Ctrl+Up/Down step through its
-    /// lines, I explains its keywords, K reads its kind and base power, Space the whole card.
+    /// and melee rows, your melee and ranged rows, your hand, your leader. Zones as in Hearthstone Access and
+    /// Accessible Arena: Left/Right move along the row you are in (silent at the ends), the zone keys below and
+    /// Tab change the row, and Up/Down read the focused card line by line (on a spot with no card they say
+    /// where the cursor is). Each card, yours and the opponent's alike, says only its short line
+    /// (<see cref="CardReader.Summary"/>, Hearthstone Access's); Down then reads its abilities line by line, I
+    /// explains its keywords, K reads its kind and base power, Space the whole card.
     ///
     /// Playing works like a gamepad player's (Hearthstone Access in spirit): the game's own selection — the
     /// hover the opponent sees too — follows the cursor, and Enter is the game's A, so picking up, ordering,
     /// placing and targeting go through the game's flow. Enter on something that can't be used says why
     /// instead. Picking up a card turns the board into the gaps of the rows it may go to ("between A and B";
-    /// the game's ghost card follows); while the game asks for targets or a row, the board stays browsable and
+    /// the game's ghost card follows) until the game lets go of it (a special put down and waiting for Enter
+    /// to confirm it still keeps them); while the game asks for targets or a row, the board stays browsable and
     /// Tab cycles the valid ones. Backspace is the game's cancel; E ends the turn or passes by holding the game's
     /// coin for as long as E is held — the game's own hold, so letting go early cancels — saying the score (or
     /// that orders are still ready) as the hold starts.
     ///
-    /// Jumps (Hearthstone Access letters): C your hand, B your melee row, G the opponent's melee row, V your
+    /// Jumps (Hearthstone Access letters): C your hand, B / Shift+B your melee / ranged row, G / Shift+G the
+    /// opponent's melee / ranged row, V your
     /// leader, F the opponent's leader; Shift+C the opponent's hand size, A the score. The number row jumps to
     /// the board rows as the first version of the mod numbered them (1 your melee, 2 your ranged, 3 the
     /// opponent's melee, 4 the opponent's ranged; while placing, to that row's spots), and Shift+number reads
-    /// the whole row without moving.
+    /// the whole row without moving. M opens your emotes (Gwent: <c>EmoteScreen</c>).
     /// </summary>
     internal sealed class BattleScreen : Screen
     {
@@ -42,7 +45,8 @@ namespace GwentAccess.Ui
         private sealed class Row
         {
             public string Key;
-            public string Name;
+            public string English;
+            public string Name => Loc.T(English);
             public bool Mine;
             public ELocation Where;
             public bool Scored;
@@ -51,13 +55,13 @@ namespace GwentAccess.Ui
         // Top of the screen to the bottom.
         private static readonly Row[] Rows =
         {
-            new Row { Key = "opp-leader", Name = "Opponent's leader", Mine = false, Where = ELocation.Leader },
-            new Row { Key = "opp-ranged", Name = "Opponent's ranged row", Mine = false, Where = ELocation.Ranged, Scored = true },
-            new Row { Key = "opp-melee", Name = "Opponent's melee row", Mine = false, Where = ELocation.Melee, Scored = true },
-            new Row { Key = "my-melee", Name = "Your melee row", Mine = true, Where = ELocation.Melee, Scored = true },
-            new Row { Key = "my-ranged", Name = "Your ranged row", Mine = true, Where = ELocation.Ranged, Scored = true },
-            new Row { Key = "hand", Name = "Your hand", Mine = true, Where = ELocation.Hand },
-            new Row { Key = "my-leader", Name = "Your leader", Mine = true, Where = ELocation.Leader },
+            new Row { Key = "opp-leader", English = Loc.Mark("Opponent's leader"), Mine = false, Where = ELocation.Leader },
+            new Row { Key = "opp-ranged", English = Loc.Mark("Opponent's ranged row"), Mine = false, Where = ELocation.Ranged, Scored = true },
+            new Row { Key = "opp-melee", English = Loc.Mark("Opponent's melee row"), Mine = false, Where = ELocation.Melee, Scored = true },
+            new Row { Key = "my-melee", English = Loc.Mark("Your melee row"), Mine = true, Where = ELocation.Melee, Scored = true },
+            new Row { Key = "my-ranged", English = Loc.Mark("Your ranged row"), Mine = true, Where = ELocation.Ranged, Scored = true },
+            new Row { Key = "hand", English = Loc.Mark("Your hand"), Mine = true, Where = ELocation.Hand },
+            new Row { Key = "my-leader", English = Loc.Mark("Your leader"), Mine = true, Where = ELocation.Leader },
         };
 
         // This frame's nodes by key: the card behind it, the board row it sits in, the row's location, and for
@@ -82,31 +86,37 @@ namespace GwentAccess.Ui
         {
             _gc = Battle.Controller();
             if (_gc == null) return false;
+            // A choice has its own screen, unless its panel is hidden to look at the board: the hidden panel
+            // keeps the input layer, so the board is this screen's whatever layer is on top.
+            var choice = Plays.Read(_gc).Choice;
+            if (choice != null) return ChoiceScreen.IsHidden(choice);
             var layer = CrimsonInputManager.Instance?.ActiveLayer;
             if (layer == null || layer.Priority != CrimsonInputLayer.EPriority.Base) return false;
             if (!HasBattlePanel(layer)) return false;
-            if (BeforeTheDeal(_gc)) return false;
-            return Plays.Read(_gc).Choice == null; // a choice has its own screen
+            return !BeforeTheDeal(_gc);
         }
 
         // The board shows before the opening hand is dealt; with nothing in hand the cursor would land on the
         // opponent's leader, just before the mulligan names both leaders. Wait for the deal.
         private static bool BeforeTheDeal(GameController gc)
         {
-            try { return Narrator.TurnsStartedIn != gc.Pointer && Battle.HandCount(gc, Battle.Me(gc)) == 0; }
+            // Also until the opening mulligan is over (the game's own flag): the hand is dealt a moment before the
+            // mulligan panel opens, before any mulligan request exists, and landing on it then read the first
+            // card before the mulligan's intro, and again after it.
+            try
+            {
+                if (Narrator.TurnsStartedIn == gc.Pointer) return false;
+                if (Battle.HandCount(gc, Battle.Me(gc)) == 0) return true;
+#if GWENT
+                return !gc.RoundManager.HasInitialMulliganFinished();
+#else
+                return Narrator.InMulligan();
+#endif
+            }
             catch { return false; }
         }
 
-        private static bool HasBattlePanel(CrimsonInputLayer layer)
-        {
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIBattlePanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return true;
-            }
-            return false;
-        }
+        private static bool HasBattlePanel(CrimsonInputLayer layer) => CrimsonNodes.ActivePanel<UIBattlePanel>(layer) != null;
 
         // ---- the board ----
 
@@ -115,16 +125,53 @@ namespace GwentAccess.Ui
             var gc = _gc ?? Battle.Controller();
             if (gc == null) return;
             _plays = Plays.Read(gc);
+            if (AwaitingChoiceFollowUp()) return;
             _cards.Clear();
             _rowOf.Clear();
             _locationOf.Clear();
             _gaps.Clear();
             _cycle.Clear();
 
-            if (_plays.Placing != null && _plays.Targets == null && _plays.Rows == null) BuildGaps(b, gc);
+            // The gaps stay up for as long as the game holds the card: while it is placed, and while a special put
+            // down waits for Enter to confirm it. That second step is the same request one state on (its result
+            // Invalid → PendingPlace, Plays.Placing → Plays.Confirming); building the board for it made the
+            // cursor's gap vanish, and the navigator fell back to the board's start, the first card in hand,
+            // announced while the game was still waiting on the special.
+            var held = _plays.Held;
+            if (held != null && _plays.Targets == null && _plays.Rows == null)
+            {
+                // Back on the board once the card is down, the cursor lands on it, as on a card played from the
+                // hand (which keeps its id): also for one the game made (a choice's "create and play"), which was
+                // never in the hand, and would otherwise land on the first card in hand.
+                try { _last = ControlId.Structural("battle:card:" + held.CardIdToPlay); } catch { }
+                BuildGaps(b, gc);
+            }
             else BuildBoard(b, gc);
 
             NoticeRequest();
+        }
+
+        // A choice just answered ("create and play", "choose a row"): the battle screen is back a frame or two
+        // before the game opens the request for the chosen card, and its landing (the first card in hand) was
+        // announced just before "Place X." / "Choose a row for X.". Until that request opens, or for
+        // ChoiceFollowUpWait at most (a choice whose card resolves on its own asks nothing more), the screen
+        // declares nothing ("no content yet", see Screen.Build): the navigator keeps the cursor and says nothing,
+        // and the first render after it lands and speaks as before.
+        // The game's own sign is the picked card leaving the choice (ChoiceScreen.AnswerPending): the wait ends
+        // as soon as it moves or a request opens. The time is only a safety net for an answer the game never
+        // acts on visibly (a multi-pick's Finish waits on it alone). Against a person the follow-up comes over
+        // the network: a fixed second was too short (a ranked match read the leader the cursor was on before
+        // "Place Ducal Guard.").
+        private const float ChoiceFollowUpWait = 5f;
+        private const float FinishFollowUpWait = 1f;
+
+        private bool AwaitingChoiceFollowUp()
+        {
+            if (_plays.Pending != null) return false;
+            float since = Time.realtimeSinceStartup - ChoiceScreen.AnsweredAt;
+            return ChoiceScreen.AnsweredCard != null
+                ? ChoiceScreen.AnswerPending() && since < ChoiceFollowUpWait
+                : since < FinishFollowUpWait;
         }
 
         private void BuildBoard(GraphBuilder b, GameController gc)
@@ -142,7 +189,9 @@ namespace GwentAccess.Ui
                 var cards = Battle.Cards(gc, who, row.Where);
                 Location loc = null;
                 try { loc = gc.BoardManager.GetLocation(who, row.Where); } catch { }
-                b.PushContext(row.Name, row.Scored ? "score " + Score(cards) : null);
+                // A leader row's player (name and title on the panel beside it) is the leader card's last line
+                // (CardReader.LeaderPlayer), so the landing stays short.
+                b.PushContext(row.Name, row.Scored ? RowDetail(cards, loc) : null);
                 b.StartRow();
                 var rowIds = new List<ControlId>();
                 if (cards.Count == 0)
@@ -150,7 +199,7 @@ namespace GwentAccess.Ui
                     var id = ControlId.Structural(row.Where == ELocation.Leader ? LeaderKey(row.Key) : "battle:empty:" + row.Key);
                     b.AddItem(id, new NodeVtable
                     {
-                        Announcements = new[] { NodeAnnouncement.Static("empty") },
+                        Announcements = new[] { NodeAnnouncement.Static(Loc.T("empty")) },
                         OnActivate = () => EnterOnRow(loc),
                     });
                     rowIds.Add(id);
@@ -159,7 +208,7 @@ namespace GwentAccess.Ui
                 foreach (var card in cards)
                 {
                     var id = ControlId.Structural(row.Where == ELocation.Leader ? LeaderKey(row.Key) : "battle:card:" + card.Id);
-                    b.AddItem(id, CardNode(card, pm, loc, row.Mine));
+                    b.AddItem(id, CardNode(card, pm, loc));
                     rowIds.Add(id);
                     Remember(id, card, row.Key, loc);
                     if (row.Where == ELocation.Hand && firstInHand == null) firstInHand = id;
@@ -254,12 +303,41 @@ namespace GwentAccess.Ui
             return total;
         }
 
-        /// <summary>A card's line on the board. A leader card is led by the character standing beside it
-        /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both. With
-        /// <paramref name="abilities"/> (your own cards on focus), the card's abilities follow.</summary>
-        private static string Label(Card card, PlayerManager pm, bool abilities = false)
+        /// <summary>What a board row shows beside its cards: "score 12, Frost, 2 turns left, full". The score,
+        /// the effect lying on the row (a hazard or a boon: the row's graphic, with the turns left on its timer
+        /// icon) and "full" once the row holds as many units as it can (9; the game takes no more).</summary>
+        private static string RowDetail(List<Card> cards, Location loc)
         {
-            string summary = abilities ? CardReader.WithAbilities(card, pm) : CardReader.Summary(card, pm);
+            var parts = new List<string> { Loc.T("score {0}", Score(cards)) };
+            string effects = RowEffects(loc);
+            if (effects != null) parts.Add(effects);
+            try { if (loc != null && loc.IsFull()) parts.Add(Loc.T("full")); } catch { }
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>The row's effects in the game's words, with the turns left when the effect's icon counts
+        /// them: "Frost, 2 turns left". Null when the row has none.</summary>
+        internal static string RowEffects(Location loc)
+        {
+            if (loc == null) return null;
+            ELocationToken status = 0;
+            try { status = loc.Status.Value; } catch { }
+            if (status == 0) return null;
+            var names = new List<string>();
+            foreach (ELocationToken one in Enum.GetValues(typeof(ELocationToken)))
+                if (one != 0 && (status & one) == one) names.Add(Narrator.RowEffectName(one));
+            if (names.Count == 0) return null;
+            int turns = -1;
+            try { int t = loc.AbilityData.Timer.Value; if (t > 0 && t != AEntityTimer.NO_TIMER) turns = t; } catch { }
+            string text = string.Join(", ", names);
+            return turns > 0 ? text + ", " + Loc.P(turns, "{0} turn left", "{0} turns left") : text;
+        }
+
+        /// <summary>A card's line on the board. A leader card is led by the character standing beside it
+        /// ("Эмгыр вар Эмрейс, Двойная игра, leader, Нильфгаард, …"), as a sighted player sees both.</summary>
+        private static string Label(Card card, PlayerManager pm)
+        {
+            string summary = CardReader.Summary(card, pm);
             try
             {
                 if (card.Position.Location != ELocation.Leader) return summary;
@@ -269,14 +347,18 @@ namespace GwentAccess.Ui
             catch { return summary; }
         }
 
-        private NodeVtable CardNode(Card card, PlayerManager pm, Location loc, bool mine)
+        private NodeVtable CardNode(Card card, PlayerManager pm, Location loc)
         {
             return new NodeVtable
             {
                 Announcements = new[]
                 {
-                    new NodeAnnouncement(() => Label(card, pm, abilities: mine), kind: AnnouncementKinds.Label),
-                    new NodeAnnouncement(() => _plays.IsChosen(card) ? "chosen" : null, live: true, kind: AnnouncementKinds.Selected),
+                    new NodeAnnouncement(() => Label(card, pm), kind: AnnouncementKinds.Label),
+                    // While the game asks for targets the valid ones glow and the rest dim: the glow is said on
+                    // landing, the dimmed say nothing. Not live: the request's own "Choose a target" covers
+                    // the moment it opens under the cursor.
+                    new NodeAnnouncement(() => _plays.Targets != null && !_plays.IsChosen(card) && _plays.IsTarget(card) ? Loc.T("valid target") : null),
+                    new NodeAnnouncement(() => _plays.IsChosen(card) ? Loc.T("chosen") : null, live: true, kind: AnnouncementKinds.Selected),
                 },
                 OnActivate = () => EnterOnCard(card, loc),
                 OnTooltip = () => Speech.Say(CardReader.Whole(card, pm), true),
@@ -316,7 +398,7 @@ namespace GwentAccess.Ui
                 if (anyValid ? !_plays.MayPlaceIn(loc) : !row.Mine) continue;
                 try { if (loc.RemainingCapacity <= 0) continue; } catch { }
                 var cards = Battle.Cards(gc, who, row.Where);
-                b.PushContext(row.Name, "score " + Score(cards));
+                b.PushContext(row.Name, RowDetail(cards, loc));
                 b.StartRow();
                 var rowIds = new List<ControlId>();
                 for (int i = 0; i <= cards.Count; i++)
@@ -348,43 +430,63 @@ namespace GwentAccess.Ui
 
         private static string GapText(List<Card> cards, int i, PlayerManager pm)
         {
-            if (cards.Count == 0) return "empty row";
-            if (i == 0) return "before " + CardReader.Name(cards[0], pm);
-            if (i == cards.Count) return "after " + CardReader.Name(cards[cards.Count - 1], pm);
-            return "between " + CardReader.Name(cards[i - 1], pm) + " and " + CardReader.Name(cards[i], pm);
+            if (cards.Count == 0) return Loc.T("empty row");
+            if (i == 0) return Loc.T("before {0}", CardReader.Name(cards[0], pm));
+            if (i == cards.Count) return Loc.T("after {0}", CardReader.Name(cards[cards.Count - 1], pm));
+            return Loc.T("between {0} and {1}", CardReader.Name(cards[i - 1], pm), CardReader.Name(cards[i], pm));
         }
 
         // ---- the request being answered: say what the game asks, land on a sensible spot ----
 
         private int _noticed = -1;
 
+        // The noticed request's confirmation step was said: a special put down goes from placing to waiting for
+        // Enter under the same request id, so the id alone never saw it. Said once per request.
+        private bool _noticedConfirm;
+
         private void NoticeRequest()
         {
             var req = _plays.Pending;
             int id = -1;
             try { id = req?.Id ?? -1; } catch { }
-            if (id == _noticed) return;
+            if (id == _noticed)
+            {
+                if (req != null && !_noticedConfirm && ReferenceEquals(req, _plays.Confirming)) SayConfirm();
+                return;
+            }
             _noticed = id;
+            _noticedConfirm = false;
             _mirrorNow = true;
             if (req == null) return;
 
-            var requester = _plays.Requester();
-            string name = requester != null ? CardReader.Name(requester, _gc.PlayerManager) : "the card";
+            string name = RequesterName();
             if (_plays.Targets != null)
             {
                 int max = _plays.MaxTargets;
-                Speech.Say("Choose " + (max > 1 ? "up to " + max + " targets" : "a target") + " for " + name + ".", true);
+                Speech.Say(max > 1 ? Loc.P(max, "Choose up to {0} target for {1}.", "Choose up to {0} targets for {1}.", name) : Loc.T("Choose a target for {0}.", name), true);
                 LandOnCycle();
             }
             else if (_plays.Rows != null)
             {
-                Speech.Say("Choose a row for " + name + ".", true);
+                Speech.Say(Loc.T("Choose a row for {0}.", name), true);
                 LandOnCycle();
             }
             else if (_plays.Placing != null)
-                Speech.Say("Place " + name + ".", true);
+                Speech.Say(Loc.T("Place {0}.", name), true);
             else if (_plays.Confirming != null)
-                Speech.Say("Play " + name + "? Enter plays it, Backspace puts it back.", true);
+                SayConfirm();
+        }
+
+        private string RequesterName()
+        {
+            var requester = _plays.Requester();
+            return requester != null ? CardReader.Name(requester, _gc.PlayerManager) : Loc.T("the card");
+        }
+
+        private void SayConfirm()
+        {
+            _noticedConfirm = true;
+            Speech.Say(Loc.T("Play {0}? Enter plays it, Backspace puts it back.", RequesterName()), true);
         }
 
         // Onto the first valid option, unless the cursor already sits on one.
@@ -417,12 +519,22 @@ namespace GwentAccess.Ui
 
         // Settle calls OnCursorMoved only when the cursor changes; a new request over the same card (an order
         // asking for targets) needs the game's selection put back where the cursor is.
-        public override void OnFocus() => _mirrorNow = true;
+        /// <summary>Between rounds the board clears under the cursor: its landings stay quiet until the next
+        /// turn starts (keys still read).</summary>
+        public override bool QuietLanding(GraphNode node) => Narrator.BetweenRounds;
+
+        public override void OnFocus()
+        {
+            _mirrorNow = true;
+            CardReader.LeaderPlayer = card => PlayerTag(Mine(card));
+        }
 
         private void Mirror(string key)
         {
             _mirrorNow = false;
-            if (_gaps.TryGetValue(key, out var gap)) { BattleInput.Ghost(gap.Row, gap.Index); return; }
+            // A special waiting for its confirmation is already put down: Enter confirms it wherever the cursor
+            // is, and the ghost card is not moved on.
+            if (_gaps.TryGetValue(key, out var gap)) { if (_plays.Placing != null) BattleInput.Ghost(gap.Row, gap.Index); return; }
             if (_plays.Rows != null)
             {
                 if (_locationOf.TryGetValue(key, out var loc) && _plays.IsTargetRow(loc)) BattleInput.Hover(loc);
@@ -449,9 +561,73 @@ namespace GwentAccess.Ui
             if (_gaps.ContainsKey(k)) return true;
             _cards.TryGetValue(k, out var card);
             _locationOf.TryGetValue(k, out var loc);
+            // A play the mod started the mouse's way picks its targets and rows the mouse's way (EnterOnCard /
+            // EnterOnRow), not through the game's A.
+            // (The order's request can arrive a few frames after the tap: the flag outlives that gap.)
+            if (BattleInput.MouseFlow && _plays.Targets == null && _plays.Rows == null && _plays.Pending == null
+                && Time.realtimeSinceStartup - BattleInput.MouseFlowAt > 2f) BattleInput.MouseFlow = false;
+            if (BattleInput.MouseFlow && (_plays.Targets != null || _plays.Rows != null)) return false;
             if (_plays.Targets != null) return card != null && _plays.IsTarget(card);
             if (_plays.Rows != null) return loc != null && _plays.IsTargetRow(loc);
+            if (card != null && KeyboardOrder(card)) return false; // the mod taps it (EnterOnCard)
             return card != null && _plays.MyTurn && _plays.Pending == null && Mine(card) && _plays.CanUse(card);
+        }
+
+        // An order (the leader's ability, a unit's Order) ready on your turn, in the game's mouse-and-keyboard
+        // mode: Enter uses it through the turn handler (BattleInput.Tap), which reports a refusal so it can be
+        // said, where the game's A stays silent. In controller mode the game's A is the controller's own way.
+        private bool KeyboardOrder(Card card)
+        {
+            if (ControllerMode.Force || !_plays.MyTurn || _plays.Pending != null || !Mine(card)) return false;
+            bool inHand;
+            try { inHand = card.Position.Location == ELocation.Hand; } catch { return false; }
+            return !inHand && _plays.CanOrder(card);
+        }
+
+        // ---- Enter left to the game, and ignored ----
+
+        // The game ignores its A silently when the tutorial has locked input, or the play isn't possible after
+        // all. An Enter handed to the game that changes nothing it can be seen to change (the play mode, the
+        // open request, the hand and board) within the grace period is "Not available right now".
+        private string _enterBefore;
+        private float _enterAt = -1;
+
+        private void WatchEnter()
+        {
+            float now = Time.realtimeSinceStartup;
+            if ((Keys.Down(KeyCode.Return) || Keys.Down(KeyCode.KeypadEnter)) && !Keys.Ctrl && !Keys.Alt)
+            {
+                if (LeavesToGame(KeyCode.Return)) { _enterBefore = PlayState(); _enterAt = now; }
+                return;
+            }
+            if (_enterAt < 0 || now - _enterAt < 1.5f) return;
+            _enterAt = -1;
+            if (PlayState() == _enterBefore) Speech.Say(Loc.T("Not available right now."), true);
+        }
+
+
+        private string PlayState()
+        {
+            var gc = _gc;
+            if (gc == null) return "";
+            string P(object o) => o == null ? "-" : "+";
+            int hand = 0, board = 0;
+            try
+            {
+                var me = Battle.Me(gc);
+                hand = Battle.Cards(gc, me, ELocation.Hand).Count;
+                foreach (var l in new[] { ELocation.Melee, ELocation.Ranged }) board += Battle.Cards(gc, me, l).Count;
+            }
+            catch { }
+            // Chosen: a multi-step target (Geralt's Aard) marks its first pick "chosen" without leaving the
+            // targeting, and that counts as something happening.
+            int chosen = 0;
+            try { chosen = _plays.Chosen; } catch { }
+            // The pending request by id: Buhurt's second target is a new request of the same kind, and its
+            // first pick did happen ("Not available right now" was said after it in a ranked match).
+            string pending = "-";
+            try { if (_plays.Pending != null) pending = _plays.Pending.Id.ToString(); } catch { }
+            return BattleInput.Mode + "|" + pending + P(_plays.Placing) + P(_plays.Confirming) + P(_plays.Targets) + P(_plays.Rows) + P(_plays.Choice) + "|" + chosen + "|" + hand + "|" + board;
         }
 
         private bool Mine(Card c)
@@ -462,15 +638,25 @@ namespace GwentAccess.Ui
         // What a claimed Enter says (the game's A only gets the ones that do something).
         private void EnterOnCard(Card card, Location loc)
         {
-            if (_plays.Targets != null) { Speech.Say("Not a valid target.", true); return; }
-            if (_plays.Rows != null) { Speech.Say("Not a valid row.", true); return; }
-            if (!Mine(card)) { Speech.Say(_plays.MyTurn ? "Nothing to use." : "Not your turn.", true); return; }
-            Speech.Say(_plays.WhyNot(card) ?? "Nothing to use.", true);
+            if (_plays.Targets != null)
+            {
+                if (BattleInput.MouseFlow && _plays.IsTarget(card)) { if (!BattleInput.PickTarget(card)) Speech.Say(Loc.T("Not available right now."), true); return; }
+                Speech.Say(Loc.T("Not a valid target."), true); return;
+            }
+            if (_plays.Rows != null)
+            {
+                if (BattleInput.MouseFlow && loc != null && _plays.IsTargetRow(loc)) { if (!BattleInput.PickRow(loc)) Speech.Say(Loc.T("Not available right now."), true); return; }
+                Speech.Say(Loc.T("Not a valid row."), true); return;
+            }
+            if (!Mine(card)) { Speech.Say(_plays.MyTurn ? Loc.T("Nothing to use.") : Loc.T("Not your turn."), true); return; }
+            if (KeyboardOrder(card)) { if (!BattleInput.Tap(card)) Speech.Say(Loc.T("Not available right now."), true); return; }
+            Speech.Say(_plays.WhyNot(card) ?? Loc.T("Nothing to use."), true);
         }
 
         private void EnterOnRow(Location loc)
         {
-            if (_plays.Rows != null) Speech.Say("Not a valid row.", true);
+            if (_plays.Rows != null && BattleInput.MouseFlow && _plays.IsTargetRow(loc)) { if (!BattleInput.PickRow(loc)) Speech.Say(Loc.T("Not available right now."), true); return; }
+            if (_plays.Rows != null) Speech.Say(Loc.T("Not a valid row."), true);
         }
 
         // ---- E: the coin, held as the game holds it ----
@@ -490,34 +676,34 @@ namespace GwentAccess.Ui
         {
             if (_plays.Targets != null || _plays.Rows != null)
             {
-                if (_plays.MaxTargets <= 1) { Speech.Say("Choose with Enter, or Backspace to cancel.", true); return; }
-                if (_plays.Chosen < _plays.MinTargets) { Speech.Say("Choose at least " + _plays.MinTargets + ".", true); return; }
-                if (!BattleInput.FinishTargets()) Speech.Say("Can't finish yet.", true);
+                if (_plays.MaxTargets <= 1) { Speech.Say(Loc.T("Choose with Enter, or Backspace to cancel."), true); return; }
+                if (_plays.Chosen < _plays.MinTargets) { Speech.Say(Loc.T("Choose at least {0}.", _plays.MinTargets), true); return; }
+                if (!BattleInput.FinishTargets()) Speech.Say(Loc.T("Can't finish yet."), true);
                 return;
             }
-            if (_plays.Placing != null) { Speech.Say("Place the card first, or Backspace to put it back.", true); return; }
-            if (_plays.Confirming != null) { Speech.Say("Enter plays the card, Backspace puts it back.", true); return; }
-            if (!_plays.MyTurn) { Speech.Say("Not your turn.", true); return; }
+            if (_plays.Placing != null) { Speech.Say(Loc.T("Place the card first, or Backspace to put it back."), true); return; }
+            if (_plays.Confirming != null) { Speech.Say(Loc.T("Enter plays the card, Backspace puts it back."), true); return; }
+            if (!_plays.MyTurn) { Speech.Say(Loc.T("Not your turn."), true); return; }
             var mode = BattleInput.CoinMode;
             string said;
             switch (mode)
             {
                 case UIBoardPassWidget.EButtonMode.Pass:
-                    said = "Hold to pass." + ScoreLine();
+                    said = Loc.T("Hold to pass.") + ScoreLine();
                     break;
                 case UIBoardPassWidget.EButtonMode.EndTurn:
                     // The game's end-turn hold has no duration (the coin is a plain click); a blind player can't
                     // see the coin they're about to press, so the mod holds it as long as the pass: the click is
                     // only sent once E has been held that long.
                     _endTurnSince = Time.realtimeSinceStartup;
-                    Speech.Say("Hold to end the turn." + (_plays.OrdersReady() ? " You still have orders ready." : ""), true);
+                    Speech.Say(Loc.T("Hold to end the turn.") + (_plays.OrdersReady() ? " " + Loc.T("You still have orders ready.") : ""), true);
                     return;
                 default:
-                    Speech.Say("Can't end the turn now.", true);
+                    Speech.Say(Loc.T("Can't end the turn now."), true);
                     return;
             }
             ReleaseCoin();
-            if (!BattleInput.PressCoin()) { Speech.Say("Couldn't press the button.", true); return; }
+            if (!BattleInput.PressCoin()) { Speech.Say(Loc.T("Couldn't press the button."), true); return; }
             _holdingCoin = true;
             Speech.Say(said, true);
         }
@@ -531,8 +717,8 @@ namespace GwentAccess.Ui
                 var me = _gc.PlayerManager.LocalUser;
                 var opp = me.OpponentPlayer;
                 int a = me.CurrentScore, b = opp.CurrentScore;
-                string lead = a > b ? "You're ahead" : a < b ? "You're behind" : "You're tied";
-                return " " + lead + ", " + a + " to " + b + (opp.HasPassed ? ", opponent has passed." : ", opponent hasn't passed.");
+                string lead = a > b ? Loc.T("You're ahead") : a < b ? Loc.T("You're behind") : Loc.T("You're tied");
+                return " " + (opp.HasPassed ? Loc.T("{0}, {1} to {2}, opponent has passed.", lead, a, b) : Loc.T("{0}, {1} to {2}, opponent hasn't passed.", lead, a, b));
             }
             catch { return ""; }
         }
@@ -541,12 +727,19 @@ namespace GwentAccess.Ui
         {
             if (!_holdingCoin) return;
             _holdingCoin = false;
-            Plugin.LogInfo("[input] coin let go at hold " + BattleInput.CoinHold.ToString("0.00"));
+            Plugin.LogInfo("[input] coin let go at hold " + BattleInput.CoinHold.ToString("0.00") + " (front " + Keys.GameInFront()
+                + ", focused " + Application.isFocused + ", E held " + Keys.Held(KeyCode.E) + ", focused screen " + (ScreenManager.Current?.Key ?? "none") + ")");
             BattleInput.ReleaseCoin();
         }
 
         public override void Tick()
         {
+            PileScreen.CheckRefused();
+#if GWENT
+            EmoteScreen.WatchOpen();
+#endif
+            WatchEnter();
+            WatchCancel();
             if (_endTurnSince >= 0)
             {
                 if (!Keys.Held(KeyCode.E)) _endTurnSince = -1; // let go early: nothing, as with the pass
@@ -562,7 +755,8 @@ namespace GwentAccess.Ui
             else BattleInput.HoldCoin();
         }
 
-        public override void OnUnfocus() { _endTurnSince = -1; ReleaseCoin(); }
+        // A popup or panel took over: an Enter being watched did something.
+        public override void OnUnfocus() { _endTurnSince = -1; _enterAt = -1; ReleaseCoin(); }
         public override void OnPop() { _endTurnSince = -1; ReleaseCoin(); }
 
         // ---- Backspace: the game's cancel ----
@@ -570,11 +764,25 @@ namespace GwentAccess.Ui
         private void Cancel()
         {
             var req = _plays.Pending;
-            if (req == null && BattleInput.Mode == EBattleNavigationMode.Normal) return;
+            if (req == null && BattleInput.Mode == EBattleNavigationMode.Normal) { Speech.Say(Loc.T("Nothing to cancel."), true); return; }
             bool can = true;
             try { if (req != null) can = req.CanCancel; } catch { }
-            if (!can) { Speech.Say("This can't be cancelled.", true); return; }
-            if (BattleInput.Back()) Speech.Say("Cancelled.", true);
+            if (!can) { Speech.Say(Loc.T("This can't be cancelled."), true); return; }
+            // Said once the game has left the play or targeting: some steps ignore its B (a multi-charge order
+            // asking for its next target), and "Cancelled." was said for those too.
+            if (BattleInput.Back()) { _cancelMode = BattleInput.Mode; _cancelAt = Time.realtimeSinceStartup; }
+        }
+
+        private EBattleNavigationMode _cancelMode;
+        private float _cancelAt = -1;
+
+        private void WatchCancel()
+        {
+            if (_cancelAt < 0) return;
+            if (BattleInput.Mode != _cancelMode) { _cancelAt = -1; Speech.Say(Loc.T("Cancelled."), true); return; }
+            if (Time.realtimeSinceStartup - _cancelAt < 0.8f) return;
+            _cancelAt = -1;
+            Speech.Say(Loc.T("This can't be cancelled now."), true);
         }
 
         // ---- Tab: the next valid play, target or row ----
@@ -583,9 +791,9 @@ namespace GwentAccess.Ui
         {
             if (_cycle.Count == 0)
             {
-                Speech.Say(_plays.Targets != null ? "No valid targets." : _plays.Rows != null ? "No valid rows."
-                    : _plays.Placing != null ? "Choose a spot with the arrows."
-                    : _plays.Confirming != null ? "Enter plays the card, Backspace puts it back." : _plays.MyTurn ? "No valid plays." : "Not your turn.", true);
+                Speech.Say(_plays.Targets != null ? Loc.T("No valid targets.") : _plays.Rows != null ? Loc.T("No valid rows.")
+                    : _plays.Placing != null ? Loc.T("Choose a spot with the arrows.")
+                    : _plays.Confirming != null ? Loc.T("Enter plays the card, Backspace puts it back.") : _plays.MyTurn ? Loc.T("No valid plays.") : Loc.T("Not your turn."), true);
                 return;
             }
             var cur = GraphNavigator.CurrentNode?.Id;
@@ -596,6 +804,15 @@ namespace GwentAccess.Ui
 
         // ---- keys ----
 
+        /// <summary>Tab while a choice's panel is hidden to look at the board: brings it back.</summary>
+        private bool ShowChoices()
+        {
+            var choice = _gc != null ? Plays.Read(_gc).Choice : null;
+            if (!ChoiceScreen.IsHidden(choice)) return false;
+            ChoiceScreen.ToggleHidden(choice);
+            return true;
+        }
+
         private CardKeys _cardKeys;
         private List<ScreenKey> _keys;
 
@@ -604,28 +821,35 @@ namespace GwentAccess.Ui
             get
             {
                 if (_keys != null) return _keys;
-                _cardKeys = new CardKeys(FocusedCard, Players);
+                // Up/Down always read the card here; on a spot with no card (an empty row, a gap while placing)
+                // they say where the cursor is.
+                _cardKeys = new CardKeys(FocusedCard, Players, always: true, noCard: GraphNavigator.SayWhere);
                 _keys = new List<ScreenKey>(_cardKeys.Keys)
                 {
-                    new ScreenKey { Key = KeyCode.Tab, Run = () => Cycle(1), Hint = "Tab, next valid play or target" },
-                    new ScreenKey { Key = KeyCode.Tab, Shift = true, Run = () => Cycle(-1), Hint = "Shift Tab, previous valid play or target" },
-                    new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = "Backspace, cancel" },
-                    new ScreenKey { Key = KeyCode.E, Run = PressE, Hint = "E, end turn or pass" },
-                    new ScreenKey { Key = KeyCode.C, Run = () => JumpTo("hand"), Hint = "C, your hand" },
-                    new ScreenKey { Key = KeyCode.C, Shift = true, Run = SayOpponentHand, Hint = "Shift C, opponent's hand size" },
-                    new ScreenKey { Key = KeyCode.B, Run = () => JumpTo("my-melee"), Hint = "B, your melee row" },
-                    new ScreenKey { Key = KeyCode.G, Run = () => JumpTo("opp-melee"), Hint = "G, opponent's melee row" },
-                    new ScreenKey { Key = KeyCode.V, Run = () => JumpTo("my-leader"), Hint = "V, your leader" },
-                    new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = "F, opponent's leader" },
-                    new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = "A, score" },
+                    new ScreenKey { Key = KeyCode.Tab, Run = () => { if (!ShowChoices()) Cycle(1); }, Hint = Loc.T("Tab, next valid play or target; with the choices hidden, shows them again") },
+                    new ScreenKey { Key = KeyCode.Tab, Shift = true, Run = () => Cycle(-1), Hint = Loc.T("Shift Tab, previous valid play or target") },
+                    new ScreenKey { Key = KeyCode.Backspace, Run = Cancel, Hint = Loc.T("Backspace, cancel") },
+                    new ScreenKey { Key = KeyCode.E, Run = PressE, Hint = Loc.T("E, end turn or pass") },
+                    new ScreenKey { Key = KeyCode.C, Run = () => JumpTo("hand"), Hint = Loc.T("C, your hand") },
+                    new ScreenKey { Key = KeyCode.C, Shift = true, Run = SayOpponentHand, Hint = Loc.T("Shift C, opponent's hand size") },
+                    new ScreenKey { Key = KeyCode.B, Run = () => JumpTo("my-melee"), Hint = Loc.T("B, your melee row") },
+                    new ScreenKey { Key = KeyCode.B, Shift = true, Run = () => JumpTo("my-ranged"), Hint = Loc.T("Shift B, your ranged row") },
+                    new ScreenKey { Key = KeyCode.G, Run = () => JumpTo("opp-melee"), Hint = Loc.T("G, opponent's melee row") },
+                    new ScreenKey { Key = KeyCode.G, Shift = true, Run = () => JumpTo("opp-ranged"), Hint = Loc.T("Shift G, opponent's ranged row") },
+                    new ScreenKey { Key = KeyCode.V, Run = () => JumpTo("my-leader"), Hint = Loc.T("V, your leader") },
+                    new ScreenKey { Key = KeyCode.F, Run = () => JumpTo("opp-leader"), Hint = Loc.T("F, opponent's leader") },
+                    new ScreenKey { Key = KeyCode.A, Run = SayScore, Hint = Loc.T("A, score") },
+                    new ScreenKey { Key = KeyCode.T, Run = SayTurn, Hint = Loc.T("T, whose turn it is") },
+                    new ScreenKey { Key = KeyCode.T, Shift = true, Run = SayTimer, Hint = Loc.T("Shift T, time left in the turn") },
+                    new ScreenKey { Key = KeyCode.O, Run = LogScreen.Toggle, Hint = Loc.T("O, battle log: everything said this match, newest first") },
+                    new ScreenKey { Key = KeyCode.D, Run = () => PileScreen.Open(deck: true, mine: true), Hint = Loc.T("D, your deck") },
+                    new ScreenKey { Key = KeyCode.Y, Run = () => PileScreen.Open(deck: false, mine: true), Hint = Loc.T("Y, your graveyard") },
+                    new ScreenKey { Key = KeyCode.Y, Shift = true, Run = () => PileScreen.Open(deck: false, mine: false), Hint = Loc.T("Shift Y, opponent's graveyard") },
+#if GWENT
+                    new ScreenKey { Key = KeyCode.M, Run = EmoteScreen.Open, Hint = Loc.T("M, emotes") },
+#endif
                 };
-                for (int i = 0; i < NumberRows.Length; i++)
-                {
-                    var row = Array.Find(Rows, r => r.Key == NumberRows[i]);
-                    var key = KeyCode.Alpha1 + i;
-                    _keys.Add(new ScreenKey { Key = key, Run = () => JumpTo(row.Key), Hint = (i + 1) + ", " + row.Name.ToLowerInvariant() });
-                    _keys.Add(new ScreenKey { Key = key, Shift = true, Run = () => SayRow(row), Hint = "Shift " + (i + 1) + ", read " + row.Name.ToLowerInvariant() });
-                }
+                _keys.AddRange(RowKeys(() => _gc, JumpTo));
                 return _keys;
             }
         }
@@ -634,18 +858,44 @@ namespace GwentAccess.Ui
         // already know: your melee, your ranged, the opponent's melee, the opponent's ranged.
         private static readonly string[] NumberRows = { "my-melee", "my-ranged", "opp-melee", "opp-ranged" };
 
-        /// <summary>A whole row read at once without moving the cursor: "Your ranged row, score 12, 2 cards:
-        /// …; …".</summary>
-        private void SayRow(Row row)
+        /// <summary>The number row's keys over the board rows: Shift+1 to 4 read a row without moving; the plain
+        /// number jumps to it with <paramref name="jump"/>, or, where the board can't be moved over (a choice
+        /// open on top of it: <see cref="ChoiceScreen"/>), reads it too — a sighted player looks at the board
+        /// before picking.</summary>
+        internal static List<ScreenKey> RowKeys(Func<GameController> gc, Action<string> jump)
         {
-            var gc = _gc;
+            var keys = new List<ScreenKey>();
+            for (int i = 0; i < NumberRows.Length; i++)
+            {
+                var row = Array.Find(Rows, r => r.Key == NumberRows[i]);
+                var key = KeyCode.Alpha1 + i;
+                string name = row.Name.ToLowerInvariant();
+                keys.Add(jump != null
+                    ? new ScreenKey { Key = key, Run = () => jump(row.Key), Hint = (i + 1) + ", " + name }
+                    : new ScreenKey { Key = key, Run = () => SayRow(gc(), row), Hint = Loc.T("{0}, read {1}", i + 1, name) });
+                keys.Add(new ScreenKey { Key = key, Shift = true, Run = () => SayRow(gc(), row), Hint = Loc.T("Shift {0}, read {1}", i + 1, name) });
+            }
+            return keys;
+        }
+
+        /// <summary>A whole row read at once without moving the cursor: "Your ranged row, score 12, Frost, 2
+        /// turns left, 2 cards: …; …".</summary>
+        private static void SayRow(GameController gc, Row row)
+        {
             if (gc == null) return;
-            var cards = Battle.Cards(gc, row.Mine ? Battle.Me(gc) : Battle.Them(gc), row.Where);
-            string head = row.Name + ", score " + Score(cards);
-            if (cards.Count == 0) { Speech.Say(head + ", empty", true); return; }
+            var who = row.Mine ? Battle.Me(gc) : Battle.Them(gc);
+            var cards = Battle.Cards(gc, who, row.Where);
+            string head = row.Name + ", " + RowDetail(cards, RowLocation(gc, row));
+            if (cards.Count == 0) { Speech.Say(head + ", " + Loc.T("empty"), true); return; }
             var labels = new List<string>();
             foreach (var c in cards) labels.Add(Label(c, gc.PlayerManager));
-            Speech.Say(head + ", " + (cards.Count == 1 ? "1 card" : cards.Count + " cards") + ": " + string.Join("; ", labels), true);
+            Speech.Say(head + ", " + Loc.P(cards.Count, "{0} card: {1}", "{0} cards: {1}", string.Join("; ", labels)), true);
+        }
+
+        private static Location RowLocation(GameController gc, Row row)
+        {
+            try { return gc.BoardManager.GetLocation(row.Mine ? Battle.Me(gc) : Battle.Them(gc), row.Where); }
+            catch { return null; }
         }
 
         private void JumpTo(string row)
@@ -657,10 +907,18 @@ namespace GwentAccess.Ui
                 string lastGap = null;
                 foreach (var key in _gaps.Keys)
                     if (key.StartsWith(prefix, StringComparison.Ordinal)) lastGap = key;
-                string name = Array.Find(Rows, r => r.Key == row)?.Name;
+                var target = Array.Find(Rows, r => r.Key == row);
+                string name = target?.Name;
                 var here = (string)GraphNavigator.CurrentNode?.Id.StructuralKey;
-                if (lastGap == null) Speech.Say("Can't place in " + name?.ToLowerInvariant() + ".", true);
-                else if (here != null && here.StartsWith(prefix, StringComparison.Ordinal)) Speech.Say(name, true);
+                bool full = false;
+                try { full = target != null && _gc != null && RowLocation(_gc, target)?.IsFull() == true; } catch { }
+                if (lastGap == null) Speech.Say(full ? Loc.T("Can't place in {0}, full.", name?.ToLowerInvariant()) : Loc.T("Can't place in {0}.", name?.ToLowerInvariant()), true);
+                // Already in that row's gaps: the row again, with what it shows (score, effect, full), as B or
+                // Shift+B to another row says it; not just its name.
+                else if (here != null && here.StartsWith(prefix, StringComparison.Ordinal))
+                    Speech.Say(target != null && target.Scored && _gc != null
+                        ? name + ", " + RowDetail(Battle.Cards(_gc, target.Mine ? Battle.Me(_gc) : Battle.Them(_gc), target.Where), RowLocation(_gc, target))
+                        : name, true);
                 else GraphNavigator.FocusNode(ControlId.Structural(lastGap));
                 return;
             }
@@ -670,11 +928,19 @@ namespace GwentAccess.Ui
             if (node != null && _rowOf.TryGetValue((string)node.Id.StructuralKey, out var at) && at == row)
             {
                 var card = FocusedCard();
-                string name = Array.Find(Rows, r => r.Key == row)?.Name;
-                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players(), abilities: Array.Find(Rows, r => r.Key == row)?.Mine == true) : "empty"), true);
+                _cardKeys?.Reset(); // the card is said again: Down starts from its first line, as after a landing
+                var here = Array.Find(Rows, r => r.Key == row);
+                string name = here?.Name;
+                // A board row also says what the row shows (score, effect, full), as landing in it does.
+                if (here != null && here.Scored && _gc != null)
+                    name += ", " + RowDetail(Battle.Cards(_gc, here.Mine ? Battle.Me(_gc) : Battle.Them(_gc), here.Where), RowLocation(_gc, here));
+                Speech.Say((name != null ? name + ", " : "") + (card != null ? Label(card, Players()) : Loc.T("empty")), true);
                 return;
             }
-            if (_lastInRow.TryGetValue(row, out var id) && GraphNavigator.FocusNode(id)) return;
+            // The card last visited in that row, if it is still there: a card played from the hand keeps its
+            // id on the board, and C landed on it there.
+            if (_lastInRow.TryGetValue(row, out var id) && _rowOf.TryGetValue((string)id.StructuralKey, out var still) && still == row
+                && GraphNavigator.FocusNode(id)) return;
             foreach (var kv in _rowOf)
                 if (kv.Value == row && GraphNavigator.FocusNode(ControlId.Structural(kv.Key))) return;
         }
@@ -690,8 +956,82 @@ namespace GwentAccess.Ui
         private void SayOpponentHand()
         {
             if (_gc == null) return;
+            // The counter on the opponent's panel ("3/10": cards in hand of the limit) when it is drawn.
+            string shown = PanelText(false, "RightSideVerticalGroup/HandCountView/Hand Icon/Hand Card Number");
+            if (shown != null && shown.Contains(" of ")) { Speech.Say(Loc.T("Opponent's hand, {0} cards", shown), true); return; }
             int n = Battle.HandCount(_gc, Battle.Them(_gc));
-            Speech.Say("Opponent's hand, " + (n == 1 ? "1 card" : n + " cards"), true);
+            Speech.Say(Loc.P(n, "Opponent's hand, {0} card", "Opponent's hand, {0} cards"), true);
+        }
+
+        // The player panels beside the board (UIBoardPlayerControl under the battle dialogue's PlayerViewAnchors:
+        // BottomPlayer is you, TopPlayer the opponent), found once per battle.
+        private static UnityEngine.Transform _top, _bottom;
+
+        private static UnityEngine.Transform PlayerPanel(bool mine)
+        {
+            var t = mine ? _bottom : _top;
+            try { if (t != null && t.gameObject != null) return t; } catch { }
+            var root = UnityEngine.GameObject.Find("MainCanvas/UIBattleDialoguePrefab(Clone)/PlayerViewAnchors");
+            if (root == null) return null;
+            var anchor = root.transform.Find(mine ? "BottomPlayer" : "TopPlayer");
+            var panel = anchor != null && anchor.childCount > 0 ? anchor.GetChild(0) : null;
+            if (mine) _bottom = panel; else _top = panel;
+            return panel;
+        }
+
+        // A drawn text in a player panel, cleaned; null when it isn't shown.
+        private static string PanelText(bool mine, string path)
+        {
+            try
+            {
+                var t = PlayerPanel(mine)?.Find(path)?.GetComponent<TMPro.TMP_Text>();
+                if (t == null || !t.isActiveAndEnabled || t.color.a < 0.3f) return null;
+                string s = UiText.Clean(t.text);
+                return s.Length > 0 ? s : null;
+            }
+            catch { return null; }
+        }
+
+        // "Monsters, CARDSMITH": the player's name and title as their panel shows them.
+        private static string PlayerTag(bool mine)
+        {
+            var parts = new List<string>();
+            foreach (var part in new[] { "Vertical/PlayerInfo/Slideable/NameAndTitle/Name", "Vertical/PlayerInfo/Slideable/NameAndTitle/Title" })
+            {
+                var s = PanelText(mine, part);
+                if (s != null) parts.Add(s);
+            }
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
+        }
+
+        // T: whose turn, and who has passed, as the turn banner and the pass markers show it.
+        private void SayTurn()
+        {
+            var gc = _gc;
+            if (gc == null) return;
+            string turn = _plays.MyTurn ? GameText.Get("gwent_message_your_turn_main", "Your turn") : GameText.Get("gwent_message_opponent_turn_main", "Opponent's turn");
+            var parts = new List<string> { Narrator.Sentence(turn) };
+            try
+            {
+                var me = gc.PlayerManager.LocalUser;
+                if (me.HasPassed) parts.Add(Loc.T("You have passed."));
+                if (me.OpponentPlayer.HasPassed) parts.Add(Loc.T("Opponent has passed."));
+            }
+            catch { }
+            Speech.Say(string.Join(" ", parts), true);
+        }
+
+        // Shift+T: the turn clock, yours or the opponent's, as a sighted player glances at it (Accessible
+        // Arena's timer key).
+        private void SayTimer()
+        {
+            var gc = _gc;
+            if (gc == null) return;
+            float mine = TurnTimer.SecondsLeft(gc);
+            if (mine >= 0) { Speech.Say(Loc.P(Mathf.CeilToInt(mine), "{0} second left in your turn.", "{0} seconds left in your turn."), true); return; }
+            float theirs = TurnTimer.OpponentSecondsLeft(gc);
+            if (theirs >= 0) { Speech.Say(Loc.P(Mathf.CeilToInt(theirs), "{0} second left in the opponent's turn.", "{0} seconds left in the opponent's turn."), true); return; }
+            Speech.Say(_plays.MyTurn ? Loc.T("No turn timer.") : Loc.T("Opponent's turn, no timer."), true);
         }
 
         private void SayScore()

@@ -50,6 +50,12 @@ namespace GwentAccess.Ui
 
         public override void OnPop() => _rerolledSlot = -1;
 
+        private AControl _opener;
+        public override void OnFocus() => _opener = ContactsScreen.SocialOpener();
+
+        /// <summary>Backspace closes the window as pressing its social bar button again does.</summary>
+        public override bool Back() => ContactsScreen.CloseSocialWindow(_opener, "quest");
+
         // Whether this build has named where the cursor starts.
         private bool _startSet;
 
@@ -83,7 +89,7 @@ namespace GwentAccess.Ui
         {
             b.BeginStop("summary");
             var timer = w.m_NewDayTimer;
-            if (Shown(timer))
+            if (CrimsonNodes.Shown(timer))
             {
                 string Text() => string.Join(", ", CrimsonNodes.Texts(timer));
                 b.AddItem(ControlId.Structural("quests:new-day"), new NodeVtable
@@ -93,7 +99,7 @@ namespace GwentAccess.Ui
                 });
             }
             var login = w.m_DailyLoginButton;
-            if (Shown(login) && login.IsCurrentlySelectable() && used.Add(login.Pointer))
+            if (CrimsonNodes.Shown(login) && login.IsCurrentlySelectable() && used.Add(login.Pointer))
                 b.AddItem(CrimsonNodes.Id(login), CrimsonNodes.Button(login, () => GameText.Get("daily_login_title", "Daily reward")));
         }
 
@@ -113,22 +119,33 @@ namespace GwentAccess.Ui
                 if (q.SectionButton != null) used.Add(q.SectionButton.Pointer);
             }
             if (!BeginSection(b, section, section.SectionButton, used)) return;
-            int shown = slots.FindAll(s => Shown(s)).Count, at = 0;
+            int shown = slots.FindAll(s => CrimsonNodes.Shown(s)).Count, at = 0;
             for (int i = 0; i < slots.Count; i++)
             {
                 var slot = slots[i];
-                if (!Shown(slot)) continue;
+                if (!CrimsonNodes.Shown(slot)) continue;
                 at++;
                 var q = Quest(slot);
                 if (q == null)
                 {
-                    // An empty slot shows when its next quest comes.
+                    // An empty slot shows when its next quest comes. It counts among the quests ("2 of 3"), as
+                    // the quests themselves say their place, not among the empty slots alone ("1 of 2").
                     var wait = slot.m_TimerCountdownRenderer;
-                    if (Shown(wait))
-                        b.AddLabel(ControlId.Structural("quests:slot:" + i), () => string.Join(", ", CrimsonNodes.Texts(wait)));
+                    if (CrimsonNodes.Shown(wait))
+                    {
+                        string position = Loc.T("{0} of {1}", at, shown);
+                        b.AddItem(ControlId.Structural("quests:slot:" + i), new NodeVtable
+                        {
+                            Announcements = new[]
+                            {
+                                new NodeAnnouncement(() => string.Join(", ", CrimsonNodes.Texts(wait)), kind: AnnouncementKinds.Label),
+                                new NodeAnnouncement(() => position, kind: AnnouncementKinds.Position),
+                            },
+                        });
+                    }
                     continue;
                 }
-                AddQuest(b, i, q, at + " of " + shown);
+                AddQuest(b, i, q, Loc.T("{0} of {1}", at, shown));
             }
             b.EndGroup();
         }
@@ -148,7 +165,7 @@ namespace GwentAccess.Ui
             try
             {
                 var q = slot.m_DailyQuestRenderer;
-                return Shown(q) && q.Quest != null ? q : null;
+                return CrimsonNodes.Shown(q) && q.Quest != null ? q : null;
             }
             catch { return null; }
         }
@@ -174,7 +191,7 @@ namespace GwentAccess.Ui
             });
 
             var reroll = q.m_MouseButtonControl;
-            if (Shown(q.m_RerollButtonContainer) && reroll != null)
+            if (CrimsonNodes.Shown(q.m_RerollButtonContainer) && reroll != null)
             {
                 var v = CrimsonNodes.Button(reroll, () => CrimsonNodes.TooltipText(reroll) ?? GameText.Get("daily_quest_action_abandon", "Change"));
                 v.SpeaksOwnPosition = true;
@@ -197,7 +214,7 @@ namespace GwentAccess.Ui
         {
             var m = q.Quest;
             if (m == null) return null;
-            return m.IsCompleted ? GameText.Get("daily_quest_completed", "Completed") : m.CurrentValue + "/" + m.CompleteValue;
+            return m.IsCompleted ? GameText.Get("daily_quest_completed", "Completed") : Loc.T("progress {0} of {1}", m.CurrentValue, m.CompleteValue); // drawn "1/3"
         }
 
         /// <summary>
@@ -208,7 +225,7 @@ namespace GwentAccess.Ui
         private static string Reward(DailyQuestRenderer q)
         {
             var m = q.Quest;
-            if (m == null || !Shown(q.m_RewardIcon)) return null;
+            if (m == null || !CrimsonNodes.Shown(q.m_RewardIcon)) return null;
             string icon = m.RewardIconName switch
             {
                 "symbol_stones" => Currency.Ore(),
@@ -234,7 +251,7 @@ namespace GwentAccess.Ui
             if (c == null || !c.IsEnabled) return;
             _rerolledSlot = slot;
             _rerolledFrom = q.Quest?.Description;
-            ProfileScreen.MouseClick(c);
+            Navigator.MouseClick(c);
         }
 
         public override void Tick()
@@ -280,9 +297,9 @@ namespace GwentAccess.Ui
 
         /// <summary>Opens a section's group, mirroring the game's foldout. False when there is nothing to put
         /// under it: no header, or one the game greys out, which then reads as a line.</summary>
-        private static bool BeginSection(GraphBuilder b, FoldoutSectionComponent section, ButtonControl header, HashSet<System.IntPtr> used)
+        internal static bool BeginSection(GraphBuilder b, FoldoutSectionComponent section, ButtonControl header, HashSet<System.IntPtr> used)
         {
-            if (!Shown(header)) return false;
+            if (!CrimsonNodes.Shown(header)) return false;
             used.Add(header.Pointer);
             string Label() => string.Join(", ", CrimsonNodes.Texts(header));
             if (!header.IsCurrentlySelectable())
@@ -292,11 +309,6 @@ namespace GwentAccess.Ui
             }
             b.BeginGroup(CrimsonNodes.Id(header), ContactsScreen.Foldout(header, section, Label), expanded: section.IsOpened);
             return true;
-        }
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
         }
     }
 }

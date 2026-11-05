@@ -4,6 +4,9 @@ on:
   push:
     branches: ['**']
     tags: ['v*']
+  # Pull requests from forks build here, with this repository's Gwent.GameRefs package (a fork's own push runs
+  # look for the package under the fork's owner). A branch of this repository already builds on push.
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -16,6 +19,7 @@ concurrency:
 jobs:
   test:
     name: Graph kernel tests
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -24,9 +28,13 @@ jobs:
           dotnet-version: 8.0.x
       - name: Run tests
         run: dotnet test tests/Access.Core.Tests/Access.Core.Tests.csproj
+      - name: Translation table is current
+        # en.json must list every Loc.T/Loc.P/Loc.Mark string in the code (just strings regenerates it).
+        run: python3 scripts/extract-strings.py --check
 
   build:
     name: Build mod (Release)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: windows-latest
     permissions:
       contents: read
@@ -133,10 +141,20 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v8
         with:
           name: mod-zip
           path: dist
+      # The notes are the tag's section of CHANGELOG.md (v0.28.0: "## 0.28.0"), up to the next version.
+      - name: Release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 == "## " v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "CHANGELOG.md has no section for $version"; exit 1; fi
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -144,4 +162,4 @@ jobs:
           gh release create ${{ github.ref_name }} dist/GwentAccess-*.zip \
             -R ${{ github.repository }} \
             --title "Gwent Access ${{ github.ref_name }}" \
-            --generate-notes
+            --notes-file notes.md

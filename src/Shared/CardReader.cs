@@ -7,51 +7,56 @@ namespace GwentAccess
 {
     /// <summary>
     /// Turns any Gwent card into speech, in the shape the battle, deck builder, collection, shop and pack
-    /// screens all share: a summary line spoken on focus, then the lines a sighted player finds in the game's
-    /// big card preview — categories, each ability, type and look, flavor, illustrator — and, apart, the
-    /// preview's keyword and status explanations.
+    /// screens all share (Hearthstone Access's): a short summary line spoken on focus, then the lines a sighted
+    /// player finds in the game's big card preview, read one by one — each ability, categories, type and look,
+    /// flavor, illustrator — and, apart, the preview's keyword and status explanations.
     ///
     /// Speaks only what the game shows (the parity rule): live power with its colour as a word ("boosted" for
     /// the green number), the status icons with the numbers they carry, the order icon's state; base power
     /// only in the details, where the preview's header shows it. A card the game hides from the local player
     /// reads "hidden card" and nothing else. Card text stays in the game's language; the few words the mod
-    /// adds are English, like the rest of the mod.
+    /// adds go through <see cref="Loc"/>, like the rest of the mod.
     /// </summary>
     internal static class CardReader
     {
-        /// <summary>The line spoken on focus: "Name, power 9, boosted, armor 2, Bleeding 2, order ready".
-        /// <paramref name="pm"/> is the match's player manager (null outside a match): in a match the card is
-        /// checked against what the local player may see, and stats read live.</summary>
-        public static string Summary(Card card, PlayerManager pm = null)
+        /// <summary>The line spoken on focus, for every card, yours and the opponent's alike (Hearthstone
+        /// Access's short line; the abilities are Down's): "Name, power 9, boosted, armor 2, Bleeding 2, Dominance
+        /// met, order recharging, 2 turns, 7 provisions". <paramref name="pm"/> is the match's player manager
+        /// (null outside a match): in a match the card is checked against what the local player may see, and
+        /// stats read live. <paramref name="preview"/>: the card sits in a panel of cards (a choice, the deck or
+        /// a graveyard), checked against what the game shows there (<see cref="Hidden"/>).</summary>
+        /// <summary>Set by the battle screen: the name and title on the player panel beside a leader, its last line.</summary>
+        internal static Func<Card, string> LeaderPlayer;
+
+        public static string Summary(Card card, PlayerManager pm = null, bool preview = false)
         {
             if (card == null) return "";
-            if (Hidden(card, pm)) return "hidden card";
+            if (Hidden(card, pm, preview)) return Loc.T("hidden card");
             var parts = new List<string> { Name(card) };
             var type = Type(card);
             if (type == ECardType.Unit) AddPower(parts, card);
-            else parts.Add(TypeWord(type));
-            // A leader shows its faction on the board (the deck's colours and crest); other cards only in the preview.
-            if (type == ECardType.Leader) Add(parts, Faction(card));
+            // In a match a leader's row already says "your leader" and its faction is a line below (Stats): the
+            // short line is its name, ability and order. Elsewhere (the deck builder) the leader says what it is.
+            else if (type != ECardType.Leader || pm == null) parts.Add(TypeWord(type));
+            if (type == ECardType.Leader && pm == null) Add(parts, Faction(card));
             AddStatuses(parts, card);
-            if (pm != null) AddOrder(parts, card);
-            AddTimer(parts, card);
+            if (pm != null) AddCondition(parts, card);
+            bool cooldown = pm != null && AddOrder(parts, card);
+            if (!cooldown) AddTimer(parts, card);
             if (type != ECardType.Leader && (pm == null || At(card) == ELocation.Hand))
-                Try(() => { int p = card.Template.Provision; if (p > 0) parts.Add(p + " provisions"); });
+                Try(() => { int p = card.Template.Provision; if (p > 0) parts.Add(Loc.P(p, "{0} provision", "{0} provisions")); });
             return string.Join(", ", parts);
         }
 
-        /// <summary>The summary followed by the card's abilities: "Name, power 9, 7 provisions. Deploy: …". The
-        /// focus line for your own cards (hand, rows, mulligan, choices), where what a card does decides the
-        /// play — as the first version of the mod read them; the opponent's board keeps the short
-        /// <see cref="Summary"/> so scanning it stays quick.</summary>
-        public static string WithAbilities(Card card, PlayerManager pm = null)
+        /// <summary>Only the card's ability text ("Deploy: Boost adjacent units by 2."), or "" when it has none or
+        /// is hidden from you.</summary>
+        public static string Abilities(Card card, PlayerManager pm = null)
         {
-            string summary = Summary(card, pm);
-            if (card == null || Hidden(card, pm)) return summary;
+            if (card == null || Hidden(card, pm)) return "";
             var abilities = new List<string>();
             foreach (var ability in Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false).Split('\n'))
                 Add(abilities, UiText.Clean(ability));
-            return abilities.Count == 0 ? summary : summary + ". " + string.Join(" ", abilities);
+            return string.Join(" ", abilities);
         }
 
         /// <summary>One line of a card, with the keywords it mentions (the game's keys, e.g. "order", "veil").</summary>
@@ -61,13 +66,14 @@ namespace GwentAccess
             public readonly List<string> Keywords = new List<string>();
         }
 
-        /// <summary>The card itself, line by line, the summary first: what Ctrl+Up/Down step through. Keyword
-        /// explanations are separate (<see cref="Explanations"/>), as the game keeps them beside the card.</summary>
-        public static List<CardLine> Lines(Card card, PlayerManager pm = null)
+        /// <summary>The card itself, line by line, the summary first: what Up/Down step through. Then, as
+        /// Hearthstone Access reads a card, what it does before what it is: each ability line, the categories,
+        /// the kind and base power (<see cref="Stats"/>), the flavor, the illustrator. Keyword explanations are
+        /// separate (<see cref="Explanations"/>), as the game keeps them beside the card.</summary>
+        public static List<CardLine> Lines(Card card, PlayerManager pm = null, bool preview = false)
         {
-            var lines = new List<CardLine> { new CardLine { Text = Summary(card, pm) } };
-            if (card == null || Hidden(card, pm)) return lines;
-            Add(lines, Text(() => LocalizationHelper.LocalizeCategories(card)));
+            var lines = new List<CardLine> { new CardLine { Text = Summary(card, pm, preview) } };
+            if (card == null || Hidden(card, pm, preview)) return lines;
             // Each keyword in the ability text is a <link=key> tag: that is how a line knows its keywords.
             foreach (var ability in Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false).Split('\n'))
             {
@@ -76,9 +82,13 @@ namespace GwentAccess
                 foreach (System.Text.RegularExpressions.Match m in LinkTag.Matches(ability))
                     if (!line.Keywords.Contains(m.Groups[1].Value)) line.Keywords.Add(m.Groups[1].Value);
             }
+            Add(lines, Text(() => LocalizationHelper.LocalizeCategories(card)));
             Add(lines, Stats(card));
             Add(lines, Text(() => LocalizationHelper.GetCardFlavor(card)));
             Add(lines, Text(() => LocalizationHelper.GetArtistDescription(card.Template)));
+            // A leader in a match: the player beside it, name and title, as their panel shows.
+            if (pm != null && Type(card) == ECardType.Leader && LeaderPlayer != null)
+                Try(() => Add(lines, LeaderPlayer(card)));
             return lines;
         }
 
@@ -89,10 +99,10 @@ namespace GwentAccess
         /// status list (a status's explanation sits with the keywords, under the status's name). With
         /// <paramref name="only"/>, just those keywords, in that order — the words of one line.
         /// </summary>
-        public static List<string> Explanations(Card card, PlayerManager pm = null, IReadOnlyList<string> only = null)
+        public static List<string> Explanations(Card card, PlayerManager pm = null, IReadOnlyList<string> only = null, bool preview = false)
         {
             var found = new List<string>();
-            if (card == null || Hidden(card, pm)) return found;
+            if (card == null || Hidden(card, pm, preview)) return found;
             var known = new Dictionary<string, string>();
             var order = new List<string>();
             Try(() =>
@@ -124,11 +134,11 @@ namespace GwentAccess
         }
 
         /// <summary>The whole card for Space: its lines, then its keywords explained.</summary>
-        public static string Whole(Card card, PlayerManager pm = null)
+        public static string Whole(Card card, PlayerManager pm = null, bool preview = false)
         {
             var parts = new List<string>();
-            foreach (var line in Lines(card, pm)) parts.Add(line.Text);
-            parts.AddRange(Explanations(card, pm));
+            foreach (var line in Lines(card, pm, preview)) parts.Add(line.Text);
+            parts.AddRange(Explanations(card, pm, preview: preview));
             return string.Join(". ", parts);
         }
 
@@ -139,15 +149,33 @@ namespace GwentAccess
             if (card == null) return "";
             var parts = new List<string>();
             var type = Type(card);
-            string tier = "";
-            Try(() => tier = card.Template.Tier == ECardTier.Leader ? "" : card.Template.Tier.ToString().ToLowerInvariant() + " ");
-            parts.Add(tier + TypeWord(type));
+            string kind = TypeWord(type);
+            Try(() => kind = card.Template.Tier == ECardTier.Leader ? kind : WithTier(card.Template.Tier, kind));
+            parts.Add(kind);
             if (type == ECardType.Unit)
-                Try(() => parts.Add("base power " + card.Data.Power.BasePower));
+                Try(() => parts.Add(Loc.T("base power {0}", card.Data.Power.BasePower)));
             Add(parts, Faction(card));
-            Try(() => parts.Add(card.Template.Rarity.ToString().ToLowerInvariant()));
+            Try(() => parts.Add(RarityWord(card.Template.Rarity)));
             return string.Join(", ", parts);
         }
+
+        // "gold unit": the kind with its tier, one phrase per tier so a translator can place and agree the word.
+        private static string WithTier(ECardTier tier, string kind) => tier switch
+        {
+            ECardTier.Bronze => Loc.T("bronze {0}", kind),
+            ECardTier.Silver => Loc.T("silver {0}", kind),
+            ECardTier.Gold => Loc.T("gold {0}", kind),
+            _ => tier.ToString().ToLowerInvariant() + " " + kind,
+        };
+
+        private static string RarityWord(ERarity rarity) => rarity switch
+        {
+            ERarity.Common => Loc.T("common"),
+            ERarity.Rare => Loc.T("rare"),
+            ERarity.Epic => Loc.T("epic"),
+            ERarity.Legendary => Loc.T("legendary"),
+            _ => rarity.ToString().ToLowerInvariant(),
+        };
 
         /// <summary>The card's faction in the game's words ("Нильфгаард"), or "".</summary>
         public static string Faction(Card card) =>
@@ -162,19 +190,30 @@ namespace GwentAccess
             return string.Join(", ", parts);
         }
 
-        public static bool Hidden(Card card, PlayerManager pm)
+        /// <summary>Whether the local player sees this card's back. On the board and in hands that is the
+        /// match's own visibility. With <paramref name="preview"/>, the card sits in a panel of cards (a choice,
+        /// your deck, a graveyard): the cards a panel offers are made for it and sit where the board's rule
+        /// reports them hidden, yet the panel shows them face up, so the game's preview rule
+        /// (<c>IsVisibleToLocalPreview</c>, the one meant for such panels) decides; a card either rule shows is
+        /// read. A check that throws reads a panel's card as shown, a board card as hidden.</summary>
+        public static bool Hidden(Card card, PlayerManager pm, bool preview = false)
         {
             if (pm == null) return false;
-            try { return !card.IsVisibleToLocal(pm); } catch { return true; }
+            try
+            {
+                if (card.IsVisibleToLocal(pm)) return false;
+                return !preview || !card.IsVisibleToLocalPreview(pm);
+            }
+            catch { return !preview; }
         }
 
         /// <summary>Just the name, or "hidden card" for one the local player can't see.</summary>
-        public static string Name(Card card, PlayerManager pm) => Hidden(card, pm) ? "hidden card" : Name(card);
+        public static string Name(Card card, PlayerManager pm, bool preview = false) => Hidden(card, pm, preview) ? Loc.T("hidden card") : Name(card);
 
         private static string Name(Card card)
         {
             string name = Text(() => LocalizationHelper.GetCardName(card));
-            return name.Length > 0 ? name : "unknown card";
+            return name.Length > 0 ? name : Loc.T("unknown card");
         }
 
         // A card's main type: the template's type flags, leader first (a leader is never also a unit).
@@ -189,12 +228,12 @@ namespace GwentAccess
 
         private static string TypeWord(ECardType t) => t switch
         {
-            ECardType.Leader => "leader",
-            ECardType.Unit => "unit",
-            ECardType.Special => "special",
-            ECardType.Artifact => "artifact",
-            ECardType.Stratagem => "stratagem",
-            _ => "card",
+            ECardType.Leader => Loc.T("leader"),
+            ECardType.Unit => Loc.T("unit"),
+            ECardType.Special => Loc.T("special"),
+            ECardType.Artifact => Loc.T("artifact"),
+            ECardType.Stratagem => Loc.T("stratagem"),
+            _ => Loc.T("card"),
         };
 
         private static ELocation At(Card card)
@@ -209,15 +248,15 @@ namespace GwentAccess
             Try(() =>
             {
                 var power = card.Data.Power;
-                parts.Add("power " + power.CurrentPower);
+                parts.Add(Loc.T("power {0}", power.CurrentPower));
                 switch (power.GetPowerState())
                 {
-                    case EPowerState.Wounded: parts.Add("damaged"); break;
-                    case EPowerState.Boosted: parts.Add("boosted"); break;
-                    case EPowerState.Weakened: parts.Add("weakened"); break;
-                    case EPowerState.Strengthened: parts.Add("strengthened"); break;
+                    case EPowerState.Wounded: parts.Add(Loc.T("damaged")); break;
+                    case EPowerState.Boosted: parts.Add(Loc.T("boosted")); break;
+                    case EPowerState.Weakened: parts.Add(Loc.T("weakened")); break;
+                    case EPowerState.Strengthened: parts.Add(Loc.T("strengthened")); break;
                 }
-                if (power.CurrentArmor > 0) parts.Add("armor " + power.CurrentArmor);
+                if (power.CurrentArmor > 0) parts.Add(Loc.T("armor {0}", power.CurrentArmor));
             });
         }
 
@@ -253,36 +292,115 @@ namespace GwentAccess
             return found;
         }
 
-        // The order icon on a card in play: ready, waiting out the turn it arrived, recharging, used up;
-        // with its charges when the card shows them.
-        private static void AddOrder(List<string> parts, Card card)
+        // The order icon on a card in play: ready, waiting out the turn it arrived, recharging (with the turns
+        // its hourglass counts down: a Cooldown runs on the card's timer, which the order's charges follow —
+        // TapCardCharges.OnTimerChangedHandler), used up; with its charges when the card shows them. True when
+        // the timer was said as the cooldown, so it isn't said again.
+        private static bool AddOrder(List<string> parts, Card card)
         {
             var at = At(card);
-            if (at != ELocation.Melee && at != ELocation.Ranged && at != ELocation.Leader) return;
+            if (at != ELocation.Melee && at != ELocation.Ranged && at != ELocation.Leader) return false;
+            bool cooldown = false;
             Try(() =>
             {
                 if (!card.HasTapAbility()) return;
                 var charges = card.Data.TapCharges;
                 switch (charges.State)
                 {
-                    case ETapCardState.Available: parts.Add("order ready"); break;
-                    case ETapCardState.SummoningSickness: parts.Add("order next turn"); break;
-                    case ETapCardState.Recharging: parts.Add("order recharging"); break;
-                    case ETapCardState.Depleted: parts.Add("order used"); break;
-                    case ETapCardState.Unavailable: parts.Add("order unavailable"); break;
+                    case ETapCardState.Available: parts.Add(Loc.T("order ready")); break;
+                    case ETapCardState.SummoningSickness: parts.Add(Loc.T("order next turn")); break;
+                    case ETapCardState.Recharging:
+                        parts.Add(Loc.T("order recharging"));
+                        int t = TimerOf(card);
+                        if (t > 0) { parts.Add(Loc.P(t, "{0} turn", "{0} turns")); cooldown = true; }
+                        break;
+                    case ETapCardState.Depleted: parts.Add(Loc.T("order used")); break;
+                    case ETapCardState.Unavailable: parts.Add(Loc.T("order unavailable")); break;
                 }
                 if (card.Template.VisibleTapCharges || at == ELocation.Leader)
-                    parts.Add(charges.Value == 1 ? "1 charge" : charges.Value + " charges");
+                    parts.Add(Loc.P(charges.Value, "{0} charge", "{0} charges"));
             });
+            return cooldown;
         }
 
-        private static void AddTimer(List<string> parts, Card card)
+        // A conditional keyword the game shows as met. Adrenaline, Initiative, Dominance and Bloodthirst cards
+        // glow while their condition holds (the game's own Adrenaline text: "highlighted when their effect is
+        // stronger"); the glow is the keyword handler's constant effect kept alive on the card, one keyword
+        // per card. So a card is "Dominance met" exactly while that effect is on it: what is drawn, not the
+        // rule worked out again.
+        private static void AddCondition(List<string> parts, Card card)
         {
             Try(() =>
             {
-                int t = card.AbilityData.Timer.Value;
-                if (t >= 0 && t != AEntityTimer.NO_TIMER) parts.Add("timer " + t);
+                var glowing = KeywordGlow()?.m_CardsWithActiveConstantVFXs;
+                if (glowing == null || !glowing.ContainsKey(card)) return;
+                var vfx = glowing[card];
+                if (vfx == null) return;
+                string key = vfx.Keyword switch
+                {
+                    ECardKeyword.Adrenaline => "adrenaline",
+                    ECardKeyword.Initiative => "initiative",
+                    ECardKeyword.Dominance => "dominance",
+                    ECardKeyword.Bloodthrist => "bloodthirst",
+                    _ => null,
+                };
+                if (key == null) return;
+                string fallback = char.ToUpperInvariant(key[0]) + key.Substring(1);
+                parts.Add(Loc.T("{0} met", GameText.Term(LocalizationHelper.KEYWORD_LOCALIZATION_KEY_PREFIX + key, fallback)));
             });
+        }
+
+        private static GwentVisuals.Effects.CardKeywordAttackVFXHandler _glow;
+        private static float _glowLookedAt = -100f;
+
+        // The battle's keyword effect handler, kept while it lives; looked for at most once a second while there
+        // is none (before a battle's board has loaded).
+        private static GwentVisuals.Effects.CardKeywordAttackVFXHandler KeywordGlow()
+        {
+            try { if (_glow != null && _glow.Pointer != IntPtr.Zero && _glow.isActiveAndEnabled) return _glow; } catch { }
+            _glow = null;
+            float now = UnityEngine.Time.realtimeSinceStartup;
+            if (now - _glowLookedAt < 1f) return null;
+            _glowLookedAt = now;
+            try { _glow = UnityEngine.Object.FindObjectOfType<GwentVisuals.Effects.CardKeywordAttackVFXHandler>(); } catch { }
+            return _glow;
+        }
+
+        // The card's timer, or -1 when it has none.
+        private static int TimerOf(Card card)
+        {
+            try
+            {
+                int t = card.AbilityData.Timer.Value;
+                return t >= 0 && t != AEntityTimer.NO_TIMER ? t : -1;
+            }
+            catch { return -1; }
+        }
+
+        // The number in the card's corner, named as the card's own text names it. One timer runs a Timer, a
+        // Counter and a Cooldown alike (Elven Scribe's template starts its Counter as InitialTimer 3), so the
+        // ability text tells which: "counter 3", "timer 1", "cooldown 2".
+        private static void AddTimer(List<string> parts, Card card)
+        {
+            int t = TimerOf(card);
+            if (t < 0) return;
+            string word = TimerWord(card, out bool isCooldown);
+            if (isCooldown && t == 0) return; // a cooldown run out is the order being ready, said as such
+            parts.Add(GameText.Lower(word) + " " + t);
+        }
+
+        private static string TimerWord(Card card, out bool isCooldown)
+        {
+            string text = Text(() => LocalizationHelper.GetTooltipDescription(card), clean: false);
+            string lower = text.ToLowerInvariant();
+            bool Linked(string key) => lower.Contains("<link=" + key + ">") || lower.Contains("<link=\"" + key + "\"");
+            isCooldown = Linked("cooldown");
+            if (isCooldown) return GameText.Term("keyword_cooldown", "Cooldown");
+            if (Linked("timer")) return GameText.Term("keyword_timer", "Timer");
+            // A Counter line is plain text in the ability ("Counter: 3"), not a keyword link.
+            string counter = GameText.Term("keyword_counter", "Counter");
+            if (Linked("counter") || UiText.Clean(text).IndexOf(counter, StringComparison.OrdinalIgnoreCase) >= 0) return counter;
+            return GameText.Term("keyword_timer", "Timer");
         }
 
         // One keyword's explanation from the game's table ("keyword_order", "keyword_veil"), "" when it has none.

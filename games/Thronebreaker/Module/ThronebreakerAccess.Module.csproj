@@ -17,6 +17,7 @@
     <Compile Remove="..\..\..\src\Shared\CardReader.cs" />
     <Compile Remove="..\..\..\src\Shared\CardText.cs" />
     <Compile Remove="..\..\..\src\Shared\Narrator.cs" />
+    <Compile Remove="..\..\..\src\Shared\NarrateBoardState.cs" />
     <Compile Remove="..\..\..\src\Shared\Plays.cs" />
     <Compile Remove="..\..\..\src\Shared\TutorialTrace.cs" />
     <Compile Remove="..\..\..\src\Shared\Ui\BattleInput.cs" />
@@ -24,5 +25,7 @@
     <Compile Remove="..\..\..\src\Shared\Ui\CardKeys.cs" />
     <Compile Remove="..\..\..\src\Shared\Ui\ChoiceScreen.cs" />
     <Compile Remove="..\..\..\src\Shared\Ui\MulliganScreen.cs" />
+    <Compile Remove="..\..\..\src\Shared\Ui\PileScreen.cs" />
+    <Compile Remove="..\..\..\src\Shared\Ui\LogScreen.cs" />
   </ItemGroup>
 </Project>

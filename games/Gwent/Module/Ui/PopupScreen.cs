@@ -15,6 +15,11 @@ namespace GwentAccess.Ui
     /// buttons, clicked through their container's callback as the game's keys do. Escape stays the game's
     /// Back, which cancels where the popup allows it. The message node is keyed by its text, so a popup that
     /// is replaced by another lands afresh and is read.
+    ///
+    /// A popup with a text field (renaming a deck, naming a new one) offers the field as an edit box
+    /// (<see cref="EditBox"/>): Enter puts the caret in it, and what is typed or deleted is echoed. The field's
+    /// own texts (its placeholder, what is typed) are the edit box's, not part of the message, so typing doesn't
+    /// re-key the message and re-read the popup.
     /// </summary>
     internal sealed class PopupScreen : Screen
     {
@@ -23,26 +28,21 @@ namespace GwentAccess.Ui
 
         public override bool IsActive() => Container() != null;
 
-        private static UIPopupContainer Container()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIPopupContainer>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIPopupContainer Container() => CrimsonNodes.ActivePanel<UIPopupContainer>();
 
-        // The shown popup: the container's active PopupControl child.
-        private static PopupControl Popup(UIPopupContainer container)
+        // The shown popup: the container's active PopupControl child, else its active child of another kind
+        // (the event announcement, UIImagePopupWithText: a picture, a title, its text and buttons).
+        private static AControl Popup(UIPopupContainer container)
         {
             foreach (var p in container.GetComponentsInChildren<PopupControl>(false))
                 if (p.gameObject.activeInHierarchy) return p;
+            for (int i = 0; i < container.transform.childCount; i++)
+            {
+                var child = container.transform.GetChild(i);
+                if (!child.gameObject.activeInHierarchy) continue;
+                var c = child.GetComponent<AControl>();
+                if (c != null) return c;
+            }
             return null;
         }
 
@@ -55,10 +55,32 @@ namespace GwentAccess.Ui
             var buttons = Buttons(popup);
             var buttonTexts = new HashSet<string>();
             foreach (var c in buttons) foreach (var s in CrimsonNodes.Texts(c)) buttonTexts.Add(s);
+            var field = Field(popup);
 
-            string title = Joined(popup.transform.Find("SafeArea/SizeFitter/VerticalLayout/Header"), null);
-            var content = popup.transform.Find("SafeArea/SizeFitter/VerticalLayout/ContentRoot");
-            string message = Joined(content, buttonTexts);
+            string title, message;
+            if (popup.TryCast<PopupControl>() != null)
+            {
+                title = Joined(popup.transform.Find("SafeArea/SizeFitter/VerticalLayout/Header"), null);
+                message = Joined(popup.transform.Find("SafeArea/SizeFitter/VerticalLayout/ContentRoot"), buttonTexts, field);
+            }
+            else
+            {
+                // Another kind has no fixed skeleton: its first text is the title ("Saovine Event"), the rest
+                // the message (the dates, how to earn the event's currency).
+                var texts = new List<string>();
+                foreach (var t in CrimsonNodes.Texts(popup.transform)) if (!buttonTexts.Contains(t)) texts.Add(t);
+                title = texts.Count > 1 ? texts[0] : "";
+                // Its texts are separate lines and paragraphs: one that ends without a stop ("October 26th —
+                // November 9th") gets one, or it ran into the next ("November 9th Obtain").
+                var lines = texts.Count > 1 ? texts.GetRange(1, texts.Count - 1) : texts;
+                var sb = new System.Text.StringBuilder();
+                foreach (var line in lines)
+                {
+                    if (sb.Length > 0) sb.Append(".!?:;".IndexOf(sb[sb.Length - 1]) >= 0 ? " " : ". ");
+                    sb.Append(line);
+                }
+                message = sb.ToString();
+            }
 
             b.BeginStop("popup");
             if (title.Length > 0) b.PushContext(title);
@@ -72,35 +94,89 @@ namespace GwentAccess.Ui
                 });
                 b.SetStart(id);
             }
-            foreach (var c in buttons) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            // The text field even when the game doesn't report it selectable: the rename popup opens with its
+            // field already typing (seen in the deck builder), and it was left out, nothing to type into.
+            if (field != null && !buttons.Exists(c => c.Pointer == field.Pointer))
+                b.AddItem(CrimsonNodes.Id(field), _field.Vtable(field));
+            foreach (var c in buttons)
+            {
+                if (field != null && c.Pointer == field.Pointer) b.AddItem(CrimsonNodes.Id(c), _field.Vtable(field));
+                else b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
+            }
             if (title.Length > 0) b.PopContext();
         }
 
-        // A part's distinct visible texts, joined; texts that are a button's caption are left to the button.
-        private static string Joined(UnityEngine.Transform t, HashSet<string> skip)
+        // A part's distinct visible texts (TextMeshPro and legacy UI text), joined; texts that are a button's
+        // caption are left to the button, and those inside the text field (its placeholder, what is typed) to the
+        // edit box.
+        private static string Joined(UnityEngine.Transform t, HashSet<string> skip, InputFieldControl field = null)
         {
             if (t == null) return "";
+            if (field == null)
+            {
+                var all = new List<string>();
+                foreach (var s in CrimsonNodes.Texts(t))
+                    if (skip == null || !skip.Contains(s)) all.Add(s);
+                return string.Join(" ", all);
+            }
             var parts = new List<string>();
-            foreach (var s in CrimsonNodes.Texts(t))
+            void Add(UnityEngine.Component c, string raw)
+            {
+                if (c.transform.IsChildOf(field.transform)) return;
+                string s = UiText.Clean(raw);
+                if (s.Length == 0 || s.StartsWith("[MISSING]") || UiText.IsPlaceholder(s) || parts.Contains(s)) return;
                 if (skip == null || !skip.Contains(s)) parts.Add(s);
+            }
+            foreach (var tmp in t.GetComponentsInChildren<TMPro.TMP_Text>(false)) Add(tmp, tmp.text);
+            foreach (var txt in t.GetComponentsInChildren<UnityEngine.UI.Text>(false)) Add(txt, txt.text);
             return string.Join(" ", parts);
         }
 
+        // ---- the text field ----
+
+        private static readonly EditBox _field = new EditBox(CurrentField, Loc.Mark("Name"));
+
+        // The popup's shown text field, if it has one.
+        private static InputFieldControl Field(AControl popup)
+        {
+            var f = popup?.GetComponentInChildren<InputFieldControl>(false);
+            return f != null && f.gameObject.activeInHierarchy ? f : null;
+        }
+
+        private static InputFieldControl CurrentField()
+        {
+            var container = Container();
+            return container != null ? Field(Popup(container)) : null;
+        }
+
+        public override void OnCursorMoved(GraphNode node)
+        {
+            _field.OnCursorMoved(node);
+            base.OnCursorMoved(node);
+        }
+
+        public override void Tick() => _field.Tick();
+
+        public override void OnPop() => _field.Reset();
+
         // The content's own selectable controls (an input field…), then the bar's captioned buttons: those are
         // never selectable (the game reaches them by key) and run their container's callback when clicked.
-        private static List<AControl> Buttons(PopupControl popup)
+        private static List<AControl> Buttons(AControl popup)
         {
             var list = CrimsonNodes.Leaves(popup);
-            foreach (var bar in popup.GetComponentsInChildren<InputButtonContainer>(false))
+            if (popup.TryCast<PopupControl>() == null)
             {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    if (!list.Exists(x => x.Pointer == c.Pointer)) list.Add(c);
-                }
+                // Another kind's buttons ("Go to the Shop") are captioned but never selectable; its picture is a
+                // selectable button with no words, which nothing a player reads names.
+                list.RemoveAll(c => CrimsonNodes.Texts(c).Count == 0);
+                foreach (var c in popup.GetComponentsInChildren<ButtonControl>(false))
+                    if (c.GetComponentInParent<InputButtonContainer>() == null && CrimsonNodes.Texts(c).Count > 0 && !list.Exists(x => x.Pointer == c.Pointer))
+                        list.Add(c);
+            }
+            {
+                var seen = new HashSet<System.IntPtr>();
+                foreach (var c in list) seen.Add(c.Pointer);
+                list.AddRange(CrimsonNodes.BarButtons(popup, seen));
             }
             return list;
         }
@@ -108,7 +184,8 @@ namespace GwentAccess.Ui
         /// <summary>On the message, Enter is the game's own: the popup's default button (ОК, Да…) as its key glyph
         /// says. On a button it clicks that button, so Отмена stays reachable by Enter too.</summary>
         public override bool LeavesToGame(UnityEngine.KeyCode key) =>
-            (key == UnityEngine.KeyCode.Return || key == UnityEngine.KeyCode.KeypadEnter)
+            _field.LeavesToGame(key)
+            || (key == UnityEngine.KeyCode.Return || key == UnityEngine.KeyCode.KeypadEnter)
             && GraphNavigator.CurrentNode is GraphNode n && !(n.Id.Reference is AControl);
 
         public override AControl GameSelection() => null;

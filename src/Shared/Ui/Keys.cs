@@ -25,7 +25,9 @@ namespace GwentAccess.Ui
         public static bool Update()
         {
             _kb = null;
-            if (!Application.isFocused) return false;
+            // Unity's focus flag can stay true while another window is in front (just after launch, when the game
+            // didn't take the foreground): ask Windows too, so keys typed elsewhere never reach the mod.
+            if (!Application.isFocused || !GameInFront()) return false;
             try
             {
                 if (!Rewired.ReInput.isReady) return false;
@@ -40,11 +42,26 @@ namespace GwentAccess.Ui
             return true;
         }
 
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern System.IntPtr GetForegroundWindow();
+        [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(System.IntPtr hWnd, out uint pid);
+        private static readonly uint MyPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+
+        /// <summary>Whether the game's window is the one in front (Windows' view, not Unity's).</summary>
+        public static bool GameInFront()
+        {
+            try { GetWindowThreadProcessId(GetForegroundWindow(), out uint pid); return pid == MyPid; }
+            catch { return true; }
+        }
+
         /// <summary>Pressed this frame.</summary>
         public static bool Down(KeyCode k) => _kb != null && _kb.GetKeyDown(k);
 
         /// <summary>Held down now (pressed this frame or earlier and not released).</summary>
         public static bool Held(KeyCode k) => _kb != null && _kb.GetKey(k);
+
+        /// <summary>Whether the keyboard could be read this frame (the game in front): a frame it couldn't is
+        /// not a key let go.</summary>
+        public static bool Readable => _kb != null;
 
         /// <summary>Any key pressed this frame.</summary>
         public static bool AnyDown()

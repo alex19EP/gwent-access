@@ -13,8 +13,9 @@ namespace GwentAccess.Ui
     /// a rebuild that removed the focused control, or the screen appearing.
     ///
     /// Keys (while a screen is focused): arrows move (Left/Right adjust a slider first), Tab/Shift+Tab cycle
-    /// stops, Home/End jump to the ends, Enter activates, Backspace is the secondary action, Space reads the
-    /// details. Escape stays the game's own Back. Ctrl/Alt chords are left to the legacy hotkeys.
+    /// stops, Home/End jump to the ends (on screens of cards, of the row: <see cref="RowEdge"/>), Enter activates, Backspace is the item's secondary action or else the
+    /// screen's Back, Space reads the details. Escape stays the game's own Back. Ctrl and Alt chords are left
+    /// to the screens' own keys.
     ///
     /// Return to the opener: a control Enter activated that then leaves the graph opened something in its
     /// place (a picker, a list, the next menu page). When it comes back (that thing closed), the cursor
@@ -39,9 +40,6 @@ namespace GwentAccess.Ui
         // Write-back memory: the identity last handed to the screen's OnCursorMoved.
         private static ControlId _syncedKey;
 
-        /// <summary>True while a mod screen owns the keyboard and speech for the game's current UI. Legacy paths
-        /// (the selection narrator) stand down on it — one keypress, one model (spec §10.5).</summary>
-        public static bool Owns => _screen != null;
 
         private static readonly KeyCode[] NavKeys =
         {
@@ -53,14 +51,16 @@ namespace GwentAccess.Ui
 
         static GraphNavigator()
         {
-            GraphAnnouncer.PositionText = (i, n) => i + " of " + n;
-            GraphAnnouncer.ExpandedStateText = expanded => expanded ? "expanded" : "collapsed";
+            // The kernel's own words, through its injectable hooks (it stays game- and language-agnostic).
+            GraphAnnouncer.PositionText = (i, n) => Loc.T("{0} of {1}", i, n);
+            GraphAnnouncer.ExpandedStateText = expanded => expanded ? Loc.T("expanded") : Loc.T("collapsed");
         }
 
         public static void Attach(Screen screen)
         {
             if (ReferenceEquals(screen, _screen)) return;
             _screen = screen;
+            GraphAnnouncer.MinPositionCount = screen != null && screen.PositionOfOne ? 1 : 2;
             _spokenKey = null;
             _spokenNode = null;
             _syncedKey = null;
@@ -154,6 +154,9 @@ namespace GwentAccess.Ui
             if (ptr == _observedGame) return;
             _observedGame = ptr;
             if (sel == null) return;
+            // The cursor is on a control the game won't select (VERSUS PLAYER while it is locked): the game puts
+            // its selection back where it was, which is a refusal, not a move to follow.
+            if (_graph.CurrentNode?.Id.Reference is CrimsonUI.AControl here && !Selectable(here)) return;
             // The nearest node at or above the selection: a node can stand for a composite control whose inner
             // parts the game selects (a settings row's switcher and its arrows).
             for (var t = sel.transform; t != null; t = t.parent)
@@ -167,6 +170,11 @@ namespace GwentAccess.Ui
                 _syncedKey = target.Id; // the game is already there; nothing to write back
                 return;
             }
+        }
+
+        private static bool Selectable(CrimsonUI.AControl c)
+        {
+            try { return c.IsCurrentlySelectable(); } catch { return true; }
         }
 
         // ---- return to the opener ----
@@ -286,18 +294,22 @@ namespace GwentAccess.Ui
 
         /// <summary>Logs each key pressed while a graph screen has the navigator, with its modifiers, whether the
         /// screen left it to the game, and the node it was pressed on, so a log reads as the session went.
-        /// Escape is always the game's (Back) and logs as such.</summary>
+        /// Escape is always the game's (Back) and logs as such. Each key logs at most once a frame: a screen can
+        /// bind one key several times (C and Shift+C), and a key it binds can also be a navigation key.</summary>
         private static void LogKeys()
         {
+            _logged.Clear();
             foreach (var k in NavKeys) LogKey(k, _screen.LeavesToGame(k));
-            foreach (var k in _screen.ExtraKeys)
-                if (Array.IndexOf(NavKeys, k.Key) < 0) LogKey(k.Key, false);
+            foreach (var k in _screen.ExtraKeys) LogKey(k.Key, false);
             LogKey(KeyCode.Escape, true);
         }
 
+        // The keys logged this frame.
+        private static readonly HashSet<KeyCode> _logged = new HashSet<KeyCode>();
+
         private static void LogKey(KeyCode k, bool game)
         {
-            if (!Keys.Down(k)) return;
+            if (!Keys.Down(k) || !_logged.Add(k)) return;
             string mods = (Keys.Ctrl ? "Ctrl+" : "") + (Keys.Shift ? "Shift+" : "") + (Keys.Alt ? "Alt+" : "");
             string at = null;
             try
@@ -311,12 +323,27 @@ namespace GwentAccess.Ui
             Plugin.LogInfo("[key] " + mods + k + (game ? " (game)" : "") + " on " + _screen.Key + (at != null ? " @ " + at : ""));
         }
 
+        // A screen key pressed this frame; the arrows also repeat while held (Up/Down reading a card's lines).
+        private static bool Pressed(KeyCode k) =>
+            k == KeyCode.UpArrow || k == KeyCode.DownArrow || k == KeyCode.LeftArrow || k == KeyCode.RightArrow
+                ? Keys.DownOrRepeat(k) : Keys.Down(k);
+
         private static void HandleKeys()
         {
             try { LogKeys(); } catch { }
             if (Keys.Alt) return;
+            // A field has the caret: the typing keys are the field's (Space types a space, letters type, not the
+            // screen's letter keys or Space's details: "Rename your deck…: Wild" was read on each space). Only
+            // Up/Down and Tab still move off the one-line field.
+            if (EditBox.Typing)
+            {
+                if (Keys.DownOrRepeat(KeyCode.UpArrow)) Arrow(GraphDir.Up);
+                else if (Keys.DownOrRepeat(KeyCode.DownArrow)) Arrow(GraphDir.Down);
+                else if (Keys.Down(KeyCode.Tab)) Tab(Keys.Shift ? -1 : 1);
+                return;
+            }
             foreach (var k in _screen.ExtraKeys)
-                if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Keys.Down(k.Key))
+                if (k.Ctrl == Keys.Ctrl && k.Shift == Keys.Shift && Pressed(k.Key) && (k.When == null || k.When()))
                 {
                     try { k.Run(); }
                     catch (Exception e) { ScreenManager.LogOnce(_screen, "key " + k.Key, e); }
@@ -333,7 +360,11 @@ namespace GwentAccess.Ui
             else if (Keys.Down(KeyCode.End)) Edge(GraphDir.Down);
             else if (Keys.Down(KeyCode.Return) && !_screen.LeavesToGame(KeyCode.Return)
                 || Keys.Down(KeyCode.KeypadEnter) && !_screen.LeavesToGame(KeyCode.KeypadEnter)) Activate();
-            else if (Keys.Down(KeyCode.Backspace)) Run(_graph.CurrentNode?.Vtable.OnSecondary, _graph.Secondary);
+            else if (Keys.Down(KeyCode.Backspace))
+            {
+                if (_graph.CurrentNode?.Vtable.OnSecondary != null) Run(_graph.CurrentNode.Vtable.OnSecondary, _graph.Secondary);
+                else Back();
+            }
             else if (Keys.Down(KeyCode.Space)) Details();
         }
 
@@ -360,7 +391,7 @@ namespace GwentAccess.Ui
                         if (n != null) { Say(GraphAnnouncer.LeafText(n), interrupt: true); Spoken(n); }
                         return;
                     case KeyGraph.TreeMove.EmptyGroup:
-                        Say("Empty.", interrupt: true);
+                        Say(Loc.T("Empty."), interrupt: true);
                         return;
                     case KeyGraph.TreeMove.Descended:
                     case KeyGraph.TreeMove.Ascended:
@@ -372,7 +403,7 @@ namespace GwentAccess.Ui
 
         private static void Tab(int dir)
         {
-            var move = _graph.MoveStop(dir, _screen.Wrap);
+            var move = _graph.MoveStop(dir, true); // Tab past the last stop returns to the first
             if (move.Moved) Announce(move);
         }
 
@@ -398,7 +429,7 @@ namespace GwentAccess.Ui
             var node = _graph.CurrentNode;
             if (node == null) return;
             if (node.Vtable.OnTooltip != null) _graph.Tooltip();
-            else Say("No details.", interrupt: true);
+            else Say(Loc.T("No details."), interrupt: true);
         }
 
         // Run a node hook; then speak the (possibly re-resolved) node's state line as synchronous feedback.
@@ -408,6 +439,15 @@ namespace GwentAccess.Ui
             try { op(); }
             catch (Exception e) { ScreenManager.LogOnce(_screen, "node action", e); }
             SpeakState();
+        }
+
+        // Backspace with nothing of the item's own to do: the screen's Back, never a silent key.
+        private static void Back()
+        {
+            bool done = false;
+            try { done = _screen.Back(); }
+            catch (Exception e) { ScreenManager.LogOnce(_screen, "Back", e); }
+            if (!done) Say(Loc.T("Nothing to go back to here."), interrupt: true);
         }
 
         private static void SpeakState()
@@ -446,12 +486,54 @@ namespace GwentAccess.Ui
             if (_state != null) _state.NextSuggestedMove = id;
         }
 
-        /// <summary>Re-speak the focused control with its full context ("where am I").</summary>
-        public static void SayWhere()
+        /// <summary>For a screen key: an arrow press (Tab as Down on a one-list screen).</summary>
+        public static void Step(GraphDir dir) { if (_graph != null) Arrow(dir); }
+
+        /// <summary>For a screen key: Home/End along the focused row only (spec §7.4), to its first or last item,
+        /// where <see cref="Edge"/> goes to the top or bottom of the whole stop. On screens of cards a row is a
+        /// hand or a board row, and End from the hand would otherwise land on your leader. Silent when already
+        /// there, as at any edge.</summary>
+        public static void RowEdge(bool first)
         {
-            if (_graph == null || !_graph.Rerender()) return;
+            if (_graph?.CurrentNode == null) return;
+            var move = _graph.MoveToEdge(first ? GraphDir.Left : GraphDir.Right);
+            if (move.Moved) Announce(move);
+        }
+
+        /// <summary>For a screen key: Enter on the focused node, as the key does.</summary>
+        public static void ActivateCurrent() { if (_graph != null) Activate(); }
+
+        /// <summary>The nodes of the current render, in declaration order (empty when none).</summary>
+        public static IReadOnlyList<GraphNode> Nodes()
+        {
+            if (_graph == null || !_graph.Rerender() || _graph.Current == null) return Array.Empty<GraphNode>();
+            return _graph.Current.Order;
+        }
+
+        /// <summary>A node's own name, its label announcement as spoken.</summary>
+        public static string LabelOf(GraphNode node)
+        {
+            try
+            {
+                foreach (var a in GraphAnnouncer.EffectiveAnnouncements(node))
+                    if (a.Kind == AnnouncementKinds.Label) return a.Text?.Invoke();
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>Re-speak the focused control with its full context ("where am I").</summary>
+        public static void SayWhere() => SayWhere(false);
+
+        /// <summary>F9: the focused control with its full context, after the screen's name when asked.</summary>
+        public static void SayWhere(bool withScreen)
+        {
+            if (_graph == null || !_graph.Rerender()) { if (withScreen) Say(Loc.T("Nothing to read here."), interrupt: true); return; }
             var node = _graph.CurrentNode;
-            if (node != null) Say(GraphAnnouncer.ComposeFull(node), interrupt: true);
+            if (node == null) return;
+            string name = withScreen ? _screen?.ScreenName : null;
+            string full = GraphAnnouncer.ComposeFull(node);
+            Say(string.IsNullOrEmpty(name) ? full : name + ", " + full, interrupt: true);
         }
 
         // ---- render ----

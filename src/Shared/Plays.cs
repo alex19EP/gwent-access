@@ -95,12 +95,12 @@ namespace GwentAccess
         /// <summary>Why Enter on this card of yours does nothing, or null when it does something.</summary>
         public string WhyNot(Card c)
         {
-            if (!MyTurn) return "Not your turn.";
-            if (Pending != null) return "Finish the current play first, or Backspace to cancel.";
+            if (!MyTurn) return Loc.T("Not your turn.");
+            if (Pending != null) return Loc.T("Finish the current play first, or Backspace to cancel.");
             if (CanUse(c)) return null;
             bool inHand = Try(() => c.Position.Location == ELocation.Hand);
-            if (inHand) return CardPlayed ? "You've already played a card this turn." : "Can't play that now.";
-            return Try(() => c.HasTapAbility()) ? "Order not ready." : "Nothing to use.";
+            if (inHand) return CardPlayed ? Loc.T("You've already played a card this turn.") : Loc.T("Can't play that now.");
+            return Try(() => c.HasTapAbility()) ? Loc.T("Order not ready.") : Loc.T("Nothing to use.");
         }
 
         /// <summary>Your cards with a play or an order available right now, hand first.</summary>
@@ -127,12 +127,18 @@ namespace GwentAccess
 
         // ---- the request being answered ----
 
+        /// <summary>The play still being placed: picked up (<see cref="Placing"/>), or a special put down that now
+        /// waits for its confirmation (<see cref="Confirming"/>, the same request one step on). Either way the
+        /// game still holds the card, and the battle screen keeps the placement spots up.</summary>
+        public RequestPlayCardAction Held => Placing ?? Confirming;
+
         /// <summary>The rows the picked-up card may go to: the request's spots, or — in an online match, where
         /// the client's copy of the request comes without them — the rows the game's own placing highlights.</summary>
         public bool MayPlaceIn(Location l)
         {
-            if (Placing == null) return false;
-            var spots = Placing.m_AvailableSpots;
+            var play = Held;
+            if (play == null) return false;
+            var spots = play.m_AvailableSpots;
             bool none = true;
             try { none = spots == null || spots.Count == 0; } catch { }
             if (!none) return Contains(spots, l);
@@ -143,7 +149,6 @@ namespace GwentAccess
         public bool IsTarget(Card c) => Targets != null && Try(() => Targets.ValidTargets.Contains(c.Id));
         public bool IsChosen(Card c) => Targets != null && Try(() => Targets.SelectedTargets.Contains(c.Id));
         public bool IsTargetRow(Location l) => Rows != null && Contains(Rows.ValidTargets, l);
-        public bool IsChosenRow(Location l) => Rows != null && Contains(Rows.SelectedTargets, l);
 
         public static bool Same(Location a, Location b) => a != null && b != null && a.PlayerId == b.PlayerId && a.Loc == b.Loc;
 

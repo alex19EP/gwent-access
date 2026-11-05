@@ -49,16 +49,18 @@ namespace GwentAccess.Ui
         {
             Announcements = new[]
             {
-                new NodeAnnouncement(() => Placeholder(field) ?? _fallbackName, kind: AnnouncementKinds.Label),
-                NodeAnnouncement.Static("edit"),
+                new NodeAnnouncement(() => Placeholder(field) ?? Loc.T(_fallbackName), kind: AnnouncementKinds.Label),
+                CrimsonNodes.RolePart(Loc.T("edit")),
                 new NodeAnnouncement(() => Typed(field) is string t && t.Length > 0 ? t : null, kind: AnnouncementKinds.Value),
+                // Arrows don't enter the field (they move between items): say how to, until typing starts.
+                new NodeAnnouncement(() => Editing() ? null : Loc.T("Enter to type"), live: true, kind: AnnouncementKinds.Tooltip),
             },
             OnActivate = () =>
             {
                 try { field.ActivateInputField(); }
                 catch (Exception e) { Plugin.LogInfo("[edit] activate field failed: " + e.Message); }
             },
-            OnTooltip = () => Speech.Say((Placeholder(field) ?? _fallbackName) + ": " + (Typed(field) is string t && t.Length > 0 ? t : "blank"), true),
+            OnTooltip = () => Speech.Say((Placeholder(field) ?? Loc.T(_fallbackName)) + ": " + (Typed(field) is string t && t.Length > 0 ? t : Loc.T("blank")), true),
         };
 
         /// <summary>True while the caret is in the field.</summary>
@@ -68,8 +70,25 @@ namespace GwentAccess.Ui
             return field != null && IsEditing(field);
         }
 
+        // Backspace is not left to the game: its key map makes Backspace the game's back too, and a popup's
+        // field lost its popup on the first deleted character (the deck rename). The field still deletes it:
+        // it reads the keyboard itself, not through the game's map; the navigator only stays out of it
+        // (Typing).
         public bool LeavesToGame(KeyCode key) =>
-            key != KeyCode.Tab && key != KeyCode.UpArrow && key != KeyCode.DownArrow && Editing();
+            key != KeyCode.Tab && key != KeyCode.UpArrow && key != KeyCode.DownArrow && key != KeyCode.Backspace && Editing();
+
+        // The edit box whose field has the caret, if any.
+        private static EditBox _current;
+
+        /// <summary>Whether a field has the caret: Backspace is then the field's (delete a character), not the
+        /// screen's Back.</summary>
+        public static bool Typing
+        {
+            get
+            {
+                try { return _current != null && _current.Editing(); } catch { return false; }
+            }
+        }
 
         /// <summary>Landing anywhere but the field takes the caret out of it. (Landing on the field only reads
         /// it; Enter starts editing.)</summary>
@@ -94,14 +113,16 @@ namespace GwentAccess.Ui
             int caret = editing ? Caret(field) : -1;
             if (editing != _editing)
             {
-                if (editing) Speech.Say("editing", true);
-                else if (!_leaving) Speech.Say("not editing", true);
+                if (editing) Speech.Say(Loc.T("editing"), true);
+                else if (!_leaving) Speech.Say(Loc.T("not editing"), true);
                 _leaving = false;
             }
             else if (editing && _typed != null && now != null && now != _typed) Speech.Say(Change(_typed, now), true);
             else if (editing && caret >= 0 && _caret >= 0 && caret != _caret && now != null)
                 Speech.Say(Math.Abs(caret - _caret) == 1 ? CharAt(now, caret) : WordAt(now, caret), true);
             _editing = editing;
+            if (editing) _current = this;
+            else if (_current == this) _current = null;
             _typed = now;
             _caret = caret;
         }
@@ -149,18 +170,18 @@ namespace GwentAccess.Ui
 
         // The character the caret sits before; "blank" at the end.
         private static string CharAt(string text, int caret) =>
-            caret >= 0 && caret < text.Length ? Spoken(text[caret].ToString()) : "blank";
+            caret >= 0 && caret < text.Length ? Spoken(text[caret].ToString()) : Loc.T("blank");
 
         // The word the caret is in or before; "blank" at the end.
         private static string WordAt(string text, int caret)
         {
-            if (caret < 0 || caret >= text.Length) return "blank";
+            if (caret < 0 || caret >= text.Length) return Loc.T("blank");
             int start = caret, end = caret;
             while (start > 0 && !char.IsWhiteSpace(text[start - 1])) start--;
             while (end < text.Length && !char.IsWhiteSpace(text[end])) end++;
             return end > start ? text.Substring(start, end - start) : Spoken(text[caret].ToString());
         }
 
-        private static string Spoken(string s) => s == " " ? "space" : s;
+        private static string Spoken(string s) => s == " " ? Loc.T("space") : s;
     }
 }

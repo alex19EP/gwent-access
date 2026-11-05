@@ -41,18 +41,7 @@ namespace GwentAccess.Ui
         // the page was reached (a promotion opens the packs page too).
         private static readonly Dictionary<ShopTileType, string> TileTitles = new Dictionary<ShopTileType, string>();
 
-        private static UIShopMenuPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIShopMenuPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIShopMenuPanel Panel() => CrimsonNodes.ActivePanel<UIShopMenuPanel>();
 
         /// <summary>The view the panel shows: the one active child of its views root.</summary>
         private static AControl ShownView(UIShopMenuPanel p)
@@ -74,14 +63,19 @@ namespace GwentAccess.Ui
         // game's selection on the product they belong to.
         public override void OnCursorMoved(GraphNode node)
         {
-            if (node?.Id.Reference is AControl c && !Selectable(c)) return;
+            if (node?.Id.Reference is AControl c && !CrimsonNodes.Selectable(c)) return;
             base.OnCursorMoved(node);
         }
 
-        private static bool Selectable(AControl c)
+        // A page opened from elsewhere (the event window's Go to the Shop) has the game's selection parked on the
+        // user agreement link at the bottom: the cursor isn't pulled there, and starts on the products.
+        public override AControl GameSelection()
         {
-            try { return c.IsCurrentlySelectable(); } catch { return false; }
+            var sel = base.GameSelection();
+            try { if (sel != null && sel.TryCast<UIVanityInventoryEulaLink>() != null) return null; } catch { }
+            return sel;
         }
+
 
         public override void Build(GraphBuilder b)
         {
@@ -123,7 +117,8 @@ namespace GwentAccess.Ui
                 foreach (var c in prices)
                 {
                     var tile = c;
-                    b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c, () => PricedLabel(tile)));
+                    // A toggle in no group picking one price ("x2, $4.99, button"): the page has no tab bar.
+                    b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => PricedLabel(tile)), Loc.T("button")));
                 }
             }
             foreach (var d in view.GetComponentsInChildren<UIGeneralDescriptionView>(false)) AddDetails(b, d);
@@ -183,7 +178,7 @@ namespace GwentAccess.Ui
             {
                 try
                 {
-                    string title = NullIfEmpty(UiText.Clean(t.m_TileTitle?.Text?.text));
+                    string title = UiText.NullIfEmpty(UiText.Clean(t.m_TileTitle?.Text?.text));
                     if (title != null) TileTitles[t.m_Type] = title;
                 }
                 catch { }
@@ -208,7 +203,8 @@ namespace GwentAccess.Ui
         // A front-page tile reads all its words ("Выгодно!, Стартовый набор").
         private static void AddOther(GraphBuilder b, AControl c)
         {
-            var v = CrimsonNodes.Button(c, () => PromoLabel(c) ?? AllTexts(c));
+            // The category tiles lead to a page of their own (Back returns), drawn as tiles, not a tab bar.
+            var v = CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => PromoLabel(c) ?? AllTexts(c)), Loc.T("button"));
             v.OnTooltip = () => Speech.Say(PromoLabel(c) ?? CrimsonNodes.Details(c), true);
             b.AddItem(CrimsonNodes.Id(c), v);
         }
@@ -226,9 +222,9 @@ namespace GwentAccess.Ui
                 if (data == null) return null;
                 var parts = new List<string>();
                 foreach (var s in new[] { data.Title, data.Description })
-                    if (NullIfEmpty(UiText.Clean(s)) is string text && !parts.Contains(text)) parts.Add(text);
+                    if (UiText.NullIfEmpty(UiText.Clean(s)) is string text && !parts.Contains(text)) parts.Add(text);
                 foreach (var t in tile.GetComponentsInChildren<TMPro.TMP_Text>(false))
-                    if (t.gameObject.name == "TimerText" && NullIfEmpty(UiText.Clean(t.text)) is string timer) parts.Add(timer);
+                    if (t.gameObject.name == "TimerText" && UiText.NullIfEmpty(UiText.Clean(t.text)) is string timer) parts.Add(timer);
                 return parts.Count > 0 ? string.Join(", ", parts) : null;
             }
             catch { return null; }
@@ -253,7 +249,7 @@ namespace GwentAccess.Ui
             }
             foreach (var s in view.GetComponentsInChildren<UIProductSection>(false))
             {
-                string heading = NullIfEmpty(string.Join(", ", CrimsonNodes.Texts(s)));
+                string heading = UiText.NullIfEmpty(string.Join(", ", CrimsonNodes.Texts(s)));
                 if (heading == null) continue;
                 var pos = s.transform.position;
                 entries.Add((pos.y, pos.x, null, heading));
@@ -273,7 +269,8 @@ namespace GwentAccess.Ui
                     continue;
                 }
                 var c = e.Tile;
-                var v = CrimsonNodes.Button(c, () => TileLabel(c));
+                // A product tile picks the product the details panel shows: a button, not a checkbox.
+                var v = CrimsonNodes.WithRole(CrimsonNodes.Button(c, () => TileLabel(c)), Loc.T("button"));
                 // Space: the details panel, which shows the product under the cursor.
                 v.OnTooltip = () =>
                 {
@@ -293,7 +290,7 @@ namespace GwentAccess.Ui
             try
             {
                 var own = c.GetComponentInParent<UIKegAndPackTile>()?.GetProductData();
-                if (own != null && NullIfEmpty(UiText.Clean(own.Title)) is string name) parts.Add(name);
+                if (own != null && UiText.NullIfEmpty(UiText.Clean(own.Title)) is string name) parts.Add(name);
             }
             catch { }
             foreach (var s in CrimsonNodes.Texts(c)) if (!parts.Contains(s)) parts.Add(s);
@@ -302,7 +299,7 @@ namespace GwentAccess.Ui
 
         // ---- the details panel ----
 
-        private static void AddDetails(GraphBuilder b, UIGeneralDescriptionView d)
+        internal static void AddDetails(GraphBuilder b, UIGeneralDescriptionView d)
         {
             var lines = DetailLines(d);
             var quantity = d.m_QuantityControl;
@@ -357,14 +354,14 @@ namespace GwentAccess.Ui
             try
             {
                 if (d.m_Badge != null && d.m_Badge.activeInHierarchy) Add(d.m_BadgeValue?.text);
-                if (Shown(d.m_TitleText)) Add(d.m_TitleText.text);
+                if (CrimsonNodes.Shown(d.m_TitleText)) Add(d.m_TitleText.text);
                 if (d.m_ProductTimerObject != null && d.m_ProductTimerObject.activeInHierarchy)
                 {
                     string timer = string.Join(" ", CrimsonNodes.Texts(d.m_ProductTimerObject.transform));
                     Add(timer);
                 }
-                if (Shown(d.m_DescriptionText)) Add(d.m_DescriptionText.text);
-                if (Shown(d.m_AdditionalText)) Add(d.m_AdditionalText.text);
+                if (CrimsonNodes.Shown(d.m_DescriptionText)) Add(d.m_DescriptionText.text);
+                if (CrimsonNodes.Shown(d.m_AdditionalText)) Add(d.m_AdditionalText.text);
             }
             catch (Exception e) { Plugin.LogInfo("[shop] details failed: " + e.Message); }
             return lines;
@@ -374,13 +371,14 @@ namespace GwentAccess.Ui
         /// clicked as the mouse clicks them, so the price and the buy button follow.</summary>
         private static NodeVtable Quantity(UIQuantityControl q)
         {
-            string Title() => NullIfEmpty(string.Join(" ", CrimsonNodes.Texts(q.m_QuantityTitle))) ?? "Quantity";
-            string Value() => NullIfEmpty(UiText.Clean(q.m_QuantityText?.text));
+            string Title() => UiText.NullIfEmpty(string.Join(" ", CrimsonNodes.Texts(q.m_QuantityTitle))) ?? Loc.T("Quantity");
+            string Value() => UiText.NullIfEmpty(UiText.Clean(q.m_QuantityText?.text));
             return new NodeVtable
             {
                 Announcements = new[]
                 {
                     new NodeAnnouncement(Title, kind: AnnouncementKinds.Label),
+                    CrimsonNodes.RolePart(Loc.T("spin button")),
                     new NodeAnnouncement(Value, live: true, kind: AnnouncementKinds.Value),
                 },
                 OnAdjust = (dir, large) =>
@@ -397,7 +395,7 @@ namespace GwentAccess.Ui
 
         /// <summary>A control's words with each price in it said with its currency: "x1, 100 Руда",
         /// "Купить, 100 Руда", "x2, 2,99 $".</summary>
-        private static string PricedLabel(AControl c)
+        internal static string PricedLabel(AControl c)
         {
             var widgets = c.GetComponentsInChildren<UIShopPriceWidget>(false);
             var priceTexts = new HashSet<string>();
@@ -419,7 +417,7 @@ namespace GwentAccess.Ui
             string currency = CurrencyName(w);
             string s = currency == null ? amount : amount + " " + currency;
             // A struck-through price is the old one, beside the discounted price.
-            if (w.m_CrossOut != null && w.m_CrossOut.activeInHierarchy) s += ", old price";
+            if (w.m_CrossOut != null && w.m_CrossOut.activeInHierarchy) s = Loc.T("{0}, old price", s);
             return s;
         }
 
@@ -471,20 +469,9 @@ namespace GwentAccess.Ui
         // button, in the game's order.
         private static void AddWindowButtons(GraphBuilder b, UIShopMenuPanel p, HashSet<IntPtr> used)
         {
-            var rest = new List<AControl>();
-            foreach (var bar in new[] { p.Buttons, p.ButtonsLeft, p.ButtonsRight })
-            {
-                if (bar == null || !bar.gameObject.activeInHierarchy) continue;
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (used.Add(c.Pointer)) rest.Add(c);
-                }
-            }
+            var rest = CrimsonNodes.BarButtons(new[] { p.Buttons, p.ButtonsLeft, p.ButtonsRight }, used);
             var eula = p.m_EulaLink;
-            if (eula != null && eula.gameObject.activeInHierarchy && Selectable(eula) && used.Add(eula.Pointer)) rest.Add(eula);
+            if (eula != null && eula.gameObject.activeInHierarchy && CrimsonNodes.Selectable(eula) && used.Add(eula.Pointer)) rest.Add(eula);
             if (rest.Count == 0) return;
             b.BeginStop("buttons");
             foreach (var c in rest) b.AddItem(CrimsonNodes.Id(c), CrimsonNodes.Button(c));
@@ -497,12 +484,5 @@ namespace GwentAccess.Ui
             var parts = CrimsonNodes.Texts(c);
             return parts.Count > 0 ? string.Join(", ", parts) : CrimsonNodes.Label(c);
         }
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
-        }
-
-        private static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
     }
 }

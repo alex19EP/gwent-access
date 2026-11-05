@@ -33,26 +33,13 @@ namespace GwentAccess.Ui
         public override bool IsActive() => Panel() != null;
 
         // The panel, when the input layer that has the input holds it.
-        private static UIMillSparesPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UIMillSparesPanel>();
-                if (p != null) return p;
-            }
-            return null;
-        }
+        private static UIMillSparesPanel Panel() => CrimsonNodes.ActivePanel<UIMillSparesPanel>();
 
         // The panel's title ("Выберите режим перемалывания" on the strategy pick).
         private static string Header()
         {
             var p = Panel();
-            if (p == null || !Shown(p.m_Header)) return null;
+            if (p == null || !CrimsonNodes.Shown(p.m_Header)) return null;
             var parts = CrimsonNodes.Texts(p.m_Header);
             return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
@@ -69,10 +56,10 @@ namespace GwentAccess.Ui
             if (title != null) b.PushContext(title, positions: true);
 
             var pick = p.m_MillSparesStrategyPickContainerInstance;
-            if (Shown(pick)) BuildStrategies(b, pick, seen);
+            if (CrimsonNodes.Shown(pick)) BuildStrategies(b, pick, seen);
 
             var summary = p.m_MillSparesSummaryWidgetInstance;
-            if (Shown(summary)) BuildSummary(b, summary, seen);
+            if (CrimsonNodes.Shown(summary)) BuildSummary(b, summary, seen);
 
             BuildControls(b, p, seen);
             if (title != null) b.PopContext();
@@ -95,14 +82,15 @@ namespace GwentAccess.Ui
                     Announcements = new[]
                     {
                         new NodeAnnouncement(() => Text(element.m_StrategyName), kind: AnnouncementKinds.Label),
-                        new NodeAnnouncement(() => Shown(element.m_RecomendedText) ? GoText(element.m_RecomendedText) : null, kind: AnnouncementKinds.Value),
-                        new NodeAnnouncement(() => Shown(element.m_SelectedBackground) ? "selected" : null, live: true, kind: AnnouncementKinds.Selected),
+                        CrimsonNodes.RolePart(Loc.T("radio button")), // one strategy of the three, the chosen one selected
+                        new NodeAnnouncement(() => CrimsonNodes.Shown(element.m_RecomendedText) ? GoText(element.m_RecomendedText) : null, kind: AnnouncementKinds.Value),
+                        new NodeAnnouncement(() => CrimsonNodes.Shown(element.m_SelectedBackground) ? Loc.T("selected") : null, live: true, kind: AnnouncementKinds.Selected),
                         new NodeAnnouncement(() => Text(element.m_StrategyDescription), kind: AnnouncementKinds.Tooltip),
                     },
                     OnActivate = () => Navigator.ClickControl(button),
                     OnTooltip = () => Speech.Say(Text(element.m_StrategyDescription) ?? "", true),
                 });
-                if (Shown(element.m_SelectedBackground)) b.SetStart(id);
+                if (CrimsonNodes.Shown(element.m_SelectedBackground)) b.SetStart(id);
             }
         }
 
@@ -173,10 +161,10 @@ namespace GwentAccess.Ui
                 var control = c;
                 var toggle = control.TryCast<ToggleButtonControl>();
                 if (toggle == null) { b.AddItem(CrimsonNodes.Id(control), CrimsonNodes.Button(control)); continue; }
-                var v = CrimsonNodes.Button(control);
+                var v = CrimsonNodes.WithRole(CrimsonNodes.Button(control), Loc.T("checkbox")); // says checked or not
                 var anns = new List<NodeAnnouncement>(v.Announcements)
                 {
-                    new NodeAnnouncement(() => Toggled(toggle) ? "checked" : "not checked", live: true, kind: AnnouncementKinds.Value),
+                    new NodeAnnouncement(() => CrimsonNodes.Toggled(toggle) ? Loc.T("checked") : Loc.T("not checked"), live: true, kind: AnnouncementKinds.Value),
                 };
                 v.Announcements = anns;
                 b.AddItem(CrimsonNodes.Id(control), v);
@@ -217,20 +205,5 @@ namespace GwentAccess.Ui
         }
 
         private static string GoText(GameObject go) => go == null ? null : Text(go.transform);
-
-        private static bool Shown(Component c)
-        {
-            try { return c != null && c.gameObject.activeInHierarchy; } catch { return false; }
-        }
-
-        private static bool Shown(GameObject go)
-        {
-            try { return go != null && go.activeInHierarchy; } catch { return false; }
-        }
-
-        private static bool Toggled(ToggleButtonControl t)
-        {
-            try { return t.IsToggled; } catch { return false; }
-        }
     }
 }

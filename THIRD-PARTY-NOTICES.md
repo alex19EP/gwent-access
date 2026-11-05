@@ -201,3 +201,43 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+---
+
+## BepInEx 6.0.0-be.790 and the libraries it bundles
+
+The player zip carries BepInEx, the mod loader, unmodified: the bleeding-edge build be.790 (commit `4e98359`) for
+IL2CPP on Windows x64, as downloaded from https://builds.bepinex.dev/projects/bepinex_be. The only change is the
+file name of Doorstop's proxy (`winhttp.dll` ships as `version.dll`, see `README.txt`). Each component's full
+license text is in the `licenses` folder next to this file.
+
+- **BepInEx** (`BepInEx\core\BepInEx.*.dll`): Copyright © the BepInEx contributors. LGPL-2.1.
+  Source: https://github.com/BepInEx/BepInEx (commit `4e98359`). License: `licenses/BepInEx.txt`.
+- **Unity Doorstop** (`version.dll`, `doorstop_config.ini`): Copyright © the NeighTools contributors. LGPL-2.1.
+  Source: https://github.com/NeighTools/UnityDoorstop. License: `licenses/UnityDoorstop.txt`.
+- **Il2CppInterop** (`Il2CppInterop.*.dll`): Copyright © knah and the BepInEx contributors. LGPL-3.0, which builds on
+  the GPL-3.0. Source: https://github.com/BepInEx/Il2CppInterop. Licenses: `licenses/Il2CppInterop.txt` and
+  `licenses/GPL-3.0.txt`.
+- **Dobby** (`dobby.dll`): Copyright © jmpews. Apache-2.0. Source: https://github.com/jmpews/Dobby.
+  License: `licenses/Dobby.txt`.
+- **HarmonyX** (`0Harmony.dll`): MIT. Source: https://github.com/BepInEx/HarmonyX. License: `licenses/HarmonyX.txt`.
+- **MonoMod** (`MonoMod.*.dll`): MIT. Source: https://github.com/MonoMod/MonoMod. License: `licenses/MonoMod.txt`.
+- **Mono.Cecil** (`Mono.Cecil*.dll`): MIT. Source: https://github.com/jbevain/cecil. License: `licenses/Mono.Cecil.txt`.
+- **Cpp2IL** (`Cpp2IL.Core.dll`, `LibCpp2IL.dll`, `StableNameDotNet.dll`, `WasmDisassembler.dll`): MIT.
+  Source: https://github.com/SamboyCoding/Cpp2IL. License: `licenses/Cpp2IL.txt`.
+- **Disarm** (`Disarm.dll`): MIT. Source: https://github.com/SamboyCoding/Disarm. License: `licenses/Disarm.txt`.
+- **AsmResolver** (`AsmResolver*.dll`): MIT. Source: https://github.com/Washi1337/AsmResolver.
+  License: `licenses/AsmResolver.txt`.
+- **AssetRipper.Primitives** and **AssetRipper.CIL** (`AssetRipper.*.dll`): MIT.
+  Sources: https://github.com/AssetRipper/AssetRipper.Primitives and https://github.com/AssetRipper/AssetRipper.CIL.
+  Licenses: `licenses/AssetRipper.Primitives.txt` and `licenses/AssetRipper.CIL.txt`.
+- **Iced** (`Iced.dll`): MIT. Source: https://github.com/icedland/iced. License: `licenses/Iced.txt`.
+- **Capstone.NET** (`Gee.External.Capstone.dll`): MIT. Source: https://github.com/9ee1/Capstone.NET.
+  License: `licenses/Capstone.NET.txt`.
+- **SemanticVersioning** (`SemanticVersioning.dll`): MIT. Source: https://github.com/adamreeve/semver.net.
+  License: `licenses/SemanticVersioning.txt`.
+- **.NET runtime** (`dotnet\`): Copyright © .NET Foundation and Contributors. MIT.
+  Source: https://github.com/dotnet/runtime. License: `licenses/dotnet-runtime.txt`.
+
+Under the LGPL you may replace BepInEx, Doorstop or Il2CppInterop with your own build of the same version: the
+mod loads through BepInEx's public plugin interface and links to none of them statically.

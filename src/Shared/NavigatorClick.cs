@@ -4,13 +4,12 @@ using CrimsonUI;
 namespace GwentAccess
 {
     /// <summary>
-    /// The click every game's graph screens use on Enter. The rest of <see cref="Navigator"/> (Gwent's legacy
-    /// F2/F3 object navigation) lives with the Gwent module.
+    /// The click every game's graph screens use on Enter.
     /// </summary>
-    internal static partial class Navigator
+    internal static class Navigator
     {
-        /// <summary>Run a control's own click path: a ButtonControl's left click or a Button's Click. Shared by the
-        /// F4 navigator and the graph screens' Enter.
+        /// <summary>Run a control's own click path: a ButtonControl's left click or a Button's Click: the graph
+        /// screens' Enter.
         ///
         /// A bottom-bar button's callback must run through the button, not be invoked from the container's
         /// <c>m_Buttons</c> map: <c>InvokeOnLeftClick</c> runs it (the container binds it to <c>OnLeftClick</c>) and
@@ -49,6 +48,16 @@ namespace GwentAccess
                     Plugin.LogInfo("Navigator click (ButtonControl): " + UiText.DebugPath(c));
                     bc.LeftClick();
 #else
+                    // The cursor path first (press, release, click, as the mouse sends them): in play, a settings
+                    // category opened from the starter-deck screen and a reward popup's reward ignored
+                    // InvokeOnLeftClick and reacted to the cursor click, which also runs OnLeftClick (so a bar
+                    // button's callback and the UX interaction event, below). InvokeOnLeftClick is the fallback
+                    // for when the cursor click throws.
+                    if (MouseClick(bc))
+                    {
+                        Plugin.LogInfo("Navigator click (cursor" + (bc.UXId > 0 ? ", ux " + bc.UXId : "") + "): " + UiText.DebugPath(c));
+                        return;
+                    }
                     Plugin.LogInfo("Navigator click (ButtonControl): " + UiText.DebugPath(c));
                     bc.InvokeOnLeftClick();
 #endif
@@ -61,13 +70,35 @@ namespace GwentAccess
                     b.Click();
                     return;
                 }
-                Speech.Say("Can't click this item. Try Enter.", true);
+                Speech.Say(Loc.T("Can't click this item. Try Enter."), true);
             }
             catch (Exception e)
             {
                 Plugin.LogInfo("Navigator click failed: " + e);
-                Speech.Say("Click failed.", true);
+                Speech.Say(Loc.T("Click failed."), true);
             }
         }
+
+#if !THRONEBREAKER
+        /// <summary>A left click the way the mouse makes one: ButtonDown, ButtonUp, then the Click the layer sends
+        /// for a release over the pressed control. Press sounds, click handlers, a bar button's callback and the
+        /// UX interaction event all run. False when the button is gone or the game threw.</summary>
+        public static bool MouseClick(ButtonControl c) => MouseClick(c, false);
+
+        /// <summary>The cursor path with either mouse button: the right one opens a deck's options.</summary>
+        public static bool MouseClick(ButtonControl c, bool right)
+        {
+            if (c == null || !c.gameObject.activeInHierarchy) return false;
+            try
+            {
+                var button = right ? CursorInputEventArgs.EMouseButton.Right : CursorInputEventArgs.EMouseButton.Left;
+                foreach (var state in new[] { CursorButtonEventArgs.EState.ButtonDown, CursorButtonEventArgs.EState.ButtonUp, CursorButtonEventArgs.EState.Click })
+                    c.HandleCursorButtonEvent(new CursorButtonEventArgs(c.ParentLayer, button, UnityEngine.Camera.main,
+                        state, c, c, new Il2CppSystem.Collections.Generic.List<CrimsonUI.EventSystems.RaycastResult>()));
+                return true;
+            }
+            catch (Exception e) { Plugin.LogInfo("Cursor click failed: " + e.Message); return false; }
+        }
+#endif
     }
 }

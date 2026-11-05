@@ -60,6 +60,10 @@ build:
 prism *args:
     pwsh -NoProfile -File '{{repo}}\scripts\build-prism.ps1' {{args}}
 
+# Find the mod's translatable lines (Loc.T/P/Mark) into assets/lang/en.json and report what each language lacks
+strings *args:
+    python '{{repo}}\scripts\extract-strings.py' {{args}}
+
 # Run the graph kernel unit tests (no game needed)
 test:
     dotnet test '{{repo}}\tests\Access.Core.Tests\Access.Core.Tests.csproj'
@@ -130,6 +134,11 @@ reload:
      if ((Test-Path $b) -and (Get-FileHash $a).Hash -ne (Get-FileHash $b).Hash) { \
          Write-Host 'warning: the host changed too; the game still runs the old one (just restart)' -ForegroundColor Yellow }; \
      curl.exe -s -m 90 -X POST '{{devurl}}/reload'; if ($LASTEXITCODE -ne 0) { Write-Host 'dev server not answering' -ForegroundColor Red; exit 1 }
+
+# Build the module and copy it into the running game WITHOUT loading it; press F11 in the game (Debug builds)
+stage:
+    dotnet build '{{modproj}}' -c {{config}} -p:GameDir='{{gamedir}}' -p:DeployModule=true
+    @Write-Host 'staged: press F11 in the game to load it' -ForegroundColor Green
 
 # Which module generation and build the game is running
 module:

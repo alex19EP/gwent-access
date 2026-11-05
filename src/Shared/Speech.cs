@@ -37,14 +37,14 @@ namespace GwentAccess
             lock (_messages)
             {
                 count = _messages.Count;
-                if (count == 0) { Say("No messages yet.", true); return; }
+                if (count == 0) { Say(Loc.T("No messages yet."), true); return; }
                 bool continuing = (DateTime.UtcNow - _lastMsgKey).TotalSeconds < 5 && _msgIndex >= 0;
                 _msgIndex = continuing ? Math.Max(0, _msgIndex - 1) : count - 1;
                 pos = count - _msgIndex;
                 text = _messages[_msgIndex];
             }
             _lastMsgKey = DateTime.UtcNow;
-            Say((pos > 1 ? "Message " + pos + " back. " : "") + text, true);
+            Say(pos > 1 ? Loc.T("Message {0} back. {1}", pos, text) : text, true);
         }
 
 #if DEBUG
@@ -52,10 +52,16 @@ namespace GwentAccess
         public static Action<string> Observer;
 #endif
 
+        /// <summary>The mod is switched off (Gwent's F8): nothing is spoken.</summary>
+        public static bool Muted = false;
+
         /// <summary>Speak text. interrupt=true stops whatever is being said first.</summary>
         public static void Say(string text, bool interrupt = false)
         {
-            if (string.IsNullOrWhiteSpace(text)) return;
+            if (string.IsNullOrWhiteSpace(text) || Muted) return;
+            // A label ending in a colon joined to its value with ", " ("New Quest:, 07h: 32m"): the colon is
+            // the separator already.
+            if (text.IndexOf(":, ", StringComparison.Ordinal) >= 0) text = text.Replace(":, ", ": ");
 #if DEBUG
             Observer?.Invoke(text);
 #endif

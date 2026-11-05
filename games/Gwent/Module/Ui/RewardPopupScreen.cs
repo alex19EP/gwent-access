@@ -16,7 +16,8 @@ namespace GwentAccess.Ui
     /// Three stops, as on screen: the rewards (each in the game's own reward words; Enter is the slot's own
     /// click, which opens a card's preview; Space reads a card reward in full), then the text below them (the
     /// achievement or event the rewards came from, its description, score and date), then the popup's
-    /// glyph-key buttons (next, exit, open kegs, go to the reward book), clicked through the game's own controls.
+    /// glyph-key buttons (next, exit, open kegs, go to the reward book), clicked through the game's own controls,
+    /// the main action first.
     /// </summary>
     internal sealed class RewardPopupScreen : Screen
     {
@@ -29,25 +30,14 @@ namespace GwentAccess.Ui
             {
                 var p = Panel();
                 string title = p == null ? "" : UiText.Clean(p.m_TitleLabel?.Text?.text);
-                return title.Length > 0 ? title : "Rewards";
+                return title.Length > 0 ? title : Loc.T("Rewards");
             }
         }
 
         public override bool IsActive() => Panel() != null;
 
         // The reward popup attached to the input layer that has the input.
-        private static UIRewardPopupPanel Panel()
-        {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
-            {
-                var p = attached[i]?.TryCast<UIRewardPopupPanel>();
-                if (p != null && p.gameObject.activeInHierarchy) return p;
-            }
-            return null;
-        }
+        private static UIRewardPopupPanel Panel() => CrimsonNodes.ActivePanel<UIRewardPopupPanel>();
 
         public override void Build(GraphBuilder b)
         {
@@ -60,10 +50,15 @@ namespace GwentAccess.Ui
             var slots = new List<UIPopupRewardSlot>();
             foreach (var s in p.GetComponentsInChildren<UIPopupRewardSlot>(false))
                 if (s.ButtonControl != null && s.ButtonControl.gameObject.activeInHierarchy) slots.Add(s);
+            // The rewards fly in a moment after the popup opens, when the cursor has already landed on Exit: it moves
+            // to the first one as they arrive, so they are read as a sighted player sees them come in.
+            bool arrived = slots.Count > 0 && !_hadSlots;
+            _hadSlots = slots.Count > 0;
             if (slots.Count > 0)
             {
                 b.BeginStop("rewards");
-                b.PushContext("Rewards");
+                b.PushContext(Loc.T("Rewards"));
+                b.StartRow("rewards"); // side by side as drawn: Left/Right move, Up/Down read a card reward
                 foreach (var s in slots)
                 {
                     var slot = s;
@@ -71,14 +66,20 @@ namespace GwentAccess.Ui
                     used.Add(btn.Pointer);
                     foreach (var t in CrimsonNodes.Texts(slot)) claimed.Add(t);
                     var id = CrimsonNodes.Id(btn);
+                    if (arrived) { GraphNavigator.Suggest(id); b.SetStart(id); arrived = false; }
                     _cards[(string)id.StructuralKey] = slot;
                     b.AddItem(id, new NodeVtable
                     {
-                        Announcements = new[] { new NodeAnnouncement(() => RewardName(slot), kind: AnnouncementKinds.Label) },
+                        Announcements = new[]
+                        {
+                            new NodeAnnouncement(() => RewardName(slot), kind: AnnouncementKinds.Label),
+                            CrimsonNodes.RolePart(Loc.T("button")), // Enter clicks the reward, as the mouse does
+                        },
                         OnActivate = () => Navigator.ClickControl(btn),
                         OnTooltip = () => Speech.Say(RewardDetails(slot), true),
                     });
                 }
+                b.EndRow();
                 b.PopContext();
             }
 
@@ -110,32 +111,29 @@ namespace GwentAccess.Ui
         // reaches them by key — but clicking goes through the container's own callback.
         private static List<AControl> Buttons(UIRewardPopupPanel p, HashSet<IntPtr> used)
         {
-            var buttons = CrimsonNodes.Leaves(p, used);
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;  // an empty spare slot in the bar
-                    if (used.Add(c.Pointer)) buttons.Add(c);
-                }
-            }
-            return buttons;
+            // A bare key-glyph label (Label_BasicGlyph) can be selectable with nothing to say: it read as its
+            // object name, "Label Basic Glyph".
+            var buttons = CrimsonNodes.Leaves(p, used).Where(c => c.TryCast<GlyphLabelControl>() == null || CrimsonNodes.Texts(c).Count > 0).ToList();
+            buttons.AddRange(CrimsonNodes.BarButtons(p, used));
+            // The popup's main action (Next, in ButtonsPanelMainParent) first, so Tab lands on it, not on the
+            // side panel's Skip training (ButtonsPanelLeftParent) a stray Enter would take.
+            return buttons.OrderBy(c => InMainPanel(c) ? 0 : 1).ToList();
+        }
+
+        private static bool InMainPanel(AControl c)
+        {
+            for (var t = c.transform; t != null; t = t.parent)
+                if (t.name.IndexOf("ButtonsPanelMain", StringComparison.Ordinal) >= 0) return true;
+            return false;
         }
 
         // The reward in the game's own words ("Гребаная пехтура (аватар)"), else what the slot prints.
         private static string RewardName(UIPopupRewardSlot slot)
         {
-            try
-            {
-                string s = UiText.Clean(RewardTextHelper.GetText(slot.m_Reward));
-                if (s.Length > 0) return s;
-            }
-            catch (Exception e) { Plugin.LogInfo("[reward-popup] reward text failed: " + e.Message); }
+            string s = RewardText.Of(slot.m_Reward);
+            if (s != null) return s;
             var texts = CrimsonNodes.Texts(slot);
-            return texts.Count > 0 ? string.Join(", ", texts) : "Reward";
+            return texts.Count > 0 ? string.Join(", ", texts) : Loc.T("Reward");
         }
 
         // A card reward reads as the card in full; anything else as everything its slot prints.
@@ -159,6 +157,9 @@ namespace GwentAccess.Ui
         private readonly Dictionary<string, UIPopupRewardSlot> _cards = new Dictionary<string, UIPopupRewardSlot>();
         private CardKeys _cardKeys;
         private List<ScreenKey> _keys;
+
+        private bool _hadSlots;
+        public override void OnPush() => _hadSlots = false;
 
         public override IReadOnlyList<ScreenKey> ExtraKeys
         {

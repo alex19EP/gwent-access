@@ -3,7 +3,7 @@ using System;
 namespace GwentAccess
 {
     /// <summary>
-    /// The module entry: what Plugin.Load used to do before the host/module split. <see cref="Load"/> boots speech,
+    /// The module entry. <see cref="Load"/> boots speech,
     /// the hotkey thread and the Harmony patches; <see cref="Tick"/> is the per-frame work; <see cref="Dispose"/>
     /// undoes every hook so the next generation can take over (see <see cref="IModModule"/>).
     /// </summary>
@@ -16,12 +16,17 @@ namespace GwentAccess
 #if DEBUG
             Speech.Observer = Dev.DevServer.TapSpeech; // before the first Say, so /speech sees it
 #endif
+            ModConfig.Load();
+            Loc.Refresh(); // the mod's language, before the first line (English if the game hasn't set one yet)
+            // Currency icons drawn in texts ("COST: <sprite name=ScrapsNeg> -200") are named: "COST: -200 Scraps".
+            Ui.CrimsonNodes.RichText = Ui.Currency.Caption;
             bool first = ModuleLoader.Generation == 1;
             if (Speech.Init())
                 Speech.Say(first
-                    ? "Gwent Access loaded. F3 and F2 move, F4 clicks, F1 card details, F6 keys, F8 reads the screen."
-                    : "Gwent Access reloaded.");
+                    ? Loc.T("{0} {1} loaded. Press F1 for help.", Plugin.Name, Plugin.Version)
+                    : Loc.T("{0} reloaded.", Plugin.Name));
             Hotkeys.Start();
+            KeyGlyphs.Install();
 
             // Per-generation id: Dispose unpatches by id, and a fixed id would also strip a newer generation's
             // patches if an old Dispose ran late. Each class is patched separately so one failure can't disable the mod.
@@ -36,31 +41,57 @@ namespace GwentAccess
             Plugin.LogInfo("Patches applied: " + ok + ", failed: " + bad);
 
             Ui.ScreenManager.Register(new Ui.MainMenuScreen());
+            Ui.ScreenManager.Register(new Ui.MatchmakingScreen());
             Ui.ScreenManager.Register(new Ui.SettingsScreen());
             Ui.ScreenManager.Register(new Ui.BattleScreen());
             Ui.ScreenManager.Register(new Ui.MulliganScreen());
             Ui.ScreenManager.Register(new Ui.ChoiceScreen());
+            Ui.ScreenManager.Register(new Ui.EmoteScreen());
+            Ui.ScreenManager.Register(new Ui.PileScreen());
+            Ui.ScreenManager.Register(new Ui.LogScreen());
             Ui.ScreenManager.Register(new Ui.RewardBookScreen());
             Ui.ScreenManager.Register(new Ui.ShopScreen());
+            Ui.ScreenManager.Register(new Ui.ProductPreviewScreen());
+            Ui.ScreenManager.Register(new Ui.GiftScreen());
             Ui.ScreenManager.Register(new Ui.KegOpeningScreen());
             Ui.ScreenManager.Register(new Ui.ProfileScreen());
+            Ui.ScreenManager.Register(new Ui.ShowcasePickerScreen());
             Ui.ScreenManager.Register(new Ui.ContactsScreen());
             Ui.ScreenManager.Register(new Ui.QuestsScreen());
+            Ui.ScreenManager.Register(new Ui.SideWindowScreen());
             Ui.ScreenManager.Register(new Ui.DailyLoginScreen());
             Ui.ScreenManager.Register(new Ui.InviteScreen());
             Ui.ScreenManager.Register(new Ui.StarterDeckScreen());
             Ui.ScreenManager.Register(new Ui.MillSparesScreen());
             Ui.ScreenManager.Register(new Ui.DeckBuilderScreen());
-            Ui.ScreenManager.Register(new Ui.CardPreviewScreen());
+            Ui.ScreenManager.Register(new Ui.DraftScreen());
+            Ui.ScreenManager.Register(new Ui.DraftLobbyScreen());
+            Ui.ScreenManager.Register(new Ui.DraftDeckScreen());
+            Ui.ScreenManager.Register(new Ui.NewDeckScreen());
+            Ui.ScreenManager.Register(new Ui.CycleScreen());
+            Ui.ScreenManager.Register(new Ui.CycleRerollScreen());
+            Ui.ScreenManager.Register(new Ui.JourneyScreen());
+            Ui.ScreenManager.Register(new Ui.JourneyStoryScreen());
+            Ui.ScreenManager.Register(new Ui.WhatsNewScreen());
+            Ui.ScreenManager.Register(new Ui.LeaderboardScreen());
+            Ui.ScreenManager.Register(new Ui.SeasonTransitionScreen());
             Ui.ScreenManager.Register(new Ui.TutorialPanelScreen());
             Ui.ScreenManager.Register(new Ui.RewardPopupScreen());
+            Ui.ScreenManager.Register(new Ui.CardPreviewScreen());
             Ui.ScreenManager.Register(new Ui.PopupScreen());
             Ui.ScreenManager.Register(new Ui.BattleResultsScreen());
+            Ui.ScreenManager.Register(new Ui.VersusScreen());
+            Ui.ScreenManager.Register(new Ui.HelpScreen());
+            Ui.ScreenManager.Register(new Ui.PanelScreen());
         }
 
         public void Tick()
         {
-            BattleWatcher.Tick();
+            if (!ModSwitch.On) return; // F8 switched the mod off: the game runs as without it
+            ModConfig.Tick();
+            Loc.Tick();
+            TurnTimer.Tick();
+            ControllerMode.Tick();
             Narrator.Tick();
             Ui.ScreenManager.Tick();
             Ui.GraphNavigator.Tick();
@@ -72,6 +103,7 @@ namespace GwentAccess
             try { Ui.GraphNavigator.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] navigator: " + e); }
             try { Ui.ScreenManager.Reset(); } catch (Exception e) { Plugin.LogError("[dispose] screens: " + e); }
             try { Hotkeys.Stop(); } catch (Exception e) { Plugin.LogError("[dispose] hotkeys: " + e); }
+            KeyGlyphs.Uninstall();
             try { _harmony?.UnpatchSelf(); } catch (Exception e) { Plugin.LogError("[dispose] harmony: " + e); }
             _harmony = null;
 #if DEBUG

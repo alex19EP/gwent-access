@@ -9,9 +9,11 @@ using UnityEngine;
 namespace GwentAccess.Ui
 {
     /// <summary>
-    /// The collection's full card preview (<see cref="UICardPreview"/>, run by DBPreviewState): opened from the
-    /// deck builder's grid (Enter on a card), it shows the card large with its text, and the crafting bar
-    /// ("Создать: -800", "В жернова: +200", "Преобразовать: -800", "Назад"). Its arrows walk the grid's cards.
+    /// The full card preview (<see cref="UICardPreview"/>): the collection's (run by DBPreviewState, opened from
+    /// the deck builder's grid by Enter on a card), and the same preview opened anywhere else outside a match (a
+    /// reward, a keg's card, the shop, the profile, the journey). It shows the card large with its text, and a
+    /// bar: in the collection the crafting bar ("Создать: -800", "В жернова: +200", "Преобразовать: -800",
+    /// "Назад"), elsewhere just Back. Its arrows walk the cards it was opened from.
     ///
     /// - Card: the card's lines, one node each, as the preview shows them: the card reader's summary (name,
     ///   power, provisions), then the categories, the ability text, each keyword explanation, the flavour text
@@ -22,33 +24,40 @@ namespace GwentAccess.Ui
     /// - Left/Right: the previous / next card, through the preview's own arrow handlers (silent at the ends,
     ///   where the game shows no arrow). The new card's first line is spoken.
     ///
-    /// Only the collection's preview (the one with a crafting component) for now: the battle's preview shares
-    /// the class but not the bar, and the battle screen reads cards its own way.
+    /// Not during a match: the battle's preview shares the class, and the battle screen reads cards its own way.
+    /// The collection's preview sits on layer 1, over the deck builder and under the new-player flow's tutorial
+    /// panels; any other on layer 2, over the screen it was opened from (a reward popup on the same input
+    /// layer), registered after the reward popup so it wins the tie.
     /// </summary>
     internal sealed class CardPreviewScreen : Screen
     {
         public override string Key => "card-preview";
-        public override int Layer => 1;
+        public override int Layer => Collection(CrimsonNodes.ActivePanel<UICardPreview>()) ? 1 : 2;
         public override bool ReturnsToOpener => false;
 
         public override bool IsActive() => Preview() != null;
 
-        // The preview, when the input layer that has the input holds it and it carries the crafting component.
+        // The preview, when the input layer that has the input holds it: the collection's (it carries the crafting
+        // component), or, outside a match, any other.
         private static UICardPreview Preview()
         {
-            var layer = CrimsonInputManager.Instance?.ActiveLayer;
-            if (layer == null) return null;
-            var attached = layer.GetAttachedControls();
-            for (int i = 0; i < attached.Count; i++)
+            var p = CrimsonNodes.ActivePanel<UICardPreview>();
+            if (p == null) return null;
+            if (Collection(p)) return p;
+            if (Battle.Controller() != null) return null;
+            var v = p.Visibility;
+            return v == CrimsonUIBehaviour.EVisibility.Shown || v == CrimsonUIBehaviour.EVisibility.Showing ? p : null;
+        }
+
+        // The collection's preview: the one carrying the crafting component.
+        private static bool Collection(UICardPreview p)
+        {
+            try
             {
-                var c = attached[i];
-                if (c == null || !c.gameObject.activeInHierarchy) continue;
-                var p = c.TryCast<UICardPreview>();
-                if (p == null) continue;
-                var crafter = p.CraftingComponent;
-                return crafter != null && crafter.gameObject.activeInHierarchy ? p : null;
+                var crafter = p?.CraftingComponent;
+                return crafter != null && crafter.gameObject.activeInHierarchy;
             }
-            return null;
+            catch { return false; }
         }
 
         private static GwentGameplay.Card CurrentCard(UICardPreview p)
@@ -96,8 +105,9 @@ namespace GwentAccess.Ui
 
         private static ControlId LineId(string cardKey, int i) => ControlId.Structural("preview:" + cardKey + ":" + i);
 
-        // The card's lines: the reader's summary, then the preview's own texts in order (categories, ability,
-        // keywords, flavour), the artist last.
+        // The card's lines: the reader's summary, then the preview's own texts, what the card does before what
+        // it is (Hearthstone Access's order, as the battle's card lines read): ability, categories, keywords,
+        // flavour, the artist last.
         private static List<string> Lines(UICardPreview p)
         {
             var lines = new List<string>();
@@ -107,12 +117,19 @@ namespace GwentAccess.Ui
 
             var details = p.transform.Find(Details);
             if (details != null)
+            {
+                string categories = null;
                 foreach (var t in details.GetComponentsInChildren<TMPro.TMP_Text>(false))
                 {
                     string n = t.gameObject.name;
                     if (n == "Name" || n == "Value") continue; // in the summary
+                    if (n == "Categories") { categories = UiText.Clean(t.text); continue; }
+                    // The categories go after the ability, before the flavour.
+                    if (n == "FlavorText" && categories != null) { Add(lines, categories); categories = null; }
                     Add(lines, UiText.Clean(t.text));
                 }
+                if (categories != null) Add(lines, categories);
+            }
             var keywords = p.transform.Find("Content/SafeArea/CardInformation/Keywords");
             if (keywords != null)
                 foreach (var t in keywords.GetComponentsInChildren<TMPro.TMP_Text>(false)) Add(lines, UiText.Clean(t.text));
@@ -130,19 +147,7 @@ namespace GwentAccess.Ui
         // the container's own callback. Glyph labels are key hints.
         private static List<AControl> BarButtons(UICardPreview p)
         {
-            var list = new List<AControl>();
-            foreach (var bar in p.GetComponentsInChildren<InputButtonContainer>(false))
-            {
-                var children = bar.GetChildren();
-                for (int i = 0; i < children.Count; i++)
-                {
-                    var c = children[i];
-                    if (c == null || !c.gameObject.activeInHierarchy || c.TryCast<ButtonControl>() == null) continue;
-                    if (CrimsonNodes.Texts(c).Count == 0) continue;
-                    list.Add(c);
-                }
-            }
-            return list;
+            return CrimsonNodes.BarButtons(p);
         }
 
         private static string Caption(AControl c)
@@ -158,13 +163,13 @@ namespace GwentAccess.Ui
 
         // ---- previous / next card ----
 
-        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys;
-
-        private static readonly ScreenKey[] _keys =
+        public override IReadOnlyList<ScreenKey> ExtraKeys => _keys ??= new[]
         {
-            new ScreenKey { Key = KeyCode.LeftArrow, Run = () => Step(-1), Hint = "Left, previous card" },
-            new ScreenKey { Key = KeyCode.RightArrow, Run = () => Step(1), Hint = "Right, next card" },
+            new ScreenKey { Key = KeyCode.LeftArrow, Run = () => Step(-1), Hint = Loc.T("Left, previous card") },
+            new ScreenKey { Key = KeyCode.RightArrow, Run = () => Step(1), Hint = Loc.T("Right, next card") },
         };
+
+        private static ScreenKey[] _keys;
 
         private static void Step(int dir)
         {

@@ -21,14 +21,14 @@ namespace GwentAccess
         /// <summary>What to say for a selected control. Switcher rows become "Setting name: value".</summary>
         private static readonly Dictionary<string, string> ValuePrefixes = new Dictionary<string, string>
         {
-            { "Gold", "Ore" },
-            { "Gems", "Meteorite powder" },
-            { "Scraps", "Scraps" },
-            { "RewardPoints", "Reward points" },
-            { "KegAndPacks", "Kegs" },
-            { "CardCount", "Cards in deck" },
-            { "UnitCount", "Units in deck" },
-            { "ProvisionCount", "Provisions" },
+            { "Gold", Loc.Mark("Ore") },
+            { "Gems", Loc.Mark("Meteorite powder") },
+            { "Scraps", Loc.Mark("Scraps") },
+            { "RewardPoints", Loc.Mark("Reward points") },
+            { "KegAndPacks", Loc.Mark("Kegs") },
+            { "CardCount", Loc.Mark("Cards in deck") },
+            { "UnitCount", Loc.Mark("Units in deck") },
+            { "ProvisionCount", Loc.Mark("Provisions") },
         };
 
         public static string DescribeSelection(AControl c)
@@ -36,35 +36,29 @@ namespace GwentAccess
             string objName = c.gameObject.name.Replace("(Clone)", "");
             string typeName = "";
             try { typeName = c.GetIl2CppType().Name; } catch { }
-            if (ValuePrefixes.TryGetValue(objName, out var prefix)) return prefix + ": " + Describe(c);
-            if (typeName == "UIPlayerLevel") return "Level " + Describe(c);
-            if (typeName == "UIJourneyLevel") return "Journey level " + Describe(c);
-            if (typeName == "UIOuroborosLevelView") return "Season cycle level " + Describe(c);
+            if (ValuePrefixes.TryGetValue(objName, out var prefix)) return Loc.T(prefix) + ": " + Describe(c);
+            if (typeName == "UIPlayerLevel") return Loc.T("Level {0}", Describe(c));
+            if (typeName == "UIJourneyLevel") return Loc.T("Journey level {0}", Describe(c));
+            if (typeName == "UIOuroborosLevelView") return Loc.T("Season cycle level {0}", Describe(c));
             // Shop: say which currency a price is in.
             if (objName == "Button_ShopBuy")
             {
                 string t = Describe(c);
-                if (t.Contains("$") || t.Contains("€") || t.Contains("£") || t.ToLowerInvariant().Contains("steam")) return t + ". Real money";
-                return t + " Ore. Control B buys";
-            }
-            if (objName == "ProductTile")
-            {
-                string t = Describe(c);
-                if (!t.Contains("$")) t = t.Replace(", ", " for ") + " Ore";
-                return t + ". Then Control B to buy";
+                if (t.Contains("$") || t.Contains("€") || t.Contains("£") || t.ToLowerInvariant().Contains("steam")) return Loc.T("{0}. Real money", t);
+                return t;
             }
             if ((objName == "ButtonControlLeft" || objName == "ButtonControlRight") && UiText.DebugPath(c).Contains("QuantityControl"))
-                return objName == "ButtonControlLeft" ? "Fewer" : "More";
+                return objName == "ButtonControlLeft" ? Loc.T("Fewer") : Loc.T("More");
             if (objName == "ProfileButton" && c.transform.parent != null && c.transform.parent.gameObject.name.StartsWith("PlayerRecordRow"))
             {
                 var parts = new List<string>();
                 var seen = new HashSet<string>();
                 foreach (var t in c.transform.parent.GetComponentsInChildren<TMPro.TMP_Text>(false)) Add(parts, seen, t.text);
                 parts.Remove("Profile");
-                if (parts.Count >= 4) return "Rank " + parts[0] + ", " + string.Join(", ", parts.Skip(3)) + ", MMR " + parts[1] + ", level " + parts[2] + ". Enter for profile";
+                if (parts.Count >= 4) return Loc.T("Rank {0}, {1}, MMR {2}, level {3}. Enter for profile", parts[0], string.Join(", ", parts.Skip(3)), parts[1], parts[2]);
                 return string.Join(", ", parts);
             }
-            if (KnownNames.TryGetValue(objName, out var known)) return known;
+            if (KnownNames.TryGetValue(objName, out var known)) return Loc.T(known);
             string setting = SettingText(c);
             if (setting != null) return setting;
 #if GWENT
@@ -72,7 +66,7 @@ namespace GwentAccess
             {
                 var deckBtn = c.TryCast<GwentVisuals.UIDeckButtonControl>();
                 if (deckBtn != null && DeckBuilder.List != null)
-                    return Describe(c) + ". Enter opens it, Control U duplicates, Control N renames";
+                    return Describe(c);
             }
             catch { }
             var card = CardText.CardOf(c);
@@ -82,12 +76,12 @@ namespace GwentAccess
                 try
                 {
                     var dc = c.TryCast<GwentVisuals.UIDeckCardButtonControl>() ?? c.GetComponentInParent<GwentVisuals.UIDeckCardButtonControl>();
-                    if (dc != null) { extra = dc.Count > 1 ? ", " + dc.Count + " copies in deck" : ", in deck"; }
+                    if (dc != null) { extra = dc.Count > 1 ? ", " + Loc.P(dc.Count, "{0} copy in deck", "{0} copies in deck") : ", " + Loc.T("in deck"); }
                     else if (DeckBuilder.Active)
                     {
                         var cc = DeckBuilder.CollectionCardOf(c, out _);
                         var d = DeckBuilder.Deck();
-                        if (cc != null && d != null) { int n = d.GetCardCount(cc); int own = cc.GetInstanceCount(); extra = (n > 0 ? ", " + n + " in deck" : "") + ", you own " + own; }
+                        if (cc != null && d != null) { int n = d.GetCardCount(cc); int own = cc.GetInstanceCount(); extra = (n > 0 ? ", " + Loc.T("{0} in deck", n) : "") + ", " + Loc.T("you own {0}", own); }
                     }
                 }
                 catch { }
@@ -97,14 +91,14 @@ namespace GwentAccess
             if (node != null) return node;
 
             if (typeName == "SocialButton")
-                return SocialIconsPatch.Names.TryGetValue(c.Pointer, out var sn) ? sn : "Social panel button " + (c.transform.GetSiblingIndex() + 1);
+                return SocialIconsPatch.Names.TryGetValue(c.Pointer, out var sn) ? sn : Loc.T("Social panel button {0}", c.transform.GetSiblingIndex() + 1);
 #endif
             string value = Describe(c);
             if (value == "Button Control" || value == "Toggle Button Control")
             {
                 // Unlabeled button: try the parent object's name for a hint.
                 string pn = c.transform.parent != null ? FriendlyName(c.transform.parent.gameObject.name) : "";
-                value = pn.Length > 0 ? pn + " button" : "Unlabeled button";
+                value = pn.Length > 0 ? Loc.T("{0} button", pn) : Loc.T("Unlabeled button");
             }
             Switcher sw = null;
             try { sw = c.GetComponentInParent<Switcher>(); } catch { }
@@ -116,30 +110,6 @@ namespace GwentAccess
             return value;
         }
 
-        /// <summary>
-        /// The "body" text of a screen: text that isn't a button or a label sitting next to a control.
-        /// E.g. the tutorial's "Welcome to Gwent! During three short battles...".
-        /// </summary>
-        public static string BodyText(Component panel, int maxChars)
-        {
-            var parts = new List<string>();
-            var seen = new HashSet<string>();
-            foreach (var t in panel.GetComponentsInChildren<TMPro.TMP_Text>(false))
-            {
-                try
-                {
-                    var ctl = t.GetComponentInParent<AControl>();
-                    if (ctl != null && ctl.IsSelectable) continue;
-                    string c = Clean(t.text);
-                    if (c.Contains("support ID") || c.StartsWith("Game version")) continue;
-                    Add(parts, seen, t.text);
-                }
-                catch { }
-            }
-            string all = string.Join(". ", parts);
-            if (all.Length > maxChars) all = all.Substring(0, maxChars);
-            return all;
-        }
 
         /// <summary>A settings row (e.g. "Music volume: 80. Left or right arrow to change"), or null if c isn't in one.</summary>
         public static string SettingText(AControl c)
@@ -155,7 +125,7 @@ namespace GwentAccess
             string value = "";
             try { if (sw != null) value = Describe(sw, 3); } catch { }
             if (value.Length == 0) try { value = entry.GetCurrentOption() ?? ""; } catch { }
-            return title + ": " + value + ". Left or right arrow to change";
+            return Loc.T("{0}: {1}. Left or right arrow to change", title, value);
         }
 
         /// <summary>Text in a switcher's row that isn't part of the switcher itself (the setting's name).</summary>
@@ -217,8 +187,43 @@ namespace GwentAccess
         }
 
         private static readonly System.Text.RegularExpressions.Regex Spaces = new System.Text.RegularExpressions.Regex(@"\s+");
+        private static readonly System.Text.RegularExpressions.Regex Counter = new System.Text.RegularExpressions.Regex(@"(?<![\d/])(\d+)\s*/\s*(\d+)(?![\d/])");
+
+        // <sprite="[PC]" name=Action_Preview>, <sprite name="ScrapsNeg">: the sprite asset (quoted or not, may be
+        // absent) and the sprite's name.
+        private static readonly System.Text.RegularExpressions.Regex SpriteTag = new System.Text.RegularExpressions.Regex(
+            @"<sprite(?:=""?(?<asset>[^"" >]*)""?)?[^>]*?\bname=""?(?<name>[^"" >]+)""?[^>]*>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>Names an inline sprite (asset, sprite name) in words, or null to drop it as decoration. Set by
+        /// a game module (Gwent: <c>KeyGlyphs</c>, which names input glyphs by the mod's or the controller's key).</summary>
+        public static Func<string, string, string> SpriteWords = null;
         private static readonly System.Text.RegularExpressions.Regex SpaceBeforeClose = new System.Text.RegularExpressions.Regex(@" ([.,:;!?)»])");
         private static readonly System.Text.RegularExpressions.Regex SpaceAfterOpen = new System.Text.RegularExpressions.Regex(@"([(«]) ");
+
+        /// <summary>The parts that have words, joined with commas: "Level 2, 40 Ore".</summary>
+        public static string Join(params string[] parts)
+        {
+            var list = new List<string>();
+            foreach (var s in parts) if (!string.IsNullOrEmpty(s)) list.Add(s);
+            return string.Join(", ", list);
+        }
+
+        public static string NullIfEmpty(string s) => string.IsNullOrEmpty(s) ? null : s;
+
+        private static readonly System.Text.RegularExpressions.Regex BareCounter =
+            new System.Text.RegularExpressions.Regex(@"^(\d+)\s+\D{1,6}\s+(\d+)(?:\s+(?<unit>\p{L}{1,8}))?$");
+
+        /// <summary>A progress bar's counter alone ("7/142", which <see cref="Clean"/> made "7 of 142"; "173 of
+        /// 225 XP" with its unit) said as progress, as the quests say theirs: "General, progress 7 of 142, 2 of
+        /// 11", not two positions in a row. Any other text comes back as it is.</summary>
+        public static string AsProgress(string s)
+        {
+            var m = BareCounter.Match(s ?? "");
+            if (!m.Success) return s;
+            string said = Loc.T("progress {0} of {1}", m.Groups[1].Value, m.Groups[2].Value);
+            return m.Groups["unit"].Success ? said + " " + m.Groups["unit"].Value : said;
+        }
 
         /// <summary>Strip rich-text tags like &lt;color&gt; and sprite markers. A tag becomes a space (it may
         /// separate two words), which is then dropped again before closing punctuation and after an opening
@@ -226,6 +231,18 @@ namespace GwentAccess
         public static string Clean(string s)
         {
             if (string.IsNullOrEmpty(s)) return "";
+            // Some translation strings carry escaped line breaks as the two characters '\' 'n' (the new-player
+            // intro's "minutes.\n\nIf you..."); TextMeshPro draws them as breaks, a screen reader would say them.
+            if (s.IndexOf('\\') >= 0) s = s.Replace("\\r", " ").Replace("\\n", " ");
+            // An input glyph drawn inline ("Take a look by using <sprite="[PC]" name=Action_Preview>") is a key the
+            // sentence depends on: the game's resolver names it, before the tags are stripped.
+            if (SpriteWords != null && s.IndexOf("<sprite", StringComparison.OrdinalIgnoreCase) >= 0)
+                s = SpriteTag.Replace(s, m =>
+                {
+                    string words = null;
+                    try { words = SpriteWords(m.Groups["asset"].Value, m.Groups["name"].Value); } catch { }
+                    return string.IsNullOrEmpty(words) ? m.Value : " " + words + " ";
+                });
             var sb = new StringBuilder(s.Length);
             bool inTag = false;
             foreach (char ch in s)
@@ -236,6 +253,9 @@ namespace GwentAccess
                 if (!inTag) sb.Append(ch);
             }
             string t = Spaces.Replace(sb.ToString(), " ").Trim();
+            // A counter drawn as "0/3" (quests, hand size) reads "0 of 3": a screen reader says "slash" otherwise.
+            // Not inside longer runs like a date ("1/2/2026").
+            t = Counter.Replace(t, "$1 of $2");
             t = SpaceBeforeClose.Replace(t, "$1");
             return SpaceAfterOpen.Replace(t, "$1");
         }
@@ -254,7 +274,7 @@ namespace GwentAccess
                     if (l.Contains("button-") || l.Contains("idle") || l.Contains("hovered") || l.Contains("frame") || l.Contains("bg") || l.Contains("background") || l.Contains("glow") || l.Contains("shadow") || l.Contains("highlight") || l.Contains("mask") || l.StartsWith("ui_"))
                         continue;
                     string pretty = Prettify(n.Replace("icon", "").Replace("Icon", "").Replace("ico_", ""));
-                    if (pretty.StartsWith("reward page tab")) pretty = "Reward book tab: " + pretty.Substring("reward page tab".Length).Trim();
+                    if (pretty.StartsWith("reward page tab")) pretty = Loc.T("Reward book tab: {0}", pretty.Substring("reward page tab".Length).Trim());
                     return pretty;
                 }
             }
@@ -264,35 +284,28 @@ namespace GwentAccess
 
         private static readonly Dictionary<string, string> KnownNames = new Dictionary<string, string>
         {
-            { "FTUXSettings", "Settings" },
-            { "ButtonLeaderboards", "Leaderboards" },
-            { "ButtonRewards", "Rewards" },
-            { "WelcomeScreen", "Welcome screen and tutorials" },
-            { "ButtonQuit", "Quit game" },
-            { "ButtonFactionInfo", "Faction info" },
-            { "ButtonSettings", "Settings" },
-            { "ProfileButton", "Profile" },
-            { "CosmeticsButton", "Cosmetics" },
-            { "PlayerTitleButton", "Player title" },
-            { "Collider", "News" },
-            { "SkinImage", "Leader skin preview" },
+            { "FTUXSettings", Loc.Mark("Settings") },
+            { "ButtonLeaderboards", Loc.Mark("Leaderboards") },
+            { "ButtonRewards", Loc.Mark("Rewards") },
+            { "WelcomeScreen", Loc.Mark("Welcome screen and tutorials") },
+            { "ButtonQuit", Loc.Mark("Quit game") },
+            { "ButtonFactionInfo", Loc.Mark("Faction info") },
+            { "ButtonSettings", Loc.Mark("Settings") },
+            { "ProfileButton", Loc.Mark("Profile") },
+            { "CosmeticsButton", Loc.Mark("Cosmetics") },
+            { "PlayerTitleButton", Loc.Mark("Player title") },
+            { "Collider", Loc.Mark("News") },
+            { "SkinImage", Loc.Mark("Leader skin preview") },
         };
 
         public static string FriendlyName(string name)
         {
-            if (name != null && KnownNames.TryGetValue(name.Replace("(Clone)", ""), out var n)) return n;
+            if (name != null && KnownNames.TryGetValue(name.Replace("(Clone)", ""), out var n)) return Loc.T(n);
             string p = Prettify(name);
             if (p.StartsWith("FTUX")) p = p.Substring(4).Trim();
             return p;
         }
 
-        /// <summary>Panels that are just decoration/overlays and shouldn't be announced.</summary>
-        public static bool LooksLikeNoise(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return true;
-            string n = name.ToLowerInvariant();
-            return n.Contains("tooltip") || n.Contains("loading") || n.Contains("cursor") || n.Contains("overlay") || n.Contains("background");
-        }
 
         /// <summary>Turn object names like "Btn_PlayButton" into "Play Button" as a fallback.</summary>
         public static string Prettify(string name)
