@@ -20,7 +20,12 @@
     The Gwent folder. Defaults to GWENT_DIR (which `just` loads from .env), else the default Steam path.
 
 .PARAMETER Push
-    After packing, push the .nupkg to GitHub Packages under alex19EP. Requires -ApiKey.
+    After packing, push the .nupkg to GitHub Packages under -Owner. Requires -ApiKey.
+
+.PARAMETER Owner
+    The GitHub account whose package feed receives the push, and whose gwent-access repository the package is
+    linked to (the link lets that repository's CI GITHUB_TOKEN read it). Defaults to alex19EP; a fork's owner
+    publishes under their own name, since CI reads the feed of the account it runs under.
 
 .PARAMETER ApiKey
     A GitHub PAT with the write:packages scope. Only needed with -Push. Defaults to GH_PACKAGES_TOKEN.
@@ -34,6 +39,7 @@ param(
     [string]$Version = (Get-Date -Format 'yyyy.M.d'),
     [string]$GwentDir = $(if ($env:GWENT_DIR) { $env:GWENT_DIR } else { 'C:\Program Files (x86)\Steam\steamapps\common\GWENT The Witcher Card Game' }),
     [switch]$Push,
+    [string]$Owner = 'alex19EP',
     [string]$ApiKey = $env:GH_PACKAGES_TOKEN
 )
 $ErrorActionPreference = 'Stop'
@@ -87,7 +93,7 @@ $counts = foreach ($pair in @(@("$core/*.dll", $coreOut), @("$interop/*.dll", $i
 Write-Host ('Refasmed {0} core + {1} interop assemblies' -f $counts[0], $counts[1])
 
 Write-Host "Packing Gwent.GameRefs $Version ..."
-dotnet pack (Join-Path $pkgDir 'Gwent.GameRefs.csproj') -o $outDir "-p:Version=$Version" -v:m
+dotnet pack (Join-Path $pkgDir 'Gwent.GameRefs.csproj') -o $outDir "-p:Version=$Version" "-p:RepositoryUrl=https://github.com/$Owner/gwent-access" -v:m
 if ($LASTEXITCODE) { throw "dotnet pack failed ($LASTEXITCODE)" }
 
 $nupkg = Get-ChildItem "$outDir/*.nupkg" | Select-Object -First 1
@@ -95,8 +101,8 @@ Write-Host ("Built {0} ({1:N1} MB)" -f $nupkg.Name, ($nupkg.Length/1MB)) -Foregr
 
 if ($Push) {
     if (-not $ApiKey) { throw '-Push needs a token: pass -ApiKey, or set GH_PACKAGES_TOKEN (a write:packages PAT) in .env' }
-    Write-Host 'Pushing to GitHub Packages (alex19EP)...'
-    dotnet nuget push $nupkg.FullName --source 'https://nuget.pkg.github.com/alex19EP/index.json' --api-key $ApiKey
+    Write-Host "Pushing to GitHub Packages ($Owner)..."
+    dotnet nuget push $nupkg.FullName --source "https://nuget.pkg.github.com/$Owner/index.json" --api-key $ApiKey
     if ($LASTEXITCODE) { throw "nuget push failed ($LASTEXITCODE)" }
     Write-Host 'Pushed. Make the package public (or grant the repo access) so the CI GITHUB_TOKEN can read it.' -ForegroundColor Yellow
 }
